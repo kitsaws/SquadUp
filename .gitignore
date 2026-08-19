@@ -6,3 +6,14 @@ dist
 *.local
 coverage
 *.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
