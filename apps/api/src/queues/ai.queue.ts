@@ -37,8 +37,19 @@ export const aiWorker = new Worker(
       console.log(`[Job ${job.id}] Successfully parsed resume for user: ${userId}`);
       
       // Save the result to the database
-      const profile = await prisma.profile.create({
-        data: {
+      const profile = await prisma.profile.upsert({
+        where: { userId: userId },
+        update: {
+          title: profileData.title,
+          summary: profileData.summary,
+          skills: profileData.skills || [],
+          education: profileData.education || [],
+          experience: profileData.experience || [],
+          projects: profileData.projects || [],
+          githubUrl: profileData.links?.github,
+          linkedinUrl: profileData.links?.linkedin,
+        },
+        create: {
           userId,
           title: profileData.title,
           summary: profileData.summary,
@@ -48,7 +59,6 @@ export const aiWorker = new Worker(
           projects: profileData.projects || [],
           githubUrl: profileData.links?.github,
           linkedinUrl: profileData.links?.linkedin,
-          // We will handle embeddings in a later phase or another job
         }
       });
       

@@ -1,76 +1,37 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import multer from "multer";
-import { aiQueue, aiWorker } from "./queues/ai.queue";
 import type { Event, Team, User } from "@squadup/shared";
+
+// Routes
+import resumeRoutes from "./routes/resume.routes";
+import webhookRoutes from "./routes/webhook.routes";
+import profileRoutes from "./routes/profile.routes";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
-const upload = multer(); // Memory storage for files
 
+// Middleware
 app.use(helmet());
 app.use(cors());
+import { clerkMiddleware } from "@clerk/express";
+app.use(clerkMiddleware());
+
+// Webhook routes MUST come before express.json() so they can parse raw bodies
+app.use("/api/webhooks", webhookRoutes);
+
 app.use(express.json());
 
+// API Routes
+app.use("/api/resume", resumeRoutes);
+app.use("/api/profile", profileRoutes);
+
+// General Endpoints
 app.get("/health", (_request, response) => {
   response.status(200).json({
     status: "ok",
     service: "squadup-api"
   });
-});
-
-// Upload resume and add to BullMQ queue
-app.post("/api/resume/upload", upload.single("file"), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: "No file uploaded" });
-  }
-
-  // Assuming user auth is implemented and we get userId from req.user
-  const userId = "temp-user-id"; 
-  const fileBuffer = req.file.buffer.toString("base64");
-  const filename = req.file.originalname;
-
-  try {
-    const job = await aiQueue.add("parse-resume", {
-      userId,
-      fileBuffer,
-      filename
-    });
-    
-    return res.status(202).json({ 
-      message: "Resume uploaded successfully and added to processing queue.",
-      jobId: job.id 
-    });
-  } catch (error) {
-    console.error("Queue error:", error);
-    return res.status(500).json({ error: "Failed to queue resume for processing" });
-  }
-});
-
-// Polling endpoint to check status of the AI Job
-app.get("/api/resume/status/:jobId", async (req, res) => {
-  const { jobId } = req.params;
-  
-  try {
-    const job = await aiQueue.getJob(jobId);
-    if (!job) {
-      return res.status(404).json({ error: "Job not found" });
-    }
-
-    const state = await job.getState();
-    const result = job.returnvalue;
-    const failedReason = job.failedReason;
-
-    return res.json({
-      jobId,
-      state, // 'waiting', 'active', 'completed', 'failed', etc.
-      result: state === 'completed' ? result : null,
-      error: state === 'failed' ? failedReason : null
-    });
-  } catch (error) {
-    return res.status(500).json({ error: "Failed to fetch job status" });
-  }
 });
 
 app.get("/example", (_request, response) => {
