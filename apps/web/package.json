@@ -11,15 +11,21 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
+    "@clerk/react": "^6.14.4",
     "@squadup/shared": "workspace:*",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-router": "^8.3.0",
+    "react-router-dom": "^7.18.2",
+    "react-toastify": "^11.1.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.4.1",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.1.5",
     "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.4.1",
     "rimraf": "^6.0.1",
+    "tailwindcss": "^4.3.3",
     "vite": "^6.3.5"
   }
 }
