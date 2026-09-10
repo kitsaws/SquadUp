@@ -54,13 +54,13 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
 
     try {
       await prisma.user.upsert({
-        where: { id: id },
+        where: { clerkId: id },
         update: {
           email,
           name,
         },
         create: {
-          id, // Use Clerk's ID as our Postgres ID
+          clerkId: id,
           email,
           name,
         },
@@ -75,7 +75,7 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
   if (eventType === "user.deleted") {
     try {
       await prisma.user.delete({
-        where: { id: id },
+        where: { clerkId: id },
       });
       console.log(`Deleted user ${id} from database`);
     } catch (dbError) {

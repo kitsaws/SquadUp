@@ -67,7 +67,7 @@ export function Profile() {
                   <div>
                     <h3 className="text-lg font-bold border-b border-slate-200 pb-2 mb-4 text-slate-800">Education</h3>
                     <div className="space-y-4">
-                      {profileData.education.map((edu: any, i: number) => (
+                      {profileData.education.map((edu, i: number) => (
                         <div key={i}>
                           <h4 className="font-semibold text-slate-900">{edu.college}</h4>
                           <p className="text-sm text-slate-600">{edu.degree}</p>
@@ -83,7 +83,7 @@ export function Profile() {
                   <div>
                     <h3 className="text-lg font-bold border-b border-slate-200 pb-2 mb-4 text-slate-800">Experience</h3>
                     <div className="space-y-6">
-                      {profileData.experience.map((exp: any, i: number) => (
+                      {profileData.experience.map((exp, i: number) => (
                         <div key={i}>
                           <h4 className="font-semibold text-slate-900">{exp.role} @ {exp.company}</h4>
                           <p className="text-sm text-slate-500 mb-2">{exp.duration}</p>
@@ -102,7 +102,7 @@ export function Profile() {
                   <div>
                     <h3 className="text-lg font-bold border-b border-slate-200 pb-2 mb-4 text-slate-800">Projects</h3>
                     <div className="space-y-6">
-                      {profileData.projects.map((proj: any, i: number) => (
+                      {profileData.projects.map((proj, i: number) => (
                         <div key={i}>
                           <h4 className="font-semibold text-slate-900">{proj.name}</h4>
                           <p className="text-sm text-slate-600 mb-2">{proj.description}</p>

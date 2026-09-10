@@ -95,3 +95,52 @@ pnpm run dev
 - **Frontend:** http://localhost:5173
 - **Node API:** http://localhost:3000
 - **Python AI API:** http://localhost:8000
+
+---
+
+## 💻 Terminal Commands Cheat Sheet
+
+This section contains all the essential terminal commands you will need for developing, running, and managing the SquadUp monorepo. 
+
+> **Note**: Unless specified otherwise, all commands should be run from the root of the project.
+
+### 🗄️ Database & Prisma
+All Prisma commands require the environment variables to be loaded. These commands should generally be run from the `apps/api` folder.
+
+```bash
+# Navigate to the API folder first
+cd apps/api
+
+# Push schema changes to the database (after modifying schema.prisma)
+pnpm dotenv -e ../../.env -- npx prisma db push
+
+# Open Prisma Studio (visual database viewer)
+pnpm run db:studio
+
+# Generate Prisma Client (run this if TypeScript throws type errors after a DB push)
+pnpm dotenv -e ../../.env -- npx prisma generate
+```
+
+### 🛡️ TypeScript & Typechecking
+Ensure your monorepo is fully type-safe.
+```bash
+# Run typechecking across all packages and apps (@squadup/shared, api, web)
+pnpm turbo run typecheck
+```
+
+### 📦 Package Management
+How to install dependencies in a Turborepo workspace.
+
+```bash
+# Add a package to the Frontend (web)
+pnpm add <package-name> --filter @squadup/web
+
+# Add a package to the Backend (api)
+pnpm add <package-name> --filter @squadup/api
+
+# Add a package to the Shared types
+pnpm add <package-name> --filter @squadup/shared
+
+# Add a dev dependency (like types)
+pnpm add -D <package-name> --filter <workspace-name>
+```

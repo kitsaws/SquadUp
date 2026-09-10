@@ -1,24 +1,20 @@
 import { Queue, Worker, Job } from 'bullmq';
-import IORedis from 'ioredis';
-import { AIService } from '../services/ai.service';
+import { Redis } from 'ioredis';
+import { AIService } from '../services/ai.service.js';
 import { PrismaClient } from '@prisma/client';
+import { getOrCreateUserByClerkId } from '../utils/auth.utils.js';
 
 const prisma = new PrismaClient();
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+const connection = new Redis(REDIS_URL, { maxRetriesPerRequest: null });
 
 export const QUEUE_NAME = 'ai-tasks';
 
 // 1. Create the Queue
 export const aiQueue = new Queue(QUEUE_NAME, { connection });
 
-// Define the payload structure for our jobs
-export interface ParseResumeJobData {
-  userId: string;
-  fileBuffer: string; // Storing buffer as base64 or sending it differently
-  filename: string;
-}
+import { ParseResumeJobData } from '@squadup/shared';
 
 // 2. Create the Worker that processes jobs
 export const aiWorker = new Worker(
@@ -36,9 +32,12 @@ export const aiWorker = new Worker(
       const profileData = await AIService.parseResume(buffer, filename);
       console.log(`[Job ${job.id}] Successfully parsed resume for user: ${userId}`);
       
+      // Ensure the user exists in our DB to prevent Foreign Key constraints (e.g. if webhook failed)
+      let userInDb = await getOrCreateUserByClerkId(userId);
+
       // Save the result to the database
       const profile = await prisma.profile.upsert({
-        where: { userId: userId },
+        where: { userId: userInDb.id },
         update: {
           title: profileData.title,
           summary: profileData.summary,
@@ -50,7 +49,7 @@ export const aiWorker = new Worker(
           linkedinUrl: profileData.links?.linkedin,
         },
         create: {
-          userId,
+          userId: userInDb.id,
           title: profileData.title,
           summary: profileData.summary,
           skills: profileData.skills || [],

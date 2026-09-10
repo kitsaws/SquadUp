@@ -1,16 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { useAuth } from "@clerk/react";
+import type { ProfileData, ResumeStatusResponse } from "@squadup/shared";
 
 interface JobContextType {
   jobId: string | null;
   status: string | null;
   isUploading: boolean;
-  profileData: any | null;
+  profileData: ProfileData | null;
   setJobId: (id: string | null) => void;
   setStatus: (status: string | null) => void;
   setIsUploading: (uploading: boolean) => void;
-  setProfileData: (data: any | null) => void;
+  setProfileData: (data: ProfileData | null) => void;
   startJob: (jobId: string, token: string) => void;
 }
 
@@ -28,7 +29,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [profileData, setProfileData] = useState<any | null>(null);
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
@@ -81,7 +82,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const res = await fetch(`http://localhost:3000/api/resume/status/${jobId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await res.json();
+        const data = await res.json() as ResumeStatusResponse;
 
         if (data.state === "completed") {
           clearInterval(interval);

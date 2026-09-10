@@ -12,7 +12,7 @@ export class AIService {
    */
   static async parseResume(fileBuffer: Buffer, filename: string): Promise<any> {
     const formData = new FormData();
-    const blob = new Blob([fileBuffer], { type: 'application/pdf' });
+    const blob = new Blob([fileBuffer as any], { type: 'application/pdf' });
     formData.append('file', blob, filename);
 
     try {

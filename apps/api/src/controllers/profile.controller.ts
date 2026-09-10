@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
 import { PrismaClient } from "@prisma/client";
+import { ProfileData } from "@squadup/shared";
+import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
 
 const prisma = new PrismaClient();
 
@@ -17,9 +19,16 @@ export const getProfile = async (req: Request, res: Response) => {
     return res.status(401).json({ error: "Unauthorized", details: auth });
   }
 
+  let userInDb;
+  try {
+    userInDb = await getOrCreateUserByClerkId(userId);
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to verify user profile." });
+  }
+
   try {
     const profile = await prisma.profile.findUnique({
-      where: { userId }
+      where: { userId: userInDb.id }
     });
     
     if (!profile) {

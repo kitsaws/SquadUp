@@ -42,7 +42,7 @@ export function App() {
             </div>
           </Show>
           <Show when="signed-in">
-            <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "w-10 h-10 shadow-sm" } }} />
+            <UserButton appearance={{ elements: { avatarBox: "w-10 h-10 shadow-sm" } }} />
           </Show>
         </div>
       </header>

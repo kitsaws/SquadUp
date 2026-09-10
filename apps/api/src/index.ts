@@ -4,9 +4,11 @@ import helmet from "helmet";
 import type { Event, Team, User } from "@squadup/shared";
 
 // Routes
-import resumeRoutes from "./routes/resume.routes";
-import webhookRoutes from "./routes/webhook.routes";
-import profileRoutes from "./routes/profile.routes";
+import resumeRoutes from "./routes/resume.routes.js";
+import webhookRoutes from "./routes/webhook.routes.js";
+import profileRoutes from "./routes/profile.routes.js";
+import teamRoutes from "./routes/team.routes.js";
+import eventRoutes from "./routes/event.routes.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
@@ -25,6 +27,8 @@ app.use(express.json());
 // API Routes
 app.use("/api/resume", resumeRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/teams", teamRoutes);
+app.use("/api/events", eventRoutes);
 
 // General Endpoints
 app.get("/health", (_request, response) => {
