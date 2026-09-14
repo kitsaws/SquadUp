@@ -27,12 +27,16 @@ PROFILE_SCHEMA = {
             "company": "string",
             "role": "string",
             "duration": "string",
+            "bullet_points": ["string"],
+            "technologies": ["string"],
         }
     ],
     "projects": [
         {
             "name": "string",
             "description": "string",
+            "bullet_points": ["string"],
+            "technologies": ["string"],
         }
     ],
     "links": {
@@ -66,7 +70,11 @@ def generate_profile_data(resume_text: str) -> dict:
         "Extract a professional candidate profile from this resume text.\n\n"
         "Use this exact JSON shape:\n"
         f"{json.dumps(PROFILE_SCHEMA, indent=2)}\n\n"
-        "If a field is missing, use an empty string or empty array.\n\n"
+        "Instructions:\n"
+        "- Extract all explicit technical skills into 'skills'.\n"
+        "- For each project and experience entry, identify the specific programming languages, frameworks, databases, and tools used and populate 'technologies'.\n"
+        "- Split role descriptions into clean concise 'bullet_points'.\n"
+        "- If a field is missing, use an empty string or empty array.\n\n"
         "Resume text:\n"
         f"{resume_text}"
     )
@@ -81,7 +89,7 @@ def generate_profile_data(resume_text: str) -> dict:
         "messages": [
             {
                 "role": "system",
-                "content": "You convert resume text into clean JSON for a candidate profile. Return only valid JSON that matches the requested object shape. Do not wrap it in markdown."
+                "content": "You convert resume text into clean, structured JSON for a technical candidate profile. Accurately identify technical skills, tools, and libraries used in each project and work experience item. Return only valid JSON that matches the requested object shape. Do not wrap it in markdown."
             },
             {
                 "role": "user",

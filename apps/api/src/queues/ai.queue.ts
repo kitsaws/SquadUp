@@ -62,6 +62,31 @@ export const aiWorker = new Worker(
       });
       
       console.log(`[Job ${job.id}] Profile saved to DB with ID: ${profile.id}`);
+
+      // 2. Resolve User Taxonomy with V2 Multi-source Evidence
+      try {
+        const taxonomyData = await AIService.resolveUserTaxonomy(userInDb.id, profileData);
+        console.log(`[Job ${job.id}] Resolved ${taxonomyData.taxonomy_node_ids.length} taxonomy nodes with ${taxonomyData.evidence.length} evidence items`);
+
+        await prisma.userTaxonomy.upsert({
+          where: { userId: userInDb.id },
+          update: {
+            taxonomyNodeIds: taxonomyData.taxonomy_node_ids,
+            rawSkills: taxonomyData.raw_skills,
+            evidence: taxonomyData.evidence as any,
+          },
+          create: {
+            userId: userInDb.id,
+            taxonomyNodeIds: taxonomyData.taxonomy_node_ids,
+            rawSkills: taxonomyData.raw_skills,
+            evidence: taxonomyData.evidence as any,
+          },
+        });
+        console.log(`[Job ${job.id}] Successfully saved UserTaxonomy for user: ${userInDb.id}`);
+      } catch (taxError) {
+        console.error(`[Job ${job.id}] Failed to resolve user taxonomy:`, taxError);
+      }
+      
       return profile;
 
     } catch (error) {

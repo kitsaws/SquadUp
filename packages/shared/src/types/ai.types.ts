@@ -14,12 +14,14 @@ export interface Experience {
   company: string;
   duration: string;
   bullet_points?: string[];
+  technologies?: string[];
 }
 
 export interface Project {
   name: string;
   description: string;
   bullet_points?: string[];
+  technologies?: string[];
 }
 
 export interface ProfileData {

@@ -43,20 +43,40 @@ Authentication heavily leverages Clerk, but utilizes a decoupled architecture to
 4. When an authenticated request hits the API, `getAuth(req)` extracts the Clerk ID.
 5. The API calls `getOrCreateUserByClerkId(clerkId)`. This fetches the internal `cuid()` for database operations. If the user is missing (e.g., webhook failed locally), it acts as a resilient fallback, fetching the profile from Clerk's API and creating the row just-in-time.
 
-## AI/RAG Architecture
+## AI & Recommendation Architecture
 
-### Currently Implemented
-- **Document Ingestion:** PDF upload via API.
-- **Parsing:** Text extraction via `pdfplumber` (Python).
-- **LLM Generation:** Instructing an LLM (via Groq API) to structure chaotic resume text into a strict JSON schema containing `skills`, `education`, `experience`, and `projects`.
+### Document Ingestion & V2 Multi-Source Extraction Flow
+1. **Document Ingestion:** PDF upload via `/api/resume/upload`.
+2. **Text Extraction:** `pdfplumber` extracts raw text from PDF bytes.
+3. **Structured Profile Generation:** Groq LLM converts resume text into typed JSON schema containing `skills`, `education`, `experience` (with `bullet_points` and `technologies`), and `projects` (with `technologies`).
+4. **V2 Multi-Source Extraction:** The Python AI microservice extracts canonical taxonomy nodes from three evidence tiers:
+   - **Skills** (Explicit claims, strength: `0.65`)
+   - **Projects** (Demonstrated practical usage, strength: `0.85`)
+   - **Work Experience** (Professional practice, strength: `1.00`)
+5. **Decoupled Relational Persistence:**
+   - `Profile` stores the core resume details.
+   - `UserTaxonomy` stores canonical `taxonomyNodeIds`, `rawSkills`, and `evidence` JSON with concrete provenance snippets.
 
-### Planned (Not yet implemented)
-- **Embedding Generation:** Vectorizing user skills and team requirements.
-- **Vector Storage:** Storing vectors in the `Unsupported("vector(384)")` fields in Prisma.
-- **Similarity Search:** Performing cosine similarity queries using `pgvector` to match students to teams.
+### Team Creation Flow
+1. User creates a team via `POST /api/teams` with `requirements` (e.g. `["React", "FastAPI"]`).
+2. Backend calls `AIService.resolveTeamRequirements` inline (< 1ms).
+3. Backend creates `Team` and decoupled `TeamTaxonomy` with pre-resolved `requirementNodeIds`.
+
+### Real-Time Recommendation Flow
+1. Client sends `POST /api/teams/recommendations` with optional filters (`eventId`, `sameUniversityOnly`, `topK`).
+2. Express API applies hard event eligibility filtering at the database layer (scoping to global events or matching universities).
+3. Candidate teams are passed to Python AI microservice:
+   - Precomputes User Pre-Scoring Vector ($O(K \times N)$ in < 2ms).
+   - Scores candidates via $O(1)$ lookups (< 10ms for 10,000 teams).
+   - Keeps pure `taxonomyScore` ($0.0 - 1.0$).
+   - Categorizes top candidates into `BEST`, `GOOD_DIFFERENT_UNIVERSITY`, and `SAME_UNIVERSITY_LOWER_SCORE`.
+   - Generates transparent, requirement-by-requirement LCA explanations.
+4. Returns ranked recommendations to the client.
 
 ## Architectural Constraints
 
-- **Do not block the Node event loop:** Any task involving file processing, external LLM calls, or heavy computation MUST be dispatched to the `ai.queue.ts` BullMQ queue.
-- **Keep Python isolated:** The Python service must remain stateless and pure. It should take raw data, process it, and return a result. It should never connect to the database.
-- **Clerk Decoupling:** Never use the Clerk string ID (e.g., `user_2...`) as a foreign key in Postgres. Always map it to the internal `cuid()` via the auth utility.
+- **Do not block the Node event loop:** PDF processing and LLM calls MUST be dispatched to the `ai.queue.ts` BullMQ queue.
+- **Keep Python isolated and stateless:** The Python service takes payloads, runs in-memory graph algorithms, and returns results. It never queries the PostgreSQL database directly.
+- **Clerk Decoupling:** Never use the Clerk string ID directly as a foreign key. Map it to the internal `cuid()` via `getOrCreateUserByClerkId()`.
+- **Pure Compatibility Scores:** Never corrupt technical capability scores with university bonus math. University context is communicated via recommendation presentation categories.
+

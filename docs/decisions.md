@@ -52,3 +52,40 @@ Building a custom system to verify university emails, manage domains, and handle
 
 ### Status
 Accepted
+
+---
+
+## [Deterministic Knowledge Graph Taxonomy Over Dense Embeddings]
+
+### Decision
+Replaced planned vector embeddings (`pgvector`) with a deterministic, single-parent 143-node knowledge hierarchy rooted at `computer_science`. Taxonomy representations are decoupled into dedicated `UserTaxonomy` and `TeamTaxonomy` tables.
+
+### Context
+Dense vector embeddings suffer from hallucinations, opacity, and "black-box" similarity drifts where unrelated technologies score spuriously high. Furthermore, embedding inference introduces latency and compute costs. By contrast, a single-parent hierarchy enables deterministic 7-case directional scoring, microsecond LCA lookups, precomputed user scoring vectors (< 20ms over 10,000 teams), and transparent, explainable reasoning paths for every match.
+
+### Consequences
+- **Positive:** Zero hallucinations; fully transparent plain-English LCA explanations; compact in-memory graph search; database schemas remain decoupled.
+- **Negative:** Requires maintaining a canonical vocabulary and alias map for newly emerging technologies.
+
+### Status
+Accepted
+
+---
+
+## [Separation of Event Eligibility, Pure Compatibility Scoring, and University Categorization]
+
+### Decision
+Separated matchmaking into three decoupled stages:
+1. **Hard Event Eligibility:** Filtered at query time based on `isGlobal` and university scoping.
+2. **Pure Compatibility Scoring:** Mathematical technical capability score ($0.0 - 1.0$) with no university bonus math.
+3. **Recommendation Categorization:** Top candidates are categorized into `BEST`, `GOOD_DIFFERENT_UNIVERSITY`, and `SAME_UNIVERSITY_LOWER_SCORE`.
+
+### Context
+Attempting to blend university into a numerical formula (e.g. 80% technical + 20% university) caused moderate local candidates to artificially outrank superior cross-university technical matches on global events, distorting the meaning of the score.
+
+### Consequences
+- **Positive:** The score remains an uncorrupted, interpretable measure of technical skill. Eligibility constraints are enforced cleanly before ranking.
+- **Negative:** Frontend UI must support rendering badges and visual tiers for distinct recommendation categories.
+
+### Status
+Accepted

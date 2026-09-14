@@ -11,8 +11,9 @@ To avoid breaking existing functionality, you must read the following architectu
 1. **[PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**: High-level overview of the tech stack, repository structure, and workflows.
 2. **[architecture.md](docs/architecture.md)**: Details the hybrid microservice architecture, queues, and request flows.
 3. **[decisions.md](docs/decisions.md)**: The Architecture Decision Log. Read this so you don't undo intentional design choices.
-4. **[database.md](docs/database.md)**: Details on PostgreSQL, Prisma, `pgvector`, and the Clerk authentication decoupling.
-5. **[progress.md](docs/progress.md)**: The current state of the project, including completed features and immediate next steps.
+4. **[database.md](docs/database.md)**: Details on PostgreSQL, Prisma, decoupled taxonomy models, and the Clerk authentication decoupling.
+5. **[recommendation_system.md](docs/recommendation_system.md)**: Complete guide to the 143-node taxonomy hierarchy, V2 multi-source extraction, pure compatibility scoring, and categorization.
+6. **[progress.md](docs/progress.md)**: The current state of the project, including completed features and immediate next steps.
 
 ## 🏛️ Source of Truth
 

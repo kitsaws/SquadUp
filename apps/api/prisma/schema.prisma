@@ -6,20 +6,20 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [vector]
 }
 
 model User {
-  id          String       @id @default(cuid())
-  clerkId     String       @unique
-  email       String       @unique
+  id          String        @id @default(cuid())
+  clerkId     String        @unique
+  email       String        @unique
   name        String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   profile     Profile?
+  taxonomy    UserTaxonomy?
   teams       TeamMember[]
   ownedEvents Event[]
-  sentInvites TeamInvite[] @relation("SentInvites")
+  sentInvites TeamInvite[]  @relation("SentInvites")
 }
 
 model Profile {
@@ -35,12 +35,20 @@ model Profile {
   projects    Json?
   githubUrl   String?
   linkedinUrl String?
-  
-  // Vector embedding for semantic search (Using 384 dimensions typical for local models like all-MiniLM-L6-v2)
-  embedding   Unsupported("vector(384)")?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model UserTaxonomy {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taxonomyNodeIds String[] @default([])
+  rawSkills       String[] @default([])
+  evidence        Json?    // Array of TaxonomyEvidenceItem: { nodeId, source, snippet, strength }
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Event {
@@ -59,21 +67,29 @@ model Event {
 }
 
 model Team {
-  id                   String       @id @default(cuid())
-  name                 String
-  eventId              String
-  event                Event        @relation(fields: [eventId], references: [id])
-  orgId                String?      // Clerk Organization ID
-  members              TeamMember[]
-  invites              TeamInvite[]
-  requirements         String[]     // e.g., ["React Developer", "UI Designer"]
-  university           String?
-  
-  // Vector embedding representing what the team is looking for
-  requirementEmbedding Unsupported("vector(384)")?
+  id           String        @id @default(cuid())
+  name         String
+  eventId      String
+  event        Event         @relation(fields: [eventId], references: [id])
+  orgId        String?       // Clerk Organization ID
+  members      TeamMember[]
+  invites      TeamInvite[]
+  requirements String[]      // e.g., ["React Developer", "UI Designer"]
+  university   String?
+  taxonomy     TeamTaxonomy?
 
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model TeamTaxonomy {
+  id                 String   @id @default(cuid())
+  teamId             String   @unique
+  team               Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  requirementNodeIds String[] @default([])
+  rawRequirements    String[] @default([])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model TeamMember {

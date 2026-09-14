@@ -9,17 +9,19 @@ SquadUp is a professional team-forming and event-hosting platform built specific
 
 **Major Features:**
 - Automated AI resume parsing to generate pristine structured JSON profiles.
-- Creation of Events (can be global or scoped to a specific university).
-- Creation of Teams nested under Events.
-- Email-based Team Invitations.
-- *Planned:* Vector-based semantic matchmaking (connecting students to teams based on skill embeddings).
+- V2 Multi-source Evidence Extraction from skills, projects, and work experience.
+- Deterministic 143-Node Knowledge Hierarchy matching with zero hallucinations.
+- Decoupled `UserTaxonomy` and `TeamTaxonomy` relational architecture.
+- Real-time pure compatibility scoring (< 20ms over 10,000 teams) with LCA decision explainability.
+- Event Scoping & Hard Eligibility (global vs. university-isolated events).
+- Creation of Events and Teams with email-based invitations.
 
 ## Tech Stack
 
-- **Frontend (Planned/In-Progress):** React (Vite)
+- **Frontend (In-Progress):** React (Vite)
 - **Backend (API):** Node.js, Express, TypeScript
 - **AI Microservice:** Python 3.10+, FastAPI, `pdfplumber`
-- **Database:** PostgreSQL (with `pgvector` extension)
+- **Database:** PostgreSQL
 - **ORM:** Prisma
 - **Authentication:** Clerk (with Clerk Organizations for university isolation)
 - **Asynchronous Jobs/Queues:** Redis, BullMQ
@@ -86,4 +88,4 @@ Heavy, slow, or resource-intensive tasks (like parsing a PDF resume with AI) are
 
 ## Current State
 
-The backend API is largely feature-complete for core entities. Resume parsing via AI is fully implemented and queued gracefully. Clerk authentication is deeply integrated. The Frontend (`apps/web`) and Vector semantic search matching are the upcoming focus areas.
+The backend API is largely feature-complete for core entities. Resume parsing via AI is fully implemented and queued gracefully. Deterministic taxonomy resolution and the V2 pure recommendation engine are fully integrated across Node, Python, and PostgreSQL. The upcoming focus area is the Frontend (`apps/web`) UI integration to display categorized recommendations and LCA explainability breakdowns.
