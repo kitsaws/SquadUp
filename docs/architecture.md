@@ -79,6 +79,30 @@ $$\text{TTL} = \max(300, (\text{eventDate} + 3\text{ days}) - \text{now})$$
    - Generates transparent, requirement-by-requirement LCA explanations.
 4. Returns ranked recommendations to the client.
 
+### 7. First-Time User Onboarding & Organization Assignment Flow
+
+1. **Client-Side Onboarding Gate (`OnboardingGuard`):**
+   - When an authenticated user visits any application route, the client inspects their profile status (`GET /api/profile`).
+   - If the user has no university affiliation (`Profile.university === null` or empty `organizationMemberships`), the guard redirects them to `/onboarding`. Core routes (`/teams`, `/events`, `/dashboard`) remain protected.
+2. **University Selection via Searchable Dropdown:**
+   - The onboarding screen presents a responsive, searchable dropdown populated via `GET /api/organizers/universities`.
+   - Each entry displays the institution's name, domain, location, and badge, mapped directly to its underlying `clerkOrgId` (Clerk Organization ID).
+   - Upon selection, the client triggers the organization association in Clerk.
+   - Clerk dispatches an `organizationMembership.created` webhook to the backend (`/api/webhooks`), which writes to `OrganizationMembership` and automatically synchronizes `Profile.university`.
+3. **Profile Setup Path Selection:**
+   The user chooses between two distinct profile generation paths:
+   - **Path A: AI Resume Upload (Highlighted / Recommended CTA):**
+     - Emphasized as the fast, frictionless experience with automated skill mapping.
+     - Candidate uploads a PDF resume (`POST /api/resume/upload`).
+     - Offloaded to BullMQ (`ai.queue.ts`) -> Python microservice (`pdfplumber` + Groq LLM) to extract projects, skills, and work experience, persisting canonical node IDs in `UserTaxonomy`.
+     - **Non-blocking UX:** Candidate is not trapped on a loading screen. The UI informs the user ("Your profile is being built in the background") and allows optimistic transition directly into the discovery feed.
+   - **Path B: Manual Profile Builder (Secondary Fallback):**
+     - Form-driven setup for candidates without an updated resume or who prefer manual input.
+     - Captures bio, degree, graduation year, social links, and manual skill tags.
+     - Persists via `PATCH /api/profile` and triggers real-time deterministic taxonomy re-indexing.
+4. **Completion & Hand-off:**
+   - The user lands on the main SquadUp discovery feed (`/teams`), where institutional event filtering (`isGlobal`) and real-time team recommendations immediately reflect their university and skill graph.
+
 ## Database Interaction
 
 - **Exclusive Access:** The Node.js Express Backend (`apps/api`) has exclusive access to the PostgreSQL database. The Python AI service never queries the database directly.

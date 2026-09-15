@@ -4,13 +4,19 @@ This document provides a snapshot of the current state of the SquadUp project. I
 
 ## Current Focus
 
-The core backend (Events, Teams, Users, Profiles, Resumes, Applications, and University Sub-Organizers) is fully implemented and tested. The primary upcoming focus is the **Frontend UI integration** (`apps/web`):
-1. Connecting the React frontend to the new paginated Events & Teams APIs with search and filter controls.
-2. Integrating Team Application flows with client-side checks for `isGlobal`.
-3. Consuming the recommendation endpoint (`POST /api/teams/recommendations`) and rendering cards with category badges and expandable LCA decision drawers.
+The immediate next priority is implementing the **First-Time User Onboarding Flow** (`apps/web`):
+1. **First-Time Onboarding Gate & Route Guard:** Detecting new/incomplete users (`Profile.university === null` or no organization membership) and redirecting them to `/onboarding`.
+2. **University/Organization Selection Screen:** A clean, searchable dropdown menu of educational institutions linked directly to their `clerkOrgId` (Clerk Organization ID), updating institutional membership and synchronizing `Profile.university`.
+3. **Profile Creation Choice Screen:** Presenting users with two paths to build their profile:
+   - **Upload Resume (Highlighted / Primary CTA):** Automated AI resume parsing that extracts skills, projects, and work experience to populate the `UserTaxonomy` graph with zero manual typing.
+   - **Build Manually (Secondary / Fallback):** Intuitive manual form entry for bio, degree, links, and skill tags.
 
 ## Completed
 
+- **Dynamic Clerk Webhook & Svix Ingestion:**
+  - Decoupled external webhook receiver URL via `CLERK_WEBHOOK_URL` environment variable.
+  - Full Svix cryptographic verification with detailed real-time terminal event logging (`Svix verified [organizationMembership.created]...`).
+  - Auto-synchronization between Clerk organizations and database `Organization`, `OrganizationMembership`, and `Profile.university`.
 - **Hybrid Monorepo Infrastructure:** Turborepo configuration successfully runs `web`, `api`, and `ai-service` concurrently.
 - **Background Jobs:** Redis and BullMQ are fully operational, gracefully passing large buffers between Node and Python.
 - **AI Resume Parsing:** The Python microservice uses `pdfplumber` to extract text and the Groq LLM API to return structured candidate JSON with extracted technologies per project and experience item.
@@ -71,6 +77,10 @@ The core backend (Events, Teams, Users, Profiles, Resumes, Applications, and Uni
 
 ## In Progress
 
+- **First-Time User Onboarding Architecture (`apps/web`):**
+  - Designing the guided Onboarding Flow and client-side route guards (`/onboarding`).
+  - Specifying the searchable university dropdown mapped to `clerkOrgId`.
+  - Defining the dual profile creation path: Highlighted AI Resume Parsing (recommended primary CTA) vs. Manual Profile Builder.
 - **Frontend UI (`apps/web`):**
   - Building components to display paginated Events and Teams.
   - Rendering recommended teams with category badges and LCA breakdown drawers.
@@ -83,6 +93,13 @@ The core backend (Events, Teams, Users, Profiles, Resumes, Applications, and Uni
 
 ## Next Steps
 
-1. **Frontend Events & Teams Directory:** Build React views connecting to `GET /api/events` and `GET /api/teams` with pagination and search.
-2. **Frontend Application & Invite Modals:** Provide UI for candidates to apply and for leaders to review applicants.
-3. **Frontend Recommendations View:** Render team recommendation cards with category badges and expandable requirement breakdown accordions.
+1. **First-Time User Onboarding (`apps/web`):**
+   - Implement `/onboarding` route and gate:
+     - User signs up / logs in -> system checks if `Profile.university` is set or user belongs to an organization.
+     - **Screen 1 (University/Organization Selection):** Searchable dropdown consuming `/api/organizers/universities`, bound to `clerkOrgId`. Triggers Clerk org membership & auto-syncs `Profile.university`.
+     - **Screen 2 (Profile Setup Path Selection):**
+       - **Option A (Highlighted/Promoted):** "Upload Resume" -> dispatches to `POST /api/resume/upload` for async LLM parsing & taxonomy resolution, showing clear background processing status with optimistic continuation.
+       - **Option B (Secondary/Manual):** "Build Manually" -> intuitive form modal/view updating `PATCH /api/profile`.
+2. **Frontend Events & Teams Directory:** Build React views connecting to `GET /api/events` and `GET /api/teams` with pagination and search.
+3. **Frontend Application & Invite Modals:** Provide UI for candidates to apply and for leaders to review applicants.
+4. **Frontend Recommendations View:** Render team recommendation cards with category badges and expandable requirement breakdown accordions.

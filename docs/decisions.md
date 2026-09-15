@@ -192,4 +192,25 @@ Users authenticate and join university organizations via Clerk. Storing membersh
 ### Status
 Accepted
 
+---
+
+## [First-Time User Onboarding Flow & Dual Profile Creation Model]
+
+### Decision
+Implement a dedicated first-time user onboarding journey (`/onboarding`) protected by a client-side route guard (`OnboardingGuard`):
+1. **University Selection:** Users without an active organization membership (`Profile.university === null`) must select their institution from a searchable dropdown populated from `GET /api/organizers/universities` and linked to `clerkOrgId`.
+2. **Dual Profile Creation (Resume-First):** Users choose how to complete their profile, with AI Resume Parsing (`POST /api/resume/upload`) prominently highlighted as the recommended fast path, and Manual Entry (`PATCH /api/profile`) provided as a secondary fallback.
+3. **Optimistic Non-Blocking UX:** Resume parsing does not block navigation. Users are shown a clear background processing indicator and allowed to enter the main application immediately while BullMQ and the Python AI service process the document.
+
+### Context
+SquadUp's core algorithms rely on institutional affiliation (for `isGlobal` scoping and university-tier recommendation categorizations) and structured skill taxonomy nodes (for LCA recommendation explainability). If new users navigate directly to teams without an organization or skills, compatibility scores are zero and team applications to local events fail with HTTP 403 Forbidden. Guiding new users through a streamlined two-step onboarding sequence directly solves this cold-start dilemma.
+
+### Consequences
+- **Positive:** Eliminates cold-start scoring blanks, ensures zero unauthorized cross-institutional applications, and maximizes profile completion rates by offering instant AI resume ingestion with zero manual typing required.
+- **Negative:** Adds a mandatory onboarding step for new users and requires client-side route guarding on protected routes until an organization is chosen.
+
+### Status
+Accepted
+
+
 

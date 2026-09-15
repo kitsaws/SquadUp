@@ -63,6 +63,26 @@ Heavy, slow, or resource-intensive tasks (like parsing a PDF resume with AI) are
 3. Backend creates a new row in the Postgres `User` table, storing the `clerkId`.
 4. Subsequent API calls extract the `clerkId` from the JWT and resolve it to the internal `User.id` via `getOrCreateUserByClerkId()`.
 
+### First-Time User Onboarding Flow
+1. **Onboarding Gate:** Upon sign-up / first sign-in, the web application evaluates whether the user has completed onboarding (checks if user has an associated organization or `Profile.university` is set). If not, the user is routed to `/onboarding`.
+2. **Step 1 — University / Organization Selection:**
+   - The user sees a dedicated screen prompting them to select their home institution.
+   - Uses a responsive, **searchable dropdown menu** populated from available universities (`GET /api/organizers/universities`), filtering by name, domain, or location.
+   - Each option is bound directly to the university's `clerkOrgId` (Clerk Organization ID).
+   - Upon selection, the user is joined to the organization in Clerk; the database creates/synchronizes the `OrganizationMembership` and sets `Profile.university = Organization.name`.
+3. **Step 2 — Profile Setup Path Selection:**
+   The user chooses between two paths to build their developer profile:
+   - **Build via Resume (Highlighted / Primary Recommendation):**
+     - Emphasized as the fast, frictionless "smart" path.
+     - User uploads their PDF resume (`POST /api/resume/upload`).
+     - Offloaded to BullMQ (`ai-tasks`) and the Python AI service (`pdfplumber` + Groq LLM) to automatically extract skills, projects, and work experience, resolving canonical nodes into `UserTaxonomy`.
+     - Non-blocking UI: the user sees a clear status ("Your profile is being built in the background") and can immediately proceed into the platform without waiting on a blocking spinner.
+   - **Build Manually (Secondary / Fallback Path):**
+     - For users without a resume handy or who prefer manual curation.
+     - Structured input form for headline, degree, graduation year, bio, social/code links, and skill tags.
+     - Submits via `PATCH /api/profile` and immediately triggers deterministic `AIService.resolveUserTaxonomy`.
+4. **Completion:** User is redirected to the main SquadUp dashboard (`/teams` or `/events`) with full institutional context and personalized compatibility scoring active.
+
 ### Document Ingestion & Resume Flow
 1. User uploads a PDF resume to `POST /api/resume/upload`.
 2. Controller verifies the 24-hour rate limit (bypassed for dev testing).
@@ -99,4 +119,4 @@ Heavy, slow, or resource-intensive tasks (like parsing a PDF resume with AI) are
 
 ## Current State
 
-The backend API is complete and verified across Events, Teams, Applications, Profiles, Resumes, and University Sub-Organizers. The system features standard server-side pagination by default, Redis caching with dynamic event TTLs, and instant real-time taxonomy sync. The upcoming focus area is the Frontend (`apps/web`) UI integration.
+The backend API is complete and verified across Events, Teams, Applications, Profiles, Resumes, and University Sub-Organizers. The system features standard server-side pagination by default, Redis caching with dynamic event TTLs, real-time taxonomy sync, and dynamic Svix Clerk webhooks. The immediate upcoming focus is building the **First-Time User Onboarding Flow** (`apps/web`), guiding users from university selection (searchable dropdown bound to `clerkOrgId`) to profile generation (highlighted AI resume parsing or manual setup).

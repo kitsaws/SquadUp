@@ -741,6 +741,29 @@ Runs user capability nodes against eligible candidate teams using the V2 Pure Ta
 - **Method:** `GET`
 - **Path:** `/api/organizers/universities`
 - **Auth:** Optional
+- **Description:** Returns all registered educational institutions. Used by the **First-Time User Onboarding** searchable dropdown to let students pick their university.
+- **Response Format:**
+  ```json
+  [
+    {
+      "id": "cuid_org_1",
+      "clerkOrgId": "org_2N38dK...",
+      "name": "Stanford University",
+      "slug": "stanford",
+      "domain": "stanford.edu",
+      "logoUrl": "https://img.clerk.com/...",
+      "location": "Stanford, CA",
+      "subOrganizersCount": 4,
+      "eventsCount": 12,
+      "createdAt": "2026-09-01T12:00:00.000Z",
+      "updatedAt": "2026-09-15T18:30:00.000Z"
+    }
+  ]
+  ```
+- **Onboarding Integration:**
+  - The client displays `name`, `location`, and `logoUrl` in the searchable select list.
+  - The underlying value bound to each option is `clerkOrgId`.
+  - When the user selects an institution, the web app associates the user with that `clerkOrgId` via Clerk, triggering the `organizationMembership.created` webhook which automatically sets `Profile.university`.
 
 ### 9.2 Create University Record
 - **Method:** `POST`
