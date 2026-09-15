@@ -3,6 +3,16 @@ export interface CreateEventRequest {
   description: string;
   date: string; // ISO 8601 string
   location?: string;
+  organizerProfileId?: string;
+  isGlobal?: boolean;
+}
+
+export interface UpdateEventRequest {
+  title?: string;
+  description?: string;
+  date?: string; // ISO 8601 string
+  location?: string;
+  organizerProfileId?: string;
   isGlobal?: boolean;
 }
 
@@ -13,8 +23,39 @@ export interface EventResponse {
   date: string; // ISO 8601 string
   location?: string;
   organizerId: string;
+  organizerProfileId?: string | null;
   orgId?: string;
   isGlobal: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface EventDetailResponse extends EventResponse {
+  organizer: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  organizerProfile?: {
+    id: string;
+    name: string;
+    slug: string;
+    logoUrl?: string | null;
+  } | null;
+  teamsCount: number;
+  teams?: {
+    id: string;
+    name: string;
+    membersCount: number;
+    requirements: string[];
+  }[];
+}
+
+export interface EventQueryFilters {
+  page?: number;
+  limit?: number;
+  search?: string;
+  scope?: "all" | "global" | "org";
+  sort?: "date_asc" | "date_desc" | "created_at";
+}
+

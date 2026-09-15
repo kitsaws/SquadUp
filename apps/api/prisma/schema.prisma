@@ -9,35 +9,41 @@ datasource db {
 }
 
 model User {
-  id          String        @id @default(cuid())
-  clerkId     String        @unique
-  email       String        @unique
-  name        String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  profile     Profile?
-  taxonomy    UserTaxonomy?
-  teams       TeamMember[]
-  ownedEvents Event[]
-  sentInvites TeamInvite[]  @relation("SentInvites")
+  id                   String            @id @default(cuid())
+  clerkId              String            @unique
+  email                String            @unique
+  name                 String
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  profile              Profile?
+  taxonomy             UserTaxonomy?
+  teams                TeamMember[]
+  ownedEvents          Event[]
+  sentInvites          TeamInvite[]      @relation("SentInvites")
+  ownedOrganizers      Organizer[]       @relation("OwnedOrganizers")
+  organizerMemberships OrganizerMember[]
+  teamApplications     TeamApplication[]
 }
 
 model Profile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  university  String?
-  title       String?
-  summary     String?
-  skills      String[]
-  education   Json?
-  experience  Json?
-  projects    Json?
-  githubUrl   String?
-  linkedinUrl String?
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  university           String?
+  title                String?
+  summary              String?
+  skills               String[]
+  education            Json?
+  experience           Json?
+  projects             Json?
+  githubUrl            String?
+  linkedinUrl          String?
+  resumePdfPath        String?
+  resumeOriginalName   String?
+  lastResumeUploadedAt DateTime?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 }
 
 model UserTaxonomy {
@@ -51,35 +57,88 @@ model UserTaxonomy {
   updatedAt       DateTime @updatedAt
 }
 
-model Event {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  date        DateTime
-  location    String?
+model Organization {
+  id             String      @id @default(cuid())
+  clerkOrgId     String      @unique // Maps to Clerk's Organization ID
+  name           String      // e.g. "Stanford University"
+  slug           String      @unique // e.g. "stanford"
+  domain         String?     // e.g. "stanford.edu"
+  logoUrl        String?
+  location       String?
+  subOrganizers  Organizer[] // University clubs/societies
+  events         Event[]
+  teams          Team[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model Organizer {
+  id             String            @id @default(cuid())
+  name           String            // e.g. "ACM Student Chapter"
+  slug           String            @unique // e.g. "acm-ucla"
+  description    String?
+  logoUrl        String?
+  website        String?
+  email          String?
+  orgId          String?           // Clerk Organization ID (University)
+  organizationId String?
+  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  ownerId        String            // Creator / primary lead
+  owner          User              @relation("OwnedOrganizers", fields: [ownerId], references: [id], onDelete: Cascade)
+  members        OrganizerMember[]
+  events         Event[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model OrganizerMember {
+  id          String    @id @default(cuid())
   organizerId String
-  organizer   User     @relation(fields: [organizerId], references: [id])
-  orgId       String?  // Clerk Organization ID
-  isGlobal    Boolean  @default(false)
-  teams       Team[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  organizer   Organizer @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String    @default("ADMIN") // ADMIN, MEMBER
+  createdAt   DateTime  @default(now())
+
+  @@unique([organizerId, userId])
+}
+
+model Event {
+  id                 String        @id @default(cuid())
+  title              String
+  description        String
+  date               DateTime
+  location           String?
+  organizerId        String
+  organizer          User          @relation(fields: [organizerId], references: [id])
+  organizerProfileId String?
+  organizerProfile   Organizer?    @relation(fields: [organizerProfileId], references: [id], onDelete: SetNull)
+  orgId              String?       // Clerk Organization ID
+  organizationId     String?
+  organization       Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  isGlobal           Boolean       @default(false)
+  teams              Team[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 }
 
 model Team {
-  id           String        @id @default(cuid())
-  name         String
-  eventId      String
-  event        Event         @relation(fields: [eventId], references: [id])
-  orgId        String?       // Clerk Organization ID
-  members      TeamMember[]
-  invites      TeamInvite[]
-  requirements String[]      // e.g., ["React Developer", "UI Designer"]
-  university   String?
-  taxonomy     TeamTaxonomy?
+  id             String            @id @default(cuid())
+  name           String
+  eventId        String
+  event          Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  orgId          String?           // Clerk Organization ID
+  organizationId String?
+  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  members        TeamMember[]
+  invites        TeamInvite[]
+  applications   TeamApplication[]
+  requirements   String[]          // e.g., ["React Developer", "UI Designer"]
+  university     String?
+  taxonomy       TeamTaxonomy?
 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 }
 
 model TeamTaxonomy {
@@ -93,13 +152,13 @@ model TeamTaxonomy {
 }
 
 model TeamMember {
-  id          String   @id @default(cuid())
-  teamId      String
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role        String?  // e.g., "Leader", "Member"
-  joinedAt    DateTime @default(now())
+  id       String   @id @default(cuid())
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     String?  // e.g., "Leader", "Member"
+  joinedAt DateTime @default(now())
 
   @@unique([teamId, userId])
 }
@@ -115,4 +174,18 @@ model TeamInvite {
   createdAt DateTime @default(now())
 
   @@unique([teamId, email])
+}
+
+model TeamApplication {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String?
+  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED, WITHDRAWN
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([teamId, userId])
 }
