@@ -9,6 +9,7 @@ import webhookRoutes from "./routes/webhook.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
 import teamRoutes from "./routes/team.routes.js";
 import eventRoutes from "./routes/event.routes.js";
+import organizerRoutes from "./routes/organizer.routes.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
@@ -29,6 +30,8 @@ app.use("/api/resume", resumeRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/organizers", organizerRoutes);
+
 
 // General Endpoints
 app.get("/health", (_request, response) => {
