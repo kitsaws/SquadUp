@@ -48,9 +48,15 @@ The core backend (Events, Teams, Users, Profiles, Resumes, Applications, and Uni
     - University `Organization` model mapping to Clerk `orgId` (`/universities`).
     - Sub-organizer `Organizer` model for university clubs and societies (e.g. ACM, Robotics, GDSC).
     - Role-based membership (`OrganizerMember`) allowing club admins to create and manage events.
+  - **Comprehensive 9-Event Clerk Webhooks (`/api/webhooks/clerk`):**
+    - Cryptographic verification via Svix (`CLERK_WEBHOOK_SECRET`).
+    - Full handling for `user.created`, `user.updated`, and `user.deleted` with profile initialization and cache invalidation.
+    - Full handling for `organization.created`, `organization.updated`, and `organization.deleted` with metadata synchronization and cascade cleanup.
+    - Full handling for `organizationMembership.created`, `organizationMembership.updated`, and `organizationMembership.deleted` with internal `OrganizationMembership` tracking (`org:admin` vs `org:member`).
+    - **Automatic synchronization of `Profile.university`** with organization name when joining/updating, and resetting to `null` upon leaving.
 - **Decoupled Relational Database:**
   - `UserTaxonomy` (1:1 with `User`) and `TeamTaxonomy` (1:1 with `Team`).
-  - `Organization`, `Organizer`, `OrganizerMember`, and `TeamApplication` models.
+  - `Organization`, `OrganizationMembership`, `Organizer`, `OrganizerMember`, and `TeamApplication` models.
   - `Profile` updated with `resumePdfPath`, `resumeOriginalName`, and `lastResumeUploadedAt`.
 - **Decoupled Auth:** Clerk webhooks and internal database `cuid()` generation are fully separated using `getOrCreateUserByClerkId`.
 - **Type Safety:** `@squadup/shared` package maintains absolute cross-boundary typing for events, teams, applications, organizers, profiles, and recommendations.

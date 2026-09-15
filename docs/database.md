@@ -14,12 +14,13 @@ The absolute source of truth for the database is `apps/api/prisma/schema.prisma`
 - **Important Fields:**
   - `id`: Internal `cuid()`. The primary key used across all relations.
   - `clerkId`: Unique string mapping to the external Clerk authentication system.
-- **Relationships:** Has one `Profile`, has one `UserTaxonomy`, owns many `Event`s, belongs to many `Team`s, sends many `TeamInvite`s, owns `Organizer` profiles, holds `OrganizerMember` memberships, and submits `TeamApplication`s.
+- **Relationships:** Has one `Profile`, has one `UserTaxonomy`, owns many `Event`s, belongs to many `Team`s, sends many `TeamInvite`s, owns `Organizer` profiles, holds `OrganizerMember` and `OrganizationMembership` memberships, and submits `TeamApplication`s.
 
 ### `Profile`
 - **Purpose:** Stores the AI-parsed resume profile data for a user.
 - **Important Fields:**
   - `skills`, `education`, `experience`, `projects`: Rich JSON/Array data extracted from resumes.
+  - `university`: Name of the user's university (auto-synchronized via Clerk webhooks).
   - `resumePdfPath`: Path to the stored PDF file on disk.
   - `resumeOriginalName`: Original filename of the uploaded resume.
   - `lastResumeUploadedAt`: Timestamp of the most recent resume upload (for 24h cooldown).
@@ -40,7 +41,16 @@ The absolute source of truth for the database is `apps/api/prisma/schema.prisma`
   - `name`: e.g. "Stanford University".
   - `slug`: Unique lowercase slug (e.g. `stanford`).
   - `domain`: University email domain (e.g. `stanford.edu`).
-- **Relationships:** Has many `Organizer` profiles (clubs/societies), `Event`s, and `Team`s.
+- **Relationships:** Has many `Organizer` profiles (clubs/societies), `OrganizationMembership` members, `Event`s, and `Team`s.
+
+### `OrganizationMembership`
+- **Purpose:** Tracks a user's verified university affiliation and role in an `Organization`.
+- **Important Fields:**
+  - `clerkMemberId`: Unique Clerk membership ID (e.g. `orgmem_...`).
+  - `organizationId`: Foreign key to internal `Organization`.
+  - `userId`: Foreign key to internal `User`.
+  - `role`: Role string (`org:admin`, `org:member`).
+- **Relationships:** Cascade-deleted when parent `Organization` or `User` is deleted. Synchronizes with `Profile.university`.
 
 ### `Organizer` (University Sub-Organizers / Clubs / Societies)
 - **Purpose:** Represents student clubs, societies, or event-hosting committees (e.g., "ACM at UCLA", "HackSC Organizing Committee").

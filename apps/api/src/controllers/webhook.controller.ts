@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Webhook } from "svix";
 import { PrismaClient } from "@prisma/client";
+import { CacheService } from "../services/cache.service.js";
 
 const prisma = new PrismaClient();
 
@@ -8,30 +9,27 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
-    console.error("Missing CLERK_WEBHOOK_SECRET");
+    console.error("[Clerk Webhook] Missing CLERK_WEBHOOK_SECRET in environment");
     return res.status(500).json({ error: "Missing CLERK_WEBHOOK_SECRET" });
   }
 
-  // Get the headers
+  // Get Svix verification headers
   const svix_id = req.headers["svix-id"] as string;
   const svix_timestamp = req.headers["svix-timestamp"] as string;
   const svix_signature = req.headers["svix-signature"] as string;
 
-  // If there are no Svix headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
+    console.warn("[Clerk Webhook] Missing required Svix headers");
     return res.status(400).json({ error: "Missing Svix headers" });
   }
 
-  // Get the body
+  // Get raw body
   const payload = req.body;
   const body = payload.toString();
 
-  // Create a new Svix instance with your secret
   const wh = new Webhook(WEBHOOK_SECRET);
-
   let evt: any;
 
-  // Verify the payload with the headers
   try {
     evt = wh.verify(body, {
       "svix-id": svix_id,
@@ -39,49 +37,266 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
       "svix-signature": svix_signature,
     });
   } catch (err) {
-    console.error("Error verifying webhook:", err);
+    console.error("[Clerk Webhook] Signature verification failed:", err);
     return res.status(400).json({ error: "Webhook signature verification failed" });
   }
 
-  // Handle the webhook event
-  const { id } = evt.data;
-  const eventType = evt.type;
+  const eventType: string = evt.type;
+  const data = evt.data;
 
-  if (eventType === "user.created" || eventType === "user.updated") {
-    const { email_addresses, first_name, last_name } = evt.data;
-    const email = email_addresses[0]?.email_address;
-    const name = `${first_name || ""} ${last_name || ""}`.trim() || "SquadUp User";
+  console.log(`[Clerk Webhook] Processing event: ${eventType} (ID: ${data?.id})`);
 
-    try {
-      await prisma.user.upsert({
-        where: { clerkId: id },
-        update: {
-          email,
-          name,
-        },
-        create: {
-          clerkId: id,
-          email,
-          name,
-        },
-      });
-      console.log(`Synced user ${id} to database`);
-    } catch (dbError) {
-      console.error("Error syncing user to database:", dbError);
-      return res.status(500).json({ error: "Database error" });
+  try {
+    switch (eventType) {
+      // ==========================================
+      // 1. USER EVENTS
+      // ==========================================
+      case "user.created":
+      case "user.updated": {
+        const { id, email_addresses, primary_email_address_id, first_name, last_name, username } = data;
+        const primaryEmailObj =
+          email_addresses?.find((e: any) => e.id === primary_email_address_id) ||
+          email_addresses?.[0];
+        const email = primaryEmailObj?.email_address || `${id}@squadup.dev`;
+        const name = `${first_name || ""} ${last_name || ""}`.trim() || username || "SquadUp User";
+
+        const user = await prisma.user.upsert({
+          where: { clerkId: id },
+          update: {
+            email,
+            name,
+          },
+          create: {
+            clerkId: id,
+            email,
+            name,
+          },
+        });
+
+        // Ensure user has a profile record initialized
+        await prisma.profile.upsert({
+          where: { userId: user.id },
+          update: {},
+          create: {
+            userId: user.id,
+            skills: [],
+          },
+        });
+
+        console.log(`[Clerk Webhook] Synced user ${id} (${email}) to database.`);
+        break;
+      }
+
+      case "user.deleted": {
+        const { id } = data;
+        await prisma.user.deleteMany({
+          where: { clerkId: id },
+        });
+
+        await CacheService.invalidatePattern("teams:*");
+        await CacheService.invalidatePattern("events:*");
+        console.log(`[Clerk Webhook] Deleted user ${id} and invalidated related caches.`);
+        break;
+      }
+
+      // ==========================================
+      // 2. ORGANIZATION (UNIVERSITY) EVENTS
+      // ==========================================
+      case "organization.created":
+      case "organization.updated": {
+        const { id: clerkOrgId, name, slug, logo_url, image_url, public_metadata } = data;
+        const logo = logo_url || image_url || null;
+        const domain = public_metadata?.domain || null;
+        const location = public_metadata?.location || null;
+        const resolvedSlug = slug || clerkOrgId;
+
+        await prisma.organization.upsert({
+          where: { clerkOrgId },
+          update: {
+            name: name || "University Organization",
+            slug: resolvedSlug,
+            ...(logo !== undefined && { logoUrl: logo }),
+            ...(domain && { domain }),
+            ...(location && { location }),
+          },
+          create: {
+            clerkOrgId,
+            name: name || "University Organization",
+            slug: resolvedSlug,
+            logoUrl: logo,
+            domain,
+            location,
+          },
+        });
+
+        await CacheService.invalidatePattern("events:*");
+        await CacheService.invalidatePattern("teams:*");
+        console.log(`[Clerk Webhook] Synced organization ${clerkOrgId} (${name}).`);
+        break;
+      }
+
+      case "organization.deleted": {
+        const { id: clerkOrgId } = data;
+        await prisma.organization.deleteMany({
+          where: { clerkOrgId },
+        });
+
+        await CacheService.invalidatePattern("events:*");
+        await CacheService.invalidatePattern("teams:*");
+        console.log(`[Clerk Webhook] Deleted organization ${clerkOrgId}.`);
+        break;
+      }
+
+      // ==========================================
+      // 3. ORGANIZATION MEMBERSHIP EVENTS
+      // ==========================================
+      case "organizationMembership.created":
+      case "organizationMembership.updated": {
+        const { id: clerkMemberId, role, organization, public_user_data } = data;
+        const clerkOrgId = organization?.id;
+        const clerkUserId = public_user_data?.user_id;
+
+        if (!clerkOrgId || !clerkUserId) {
+          console.warn("[Clerk Webhook] Membership event missing organization.id or public_user_data.user_id");
+          return res.status(400).json({ error: "Missing required membership references" });
+        }
+
+        // 1. Ensure Organization exists in DB
+        let org = await prisma.organization.findUnique({
+          where: { clerkOrgId },
+        });
+
+        if (!org) {
+          const orgName = organization?.name || "University Organization";
+          const orgSlug = organization?.slug || clerkOrgId;
+          const orgLogo = organization?.logo_url || organization?.image_url || null;
+          org = await prisma.organization.create({
+            data: {
+              clerkOrgId,
+              name: orgName,
+              slug: orgSlug,
+              logoUrl: orgLogo,
+            },
+          });
+        }
+
+        // 2. Ensure User exists in DB
+        let user = await prisma.user.findUnique({
+          where: { clerkId: clerkUserId },
+        });
+
+        if (!user) {
+          const userEmail = public_user_data?.identifier || `${clerkUserId}@squadup.dev`;
+          const userName =
+            `${public_user_data?.first_name || ""} ${public_user_data?.last_name || ""}`.trim() ||
+            "SquadUp User";
+          user = await prisma.user.create({
+            data: {
+              clerkId: clerkUserId,
+              email: userEmail,
+              name: userName,
+            },
+          });
+        }
+
+        // 3. Upsert OrganizationMembership record
+        await prisma.organizationMembership.upsert({
+          where: {
+            organizationId_userId: {
+              organizationId: org.id,
+              userId: user.id,
+            },
+          },
+          update: {
+            clerkMemberId: clerkMemberId || undefined,
+            role: role || "org:member",
+          },
+          create: {
+            clerkMemberId: clerkMemberId || null,
+            organizationId: org.id,
+            userId: user.id,
+            role: role || "org:member",
+          },
+        });
+
+        // 4. Synchronize user's Profile.university with the organization name
+        await prisma.profile.upsert({
+          where: { userId: user.id },
+          update: {
+            university: org.name,
+          },
+          create: {
+            userId: user.id,
+            university: org.name,
+            skills: [],
+          },
+        });
+
+        await CacheService.invalidatePattern("teams:*");
+        console.log(
+          `[Clerk Webhook] Synced membership: User ${clerkUserId} -> Org ${org.name} (${role})`
+        );
+        break;
+      }
+
+      case "organizationMembership.deleted": {
+        const { id: clerkMemberId, organization, public_user_data } = data;
+        const clerkOrgId = organization?.id;
+        const clerkUserId = public_user_data?.user_id;
+
+        const org = clerkOrgId
+          ? await prisma.organization.findUnique({ where: { clerkOrgId } })
+          : null;
+        const user = clerkUserId
+          ? await prisma.user.findUnique({ where: { clerkId: clerkUserId } })
+          : null;
+
+        if (clerkMemberId) {
+          await prisma.organizationMembership.deleteMany({
+            where: { clerkMemberId },
+          });
+        } else if (org && user) {
+          await prisma.organizationMembership.deleteMany({
+            where: {
+              organizationId: org.id,
+              userId: user.id,
+            },
+          });
+        }
+
+        // Reset Profile.university if it was previously set to this organization
+        if (user && org) {
+          const userProfile = await prisma.profile.findUnique({
+            where: { userId: user.id },
+          });
+          if (userProfile && userProfile.university === org.name) {
+            await prisma.profile.update({
+              where: { userId: user.id },
+              data: { university: null },
+            });
+            console.log(
+              `[Clerk Webhook] Reset profile university for user ${clerkUserId} after leaving ${org.name}`
+            );
+          }
+        }
+
+        await CacheService.invalidatePattern("teams:*");
+        console.log(
+          `[Clerk Webhook] Removed membership for member ID ${clerkMemberId || "unspecified"}`
+        );
+        break;
+      }
+
+      default: {
+        console.log(`[Clerk Webhook] Received unhandled event type: ${eventType}`);
+        break;
+      }
     }
-  }
 
-  if (eventType === "user.deleted") {
-    try {
-      await prisma.user.delete({
-        where: { clerkId: id },
-      });
-      console.log(`Deleted user ${id} from database`);
-    } catch (dbError) {
-      console.error("Error deleting user from database:", dbError);
-    }
+    return res.status(200).json({ success: true, event: eventType });
+  } catch (dbError) {
+    console.error(`[Clerk Webhook] Database error while processing ${eventType}:`, dbError);
+    return res.status(500).json({ error: "Database error processing webhook" });
   }
-
-  return res.status(200).json({ success: true });
 };
+

@@ -21,8 +21,9 @@ model User {
   ownedEvents          Event[]
   sentInvites          TeamInvite[]      @relation("SentInvites")
   ownedOrganizers      Organizer[]       @relation("OwnedOrganizers")
-  organizerMemberships OrganizerMember[]
-  teamApplications     TeamApplication[]
+  organizerMemberships    OrganizerMember[]
+  organizationMemberships OrganizationMembership[]
+  teamApplications        TeamApplication[]
 }
 
 model Profile {
@@ -58,18 +59,33 @@ model UserTaxonomy {
 }
 
 model Organization {
-  id             String      @id @default(cuid())
-  clerkOrgId     String      @unique // Maps to Clerk's Organization ID
-  name           String      // e.g. "Stanford University"
-  slug           String      @unique // e.g. "stanford"
-  domain         String?     // e.g. "stanford.edu"
+  id             String                   @id @default(cuid())
+  clerkOrgId     String                   @unique // Maps to Clerk's Organization ID
+  name           String                   // e.g. "Stanford University"
+  slug           String                   @unique // e.g. "stanford"
+  domain         String?                  // e.g. "stanford.edu"
   logoUrl        String?
   location       String?
-  subOrganizers  Organizer[] // University clubs/societies
+  subOrganizers  Organizer[]              // University clubs/societies
   events         Event[]
   teams          Team[]
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  members        OrganizationMembership[]
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+}
+
+model OrganizationMembership {
+  id             String       @id @default(cuid())
+  clerkMemberId  String?      @unique
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String       @default("org:member")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, userId])
 }
 
 model Organizer {

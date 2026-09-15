@@ -84,15 +84,25 @@ $$\text{TTL} = \max(300, (\text{eventDate} + 3\text{ days}) - \text{now})$$
 - **Exclusive Access:** The Node.js Express Backend (`apps/api`) has exclusive access to the PostgreSQL database. The Python AI service never queries the database directly.
 - **ORM:** All queries and mutations are performed using Prisma Client.
 
-## Authentication Flow
+## Authentication & Clerk Webhook Synchronization
 
 Authentication heavily leverages Clerk, but utilizes a decoupled architecture to protect the database from vendor lock-in.
 
-1. Clerk manages the frontend session and provides a JWT.
-2. When a user creates an account, Clerk sends a webhook to `webhook.controller.ts`.
-3. The Backend creates an internal Postgres `User` with a native `cuid()` as its primary key (`id`), and stores the Clerk ID in a unique `clerkId` column.
-4. When an authenticated request hits the API, `getAuth(req)` extracts the Clerk ID.
-5. The API calls `getOrCreateUserByClerkId(clerkId)`. This fetches the internal `cuid()` for database operations. If the user is missing (e.g., webhook failed locally), it acts as a resilient fallback, fetching the profile from Clerk's API and creating the row just-in-time.
+1. **Frontend Authentication:** Clerk manages frontend sessions and provides session JWTs.
+2. **Decoupled Identity Mapping:** The database stores native `cuid()` values as primary keys (`User.id`, `Organization.id`). External Clerk IDs are stored in indexed, unique columns (`User.clerkId`, `Organization.clerkOrgId`).
+3. **Svix Cryptographic Webhook Receiver (`/api/webhooks/clerk`):**
+   - Webhook requests are verified using Svix headers (`svix-id`, `svix-timestamp`, `svix-signature`) against `CLERK_WEBHOOK_SECRET`.
+   - Express handles the raw JSON buffer prior to parsing to ensure uncorrupted HMAC verification.
+4. **Supported Webhook Events (9 Total):**
+   - **User Lifecycle (`user.created`, `user.updated`, `user.deleted`):** Upserts internal `User` records with primary email resolution, initializes a clean `Profile`, and safely cascades deletions while invalidating Redis caches.
+   - **Organization Lifecycle (`organization.created`, `organization.updated`, `organization.deleted`):** Synchronizes universities into the `Organization` table, updating metadata and gracefully unlinking events/teams upon deletion.
+   - **Organization Membership Lifecycle (`organizationMembership.created`, `organizationMembership.updated`, `organizationMembership.deleted`):**
+     - Ensures both parent `Organization` and `User` exist.
+     - Upserts `OrganizationMembership` tracking institutional roles (`org:admin`, `org:member`).
+     - **Auto-synchronizes `Profile.university`** with the university organization name when created/updated.
+     - Automatically resets `Profile.university = null` if a user leaves that institution.
+     - Automatically purges corresponding Redis cache entries (`teams:*`, `events:*`).
+5. **Resilient Just-In-Time Fallback:** When an authenticated request hits any protected route, `getOrCreateUserByClerkId(clerkId)` resolves the internal `cuid()`. If the user does not exist (e.g. during offline local development without public webhooks), it transparently fetches their profile from the Clerk API and seeds the record on demand.
 
 ## Architectural Constraints
 

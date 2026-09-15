@@ -739,3 +739,32 @@ Runs user capability nodes against eligible candidate teams using the V2 Pure Ta
 - **Method:** `DELETE`
 - **Path:** `/api/organizers/:id/members/:userId`
 - **Auth:** Required (Club Admin only)
+
+---
+
+## 10. Clerk Webhook Endpoints (`/api/webhooks`)
+
+### 10.1 Clerk Event Receiver
+- **Method:** `POST`
+- **Path:** `/api/webhooks/clerk`
+- **Auth:** Svix Signature Verification (`CLERK_WEBHOOK_SECRET`)
+- **Headers Required:**
+  - `svix-id`: Unique Svix message ID
+  - `svix-timestamp`: Unix timestamp
+  - `svix-signature`: Computed HMAC signature
+- **Content-Type:** `application/json` (parsed as raw body before signature verification)
+
+#### Supported Events & Sync Behavior
+
+| Category | Event Name | System Action |
+| :--- | :--- | :--- |
+| **User** | `user.created` | Upserts internal `User` record by `clerkId`, creates initial blank `Profile`. |
+| | `user.updated` | Updates user primary `email` and full `name`. |
+| | `user.deleted` | Deletes user from DB (cascades profile, memberships), invalidates `teams:*` and `events:*` Redis caches. |
+| **Organization** | `organization.created` | Upserts `Organization` (University) record using `clerkOrgId`, name, slug, logo URL, and metadata. Invalidates caches. |
+| | `organization.updated` | Updates organization name, slug, and logo in DB. Invalidates caches. |
+| | `organization.deleted` | Deletes organization record (unlinks hosted events and teams gracefully). Invalidates caches. |
+| **Membership** | `organizationMembership.created` | Upserts `OrganizationMembership` (`org:admin` vs `org:member`). **Auto-synchronizes `Profile.university`** with organization name. Invalidates team caches. |
+| | `organizationMembership.updated` | Updates membership role. Auto-synchronizes `Profile.university`. Invalidates team caches. |
+| | `organizationMembership.deleted` | Removes `OrganizationMembership` record. Resets `Profile.university = null` if user leaves that university. Invalidates team caches. |
+

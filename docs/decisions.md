@@ -175,3 +175,21 @@ Beyond leaders inviting users via email, candidates need a discovery mechanism t
 ### Status
 Accepted
 
+---
+
+## [Full 9-Event Clerk Webhook Synchronization and Automatic Profile Alignment]
+
+### Decision
+Support all 9 Clerk webhook events across users, organizations, and memberships with cryptographic Svix verification (`/api/webhooks/clerk`). Membership creation/updates automatically synchronize the user's `Profile.university` with the organization name and persist internal roles (`OrganizationMembership`). When a user departs an organization, `Profile.university` resets to `null`.
+
+### Context
+Users authenticate and join university organizations via Clerk. Storing memberships in the internal database enables seamless relational joins for clubs, events, and teams without making blocking HTTP calls to Clerk during user queries.
+
+### Consequences
+- **Positive:** Instant profile alignment with zero manual input by the student. Completely decoupled database identity model with high-speed query performance and immediate Redis cache invalidation.
+- **Negative:** Requires active webhook delivery in production and Svix signature verification. Local development relies on `getOrCreateUserByClerkId()` fallback or webhook tunneling.
+
+### Status
+Accepted
+
+
