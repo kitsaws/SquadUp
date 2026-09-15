@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { SignInButton } from "@clerk/react";
 import {
   Search,
   SlidersHorizontal,
@@ -21,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { useUserContext } from "../contexts/UserContext";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
 import { CategoryLegend } from "../components/CategoryLegend";
 import { ApplyTeamModal } from "../components/ApplyTeamModal";
@@ -29,7 +31,6 @@ import { CompatibilityScoreRing } from "../components/CompatibilityScoreRing";
 import {
   teamsApi,
   recommendationsApi,
-  profileApi,
   applicationsApi,
   TeamItem,
   UserProfileResponse,
@@ -38,6 +39,7 @@ import {
 type SortOption = "FIT_DESC" | "FIT_ASC" | "SPOTS_DESC" | "NAME_ASC";
 
 export function TeamsPage() {
+  const { isSignedIn, userVerifiedSkills, profile: userProfile } = useUserContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const teamIdParam = searchParams.get("id");
 
@@ -47,9 +49,6 @@ export function TeamsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-
-  // User Profile
-  const [userProfile, setUserProfile] = useState<UserProfileResponse | null>(null);
 
   // Inspected team (split view drawer)
   const [inspectedTeam, setInspectedTeam] = useState<TeamCardData | null>(null);
@@ -62,7 +61,14 @@ export function TeamsPage() {
   const [filterTier, setFilterTier] = useState<string>("ALL");
   const [filterCampus, setFilterCampus] = useState<string>("ALL");
   const [filterOpenSpotsOnly, setFilterOpenSpotsOnly] = useState<boolean>(false);
-  const [sortBy, setSortBy] = useState<SortOption>("FIT_DESC");
+  const [sortBy, setSortBy] = useState<SortOption>(isSignedIn ? "FIT_DESC" : "SPOTS_DESC");
+
+  // Keep sort valid if signed out
+  useEffect(() => {
+    if (!isSignedIn && (sortBy === "FIT_DESC" || sortBy === "FIT_ASC")) {
+      setSortBy("SPOTS_DESC");
+    }
+  }, [isSignedIn, sortBy]);
 
   // Application feedback state
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -78,41 +84,46 @@ export function TeamsPage() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Load user profile on mount
-  useEffect(() => {
-    profileApi.getProfile()
-      .then((res) => setUserProfile(res))
-      .catch(() => null);
-  }, []);
-
-  // Fetch teams & recommendations from API
+  // Fetch teams & recommendations (recommendations only if signed in)
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
 
     async function loadTeams() {
       try {
-        const [teamsRes, recsRes] = await Promise.all([
-          teamsApi.getTeams({
+        let teamsRes: any;
+        let recsRes: any = null;
+
+        if (isSignedIn) {
+          [teamsRes, recsRes] = await Promise.all([
+            teamsApi.getTeams({
+              page,
+              limit: 12,
+              search: debouncedSearch || undefined,
+              sort: sortBy === "NAME_ASC" ? "name" : "created_at",
+            }),
+            recommendationsApi.getRecommendations().catch(() => null),
+          ]);
+        } else {
+          teamsRes = await teamsApi.getTeams({
             page,
             limit: 12,
             search: debouncedSearch || undefined,
             sort: sortBy === "NAME_ASC" ? "name" : "created_at",
-          }),
-          recommendationsApi.getRecommendations().catch(() => null),
-        ]);
+          });
+        }
 
         if (!isMounted) return;
 
         const recsMap = new Map();
-        if (recsRes?.recommendations) {
-          recsRes.recommendations.forEach((rec) => {
+        if (isSignedIn && recsRes?.recommendations) {
+          recsRes.recommendations.forEach((rec: any) => {
             recsMap.set(rec.teamId, rec);
           });
         }
 
         const mapped: TeamCardData[] = (teamsRes.data || []).map((t: TeamItem) => {
-          const rec = recsMap.get(t.id);
+          const rec = isSignedIn ? recsMap.get(t.id) : null;
           return {
             id: t.id,
             name: t.name,
@@ -155,7 +166,7 @@ export function TeamsPage() {
     return () => {
       isMounted = false;
     };
-  }, [page, debouncedSearch, sortBy]);
+  }, [page, debouncedSearch, sortBy, isSignedIn]);
 
   // Toggle inspection: If the same team is clicked twice, hide the drawer.
   const handleInspectToggle = (team: TeamCardData) => {
@@ -216,15 +227,6 @@ export function TeamsPage() {
     SPOTS_DESC: "Open Spots (Most)",
     NAME_ASC: "Squad Name (A-Z)",
   };
-
-  const userVerifiedSkills = userProfile?.skills || [
-    "PostgreSQL",
-    "React",
-    "Python",
-    "TypeScript",
-    "FastAPI",
-    "Docker",
-  ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -313,61 +315,63 @@ export function TeamsPage() {
                   )}
                 </div>
 
-                {/* Match Recommendation Spectrum */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-black text-slate-700 block">
-                    Match Recommendation
-                  </label>
-                  <div className="space-y-1 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setFilterTier("ALL")}
-                      className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                        filterTier === "ALL"
-                          ? "bg-slate-900 text-white"
-                          : "text-slate-700 hover:bg-slate-800 hover:text-white"
-                      }`}
-                    >
-                      All Tiers
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFilterTier("BEST")}
-                      className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                        filterTier === "BEST"
-                          ? "bg-emerald-600 text-white"
-                          : "text-[#059669] hover:bg-[#10b981] hover:text-white"
-                      }`}
-                    >
-                      Best Fit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFilterTier("CROSS_CAMPUS")}
-                      className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                        filterTier === "CROSS_CAMPUS"
-                          ? "bg-indigo-600 text-white"
-                          : "text-[#4f46e5] hover:bg-[#6366F1] hover:text-white"
-                      }`}
-                    >
-                      Cross-Campus
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFilterTier("CAMPUS_EXPLORER")}
-                      className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                        filterTier === "CAMPUS_EXPLORER"
-                          ? "bg-amber-500 text-white"
-                          : "text-[#d97706] hover:bg-[#d97706] hover:text-white"
-                      }`}
-                    >
-                      Same Campus
-                    </button>
+                {/* Match Recommendation Spectrum (only when signed in) */}
+                {isSignedIn && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-700 block">
+                      Match Recommendation
+                    </label>
+                    <div className="space-y-1 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setFilterTier("ALL")}
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
+                          filterTier === "ALL"
+                            ? "bg-blue-50 text-blue-700 font-bold"
+                            : "text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        All Tiers
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFilterTier("BEST")}
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
+                          filterTier === "BEST"
+                            ? "bg-emerald-600 text-white"
+                            : "text-[#059669] hover:bg-[#10b981] hover:text-white"
+                        }`}
+                      >
+                        Best Fit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFilterTier("CROSS_CAMPUS")}
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
+                          filterTier === "CROSS_CAMPUS"
+                            ? "bg-indigo-600 text-white"
+                            : "text-[#4f46e5] hover:bg-[#6366F1] hover:text-white"
+                        }`}
+                      >
+                        Cross-Campus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFilterTier("CAMPUS_EXPLORER")}
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
+                          filterTier === "CAMPUS_EXPLORER"
+                            ? "bg-amber-500 text-white"
+                            : "text-[#d97706] hover:bg-[#d97706] hover:text-white"
+                        }`}
+                      >
+                        Same Campus
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Campus Affiliation */}
-                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                <div className={`space-y-1.5 ${isSignedIn ? "pt-2 border-t border-slate-100" : ""}`}>
                   <label className="text-xs font-black text-slate-700 block">
                     Campus Affiliation
                   </label>
@@ -384,7 +388,7 @@ export function TeamsPage() {
                         onClick={() => setFilterCampus(opt.id)}
                         className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                           filterCampus === opt.id
-                            ? "bg-slate-900 text-white font-bold"
+                            ? "bg-blue-50 text-blue-700 font-bold"
                             : "text-slate-700 hover:bg-slate-100"
                         }`}
                       >
@@ -424,12 +428,17 @@ export function TeamsPage() {
             {isSortOpen && (
               <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150">
                 {(
-                  [
-                    { id: "FIT_DESC", label: "Fit Score (Highest)" },
-                    { id: "FIT_ASC", label: "Fit Score (Lowest)" },
-                    { id: "SPOTS_DESC", label: "Open Spots (Most)" },
-                    { id: "NAME_ASC", label: "Squad Name (A-Z)" },
-                  ] as { id: SortOption; label: string }[]
+                  (isSignedIn
+                    ? [
+                        { id: "FIT_DESC", label: "Fit Score (Highest)" },
+                        { id: "FIT_ASC", label: "Fit Score (Lowest)" },
+                        { id: "SPOTS_DESC", label: "Open Spots (Most)" },
+                        { id: "NAME_ASC", label: "Squad Name (A-Z)" },
+                      ]
+                    : [
+                        { id: "SPOTS_DESC", label: "Open Spots (Most)" },
+                        { id: "NAME_ASC", label: "Squad Name (A-Z)" },
+                      ]) as { id: SortOption; label: string }[]
                 ).map((opt) => (
                   <button
                     key={opt.id}
@@ -454,7 +463,7 @@ export function TeamsPage() {
 
         {/* Legend */}
         <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 px-1">
-          <CategoryLegend />
+          {isSignedIn ? <CategoryLegend /> : <div />}
           <span className="text-xs text-slate-400 font-medium hidden sm:inline">
             Showing {filteredTeams.length} of {totalCount} squads
           </span>
@@ -480,15 +489,9 @@ export function TeamsPage() {
           )}
 
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((n) => (
-                <div
-                  key={n}
-                  className="h-64 rounded-xl border border-slate-200 bg-slate-50 animate-pulse flex items-center justify-center text-slate-400"
-                >
-                  <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
-                </div>
-              ))}
+            <div className="py-20 flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+              <p className="text-xs font-semibold text-slate-500">Loading squads & teams...</p>
             </div>
           ) : (
             <div
@@ -552,7 +555,7 @@ export function TeamsPage() {
             <div className="flex items-start justify-between gap-4 pb-3 border-b border-slate-100">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  {inspectedTeam.category ? (
+                  {isSignedIn && inspectedTeam.category ? (
                     <RecommendationBadge
                       category={inspectedTeam.category}
                       score={inspectedTeam.taxonomyScore}
@@ -597,76 +600,106 @@ export function TeamsPage() {
             </div>
 
             {/* Skill & Requirement Alignment */}
-            <div
-              className={`p-3.5 rounded-xl border space-y-3 ${
-                inspectedTeam.category === "BEST"
-                  ? "bg-emerald-50/60 border-emerald-200/90"
-                  : inspectedTeam.category === "GOOD_DIFFERENT_UNIVERSITY"
-                  ? "bg-indigo-50/60 border-indigo-200/90"
-                  : inspectedTeam.category === "SAME_UNIVERSITY_LOWER_SCORE"
-                  ? "bg-amber-50/60 border-amber-200/90"
-                  : "bg-slate-50 border-slate-200/80"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  {inspectedTeam.category ? (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Skill Compatibility Fit
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="w-3.5 h-3.5 text-slate-400" /> Technical Alignment
-                    </>
-                  )}
-                </span>
-                <span className="text-xs font-bold text-slate-900">
-                  {inspectedTeam.taxonomyScore !== undefined
-                    ? `${Math.round(inspectedTeam.taxonomyScore * 100)}% Match`
-                    : "Unranked Match"}
-                </span>
-              </div>
+            {isSignedIn ? (
+              <div
+                className={`p-3.5 rounded-xl border space-y-3 ${
+                  inspectedTeam.category === "BEST"
+                    ? "bg-emerald-50/60 border-emerald-200/90"
+                    : inspectedTeam.category === "GOOD_DIFFERENT_UNIVERSITY"
+                    ? "bg-indigo-50/60 border-indigo-200/90"
+                    : inspectedTeam.category === "SAME_UNIVERSITY_LOWER_SCORE"
+                    ? "bg-amber-50/60 border-amber-200/90"
+                    : "bg-slate-50 border-slate-200/80"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    {inspectedTeam.category ? (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Skill Compatibility Fit
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="w-3.5 h-3.5 text-slate-400" /> Technical Alignment
+                      </>
+                    )}
+                  </span>
+                  <span className="text-xs font-bold text-slate-900">
+                    {inspectedTeam.taxonomyScore !== undefined
+                      ? `${Math.round(inspectedTeam.taxonomyScore * 100)}% Match`
+                      : "Unranked Match"}
+                  </span>
+                </div>
 
-              <div className="flex items-center gap-3.5">
-                <CompatibilityScoreRing
-                  score={inspectedTeam.taxonomyScore}
-                  category={inspectedTeam.category || "UNRATED"}
-                  isUnrated={!inspectedTeam.category}
-                  size={52}
-                  strokeWidth={4.5}
-                />
-                <div className="space-y-0.5 text-xs text-slate-600">
-                  <p className="font-semibold text-slate-800">
-                    {inspectedTeam.neededRequirement
-                      ? `Actively seeking ${inspectedTeam.neededRequirement} lead`
-                      : inspectedTeam.category
-                      ? "Matching your core technical competencies"
-                      : "General technical vacancy"}
-                  </p>
-                  <p className="text-[11px] text-slate-500 leading-snug">
-                    {inspectedTeam.category
-                      ? "Your verified resume skills align with the squad's target architecture."
-                      : "Compare required skills against your verified profile competencies below."}
-                  </p>
+                <div className="flex items-center gap-3.5">
+                  <CompatibilityScoreRing
+                    score={inspectedTeam.taxonomyScore}
+                    category={inspectedTeam.category || "UNRATED"}
+                    isUnrated={!inspectedTeam.category}
+                    size={52}
+                    strokeWidth={4.5}
+                  />
+                  <div className="space-y-0.5 text-xs text-slate-600">
+                    <p className="font-semibold text-slate-800">
+                      {inspectedTeam.neededRequirement
+                        ? `Actively seeking ${inspectedTeam.neededRequirement} lead`
+                        : inspectedTeam.category
+                        ? "Matching your core technical competencies"
+                        : "General technical vacancy"}
+                    </p>
+                    <p className="text-[11px] text-slate-500 leading-snug">
+                      {inspectedTeam.category
+                        ? "Your verified resume skills align with the squad's target architecture."
+                        : "Compare required skills against your verified profile competencies below."}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              {/* Requirements Alignment Pills */}
-              <div className="space-y-1.5 pt-2 border-t border-slate-200/60">
-                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Needs/Requirements:
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {inspectedTeam.requirements.map((req) => (
-                    <SkillTag
-                      key={req}
-                      skill={req}
-                      isMatched={userVerifiedSkills.includes(req)}
-                    />
-                  ))}
+                {/* Requirements Alignment Pills */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-200/60">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Needs/Requirements:
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {inspectedTeam.requirements.map((req) => (
+                      <SkillTag
+                        key={req}
+                        skill={req}
+                        isMatched={userVerifiedSkills.some(
+                          (s) => s.trim().toLowerCase() === req.trim().toLowerCase()
+                        )}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-slate-400" /> Technical Requirements
+                  </span>
+                  <span className="text-xs font-medium text-slate-400">Sign in for compatibility</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Review required skills and team composition below. Sign in to view your personalized compatibility score.
+                </p>
+                <div className="space-y-1.5 pt-2 border-t border-slate-200/60">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Needs/Requirements:
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {inspectedTeam.requirements.map((req) => (
+                      <SkillTag
+                        key={req}
+                        skill={req}
+                        isMatched={false}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Current Roster Preview */}
             <div className="space-y-2">
@@ -703,7 +736,19 @@ export function TeamsPage() {
 
             {/* Action Footer */}
             <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
-              {inspectedTeam.isUserLeader ? (
+              {inspectedTeam.members.length >= (inspectedTeam.maxCapacity || 4) ? (
+                <>
+                  <span className="flex-1 py-2.5 text-center text-xs font-semibold text-slate-400 bg-slate-100 rounded-xl border border-slate-200">
+                    Squad Full • No Open Spots
+                  </span>
+                  <Link
+                    to={`/team/${inspectedTeam.id}`}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
+                  </Link>
+                </>
+              ) : inspectedTeam.isUserLeader ? (
                 <Link
                   to={`/team/${inspectedTeam.id}`}
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
@@ -714,6 +759,21 @@ export function TeamsPage() {
                 <div className="w-full text-center py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
                   ⏳ Application submitted • Pending leader review
                 </div>
+              ) : !isSignedIn ? (
+                <>
+                  <SignInButton mode="modal">
+                    <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer">
+                      Sign In to Apply <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </SignInButton>
+
+                  <Link
+                    to={`/team/${inspectedTeam.id}`}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
+                  </Link>
+                </>
               ) : (
                 <>
                   <button

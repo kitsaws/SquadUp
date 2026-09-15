@@ -44,6 +44,7 @@ export interface SmartRecommendationData {
 interface SmartRecommendationPanelProps {
   recommendation: SmartRecommendationData;
   isRecommended?: boolean;
+  isFull?: boolean;
   onApply?: () => void;
   onMessage?: () => void;
   onWithdraw?: () => void;
@@ -53,6 +54,7 @@ interface SmartRecommendationPanelProps {
 export function SmartRecommendationPanel({
   recommendation,
   isRecommended,
+  isFull = false,
   onApply,
   onMessage,
   onWithdraw,
@@ -65,14 +67,7 @@ export function SmartRecommendationPanel({
       : Boolean(recommendation.category && recommendation.taxonomyScore !== undefined);
 
   const category = recommendation.category;
-  const userSkills = recommendation.userVerifiedSkills || [
-    "PostgreSQL",
-    "React",
-    "Python",
-    "TypeScript",
-    "FastAPI",
-    "Docker",
-  ];
+  const userSkills = recommendation.userVerifiedSkills || [];
 
   // State for on-demand compatibility calculation for non-recommended / general squads
   const [isCalculating, setIsCalculating] = useState(false);
@@ -320,7 +315,9 @@ export function SmartRecommendationPanel({
           <div className="space-y-2">
             {(recommendation.requirements || []).length > 0 ? (
               (recommendation.requirements || []).map((req, idx) => {
-                const isMet = userSkills.includes(req);
+                const isMet = userSkills.some(
+                  (s) => s.trim().toLowerCase() === req.trim().toLowerCase()
+                );
                 return (
                   <div
                     key={idx}
@@ -364,7 +361,11 @@ export function SmartRecommendationPanel({
 
       {/* Action Footer */}
       <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
-        {hasApplied ? (
+        {isFull ? (
+          <div className="w-full text-center py-2.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 text-xs font-semibold">
+            Squad Full • All Roster Spots Claimed
+          </div>
+        ) : hasApplied ? (
           <div className="w-full space-y-2">
             <div className="w-full text-center py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
               ⏳ Your application is pending review by {recommendation.teamLeadName}

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useUser } from "@clerk/react";
+import { Link, useNavigate } from "react-router-dom";
+import { SignInButton } from "@clerk/react";
 import { ArrowRight, Sparkles, CheckCircle2, Shield, Users, Calendar, Loader2 } from "lucide-react";
+import { useUserContext } from "../contexts/UserContext";
 import { CategoryLegend } from "../components/CategoryLegend";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
 import { EventCard, EventCardData } from "../components/EventCard";
@@ -18,7 +19,8 @@ import {
 } from "../services/api";
 
 export function HomeDashboard() {
-  const { user } = useUser();
+  const navigate = useNavigate();
+  const { isSignedIn, user, profile: contextProfile } = useUserContext();
   const [recommendedTeams, setRecommendedTeams] = useState<TeamCardData[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<EventCardData[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfileResponse | null>(null);
@@ -34,7 +36,7 @@ export function HomeDashboard() {
     async function loadDashboardData() {
       setIsLoading(true);
       try {
-        // 1. Fetch Events
+        // 1. Fetch Events (public)
         const eventsRes = await eventsApi.getEvents({ limit: 3, sort: "date_asc" }).catch(() => null);
         if (isMounted && eventsRes?.data) {
           const mappedEvents: EventCardData[] = eventsRes.data.map((evt: EventItem) => {
@@ -65,34 +67,44 @@ export function HomeDashboard() {
           setUpcomingEvents(mappedEvents);
         }
 
-        // 2. Fetch User Profile & Squads
-        const profileRes = await profileApi.getProfile().catch(() => null);
-        if (isMounted && profileRes) {
-          setUserProfile(profileRes);
+        // 2. Fetch User Profile & Squads only if signed in
+        if (isSignedIn) {
+          if (contextProfile) {
+            setUserProfile(contextProfile);
+          } else {
+            const profileRes = await profileApi.getProfile().catch(() => null);
+            if (isMounted && profileRes) {
+              setUserProfile(profileRes);
+            }
+          }
+        } else {
+          setUserProfile(null);
         }
 
-        // 3. Fetch Recommendations (or featured teams)
+        // 3. Fetch Recommendations (if signed in) or featured teams (if signed out or fallback)
         let loadedTeams: TeamCardData[] = [];
-        try {
-          const recsRes = await recommendationsApi.getRecommendations({ topK: 3 });
-          if (recsRes?.recommendations && recsRes.recommendations.length > 0) {
-            loadedTeams = recsRes.recommendations.map((rec) => ({
-              id: rec.teamId,
-              name: rec.teamName,
-              eventId: "",
-              eventTitle: "Featured Event",
-              university: rec.university,
-              requirements: rec.requirements || [],
-              neededRequirement: rec.requirements?.[0],
-              taxonomyScore: rec.taxonomyScore,
-              category: rec.recommendationCategory,
-              description: rec.description,
-              members: [],
-              maxCapacity: 4,
-            }));
+        if (isSignedIn) {
+          try {
+            const recsRes = await recommendationsApi.getRecommendations({ topK: 3 });
+            if (recsRes?.recommendations && recsRes.recommendations.length > 0) {
+              loadedTeams = recsRes.recommendations.map((rec) => ({
+                id: rec.teamId,
+                name: rec.teamName,
+                eventId: "",
+                eventTitle: "Featured Event",
+                university: rec.university,
+                requirements: rec.requirements || [],
+                neededRequirement: rec.requirements?.[0],
+                taxonomyScore: rec.taxonomyScore,
+                category: rec.recommendationCategory,
+                description: rec.description,
+                members: [],
+                maxCapacity: 4,
+              }));
+            }
+          } catch {
+            // Fallback to real teams if no resume
           }
-        } catch {
-          // If recommendation engine has no resume, fallback to real teams
         }
 
         if (loadedTeams.length === 0) {
@@ -129,7 +141,7 @@ export function HomeDashboard() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isSignedIn, contextProfile]);
 
   const handleApplySubmit = async (teamId: string, message?: string) => {
     try {
@@ -147,42 +159,37 @@ export function HomeDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
-      {/* Toast feedback */}
-      {notificationToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom duration-200">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>{notificationToast}</span>
-        </div>
-      )}
-
       {/* Hero Greeting Section */}
       <section className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight font-heading">
-              Good morning, {displayName}.
+              {isSignedIn ? `Good morning, ${displayName}.` : "Welcome to SquadUp."}
             </h1>
             <p className="text-base text-slate-500 font-medium mt-1">
-              Find your next squad.
+              {isSignedIn ? "Find your next squad." : "Find your next collegiate hackathon and project squad."}
             </p>
           </div>
         </div>
       </section>
 
-      {/* Section 1: Recommended For You */}
+      {/* Section 1: Recommended For You or Featured Squads */}
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-slate-900 font-heading flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-blue-600" /> Recommended for you
+              <Sparkles className="w-5 h-5 text-blue-600" />{" "}
+              {isSignedIn ? "Recommended for you" : "Featured Squads"}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Smart recommendations matched against your verified skills & campus affiliation.
+              {isSignedIn
+                ? "Smart recommendations matched against your verified skills & campus affiliation."
+                : "Discover active collegiate squads currently recruiting builders and collaborators."}
             </p>
           </div>
 
-          {/* Horizontal Match Legend */}
-          <CategoryLegend />
+          {/* Horizontal Match Legend (only visible when logged in) */}
+          {isSignedIn && <CategoryLegend />}
         </div>
 
         {isLoading ? (
@@ -202,9 +209,8 @@ export function HomeDashboard() {
               <TeamCard
                 key={team.id}
                 team={team}
-                hasApplied={appliedTeamIds.includes(team.id)}
-                onInspect={() => setSelectedTeamForApply(team)}
-                onApply={() => setSelectedTeamForApply(team)}
+                onInspect={() => navigate(`/team/${team.id}`)}
+                onApply={() => navigate(`/team/${team.id}`)}
               />
             ))}
           </div>
@@ -269,15 +275,32 @@ export function HomeDashboard() {
             Your Squad
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            {userProfile?.teams && userProfile.teams.length > 0
-              ? `You're currently in ${userProfile.teams.length} ${
-                  userProfile.teams.length === 1 ? "team" : "teams"
-                }.`
-              : "You are not currently part of any team roster."}
+            {isSignedIn
+              ? userProfile?.teams && userProfile.teams.length > 0
+                ? `You're currently in ${userProfile.teams.length} ${
+                    userProfile.teams.length === 1 ? "team" : "teams"
+                  }.`
+                : "You are not currently part of any team roster."
+              : "Sign in to view and manage your active squads."}
           </p>
         </div>
 
-        {userProfile?.teams && userProfile.teams.length > 0 ? (
+        {!isSignedIn ? (
+          <div className="p-8 rounded-xl border border-slate-200 bg-white shadow-xs text-center space-y-3">
+            <Users className="w-8 h-8 text-blue-600 mx-auto" />
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-slate-900">Sign in to view your squad</p>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Connect your account to access your active squads, manage member rosters, and review incoming candidate applications.
+              </p>
+            </div>
+            <SignInButton mode="modal">
+              <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors cursor-pointer shadow-xs">
+                Sign In to SquadUp <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </SignInButton>
+          </div>
+        ) : userProfile?.teams && userProfile.teams.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {userProfile.teams.map((squad) => (
               <div
@@ -340,16 +363,6 @@ export function HomeDashboard() {
           </div>
         )}
       </section>
-
-      {/* Apply Team Modal */}
-      {selectedTeamForApply && (
-        <ApplyTeamModal
-          isOpen={!!selectedTeamForApply}
-          onClose={() => setSelectedTeamForApply(null)}
-          team={selectedTeamForApply}
-          onSubmit={(teamId) => handleApplySubmit(teamId)}
-        />
-      )}
     </div>
   );
 }

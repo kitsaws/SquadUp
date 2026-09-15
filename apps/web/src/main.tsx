@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { JobProvider } from "./contexts/JobContext";
+import { UserProvider } from "./contexts/UserContext";
 import { App } from "./App";
 import "./styles.css";
 
@@ -18,10 +19,12 @@ createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
       <BrowserRouter>
-        <JobProvider>
-          <App />
-          <ToastContainer />
-        </JobProvider>
+        <UserProvider>
+          <JobProvider>
+            <App />
+            <ToastContainer />
+          </JobProvider>
+        </UserProvider>
       </BrowserRouter>
     </ClerkProvider>
   </StrictMode>

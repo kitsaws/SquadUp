@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { SignInButton } from "@clerk/react";
 import {
   ArrowLeft,
   Users,
@@ -16,7 +17,9 @@ import {
   LogOut,
   UserMinus,
   Send,
+  ArrowRight,
 } from "lucide-react";
+import { useUserContext } from "../contexts/UserContext";
 import {
   teamsApi,
   profileApi,
@@ -39,6 +42,7 @@ import {
 export function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isSignedIn, userVerifiedSkills, profile: contextProfile } = useUserContext();
 
   const [team, setTeam] = useState<TeamItem | null>(null);
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
@@ -63,7 +67,7 @@ export function TeamDetailPage() {
       setError(null);
 
       try {
-        // 1. Fetch live Team data
+        // 1. Fetch live Team data (public)
         const teamData = await teamsApi.getTeam(id!);
         if (!isMounted) return;
         setTeam(teamData);
@@ -71,13 +75,25 @@ export function TeamDetailPage() {
           setApplied(true);
         }
 
+        // If not signed in, do not call protected APIs
+        if (!isSignedIn) {
+          setProfile(null);
+          setApplications([]);
+          setRecommendation(null);
+          return;
+        }
+
         // 2. Fetch User Profile
-        let userProfile: UserProfileResponse | null = null;
-        try {
-          userProfile = await profileApi.getProfile();
-          if (isMounted) setProfile(userProfile);
-        } catch {
-          // Unauthenticated or profile not created yet
+        let userProfile: UserProfileResponse | null = contextProfile;
+        if (!userProfile) {
+          try {
+            userProfile = await profileApi.getProfile();
+            if (isMounted) setProfile(userProfile);
+          } catch {
+            // Unauthenticated or profile not created yet
+          }
+        } else {
+          setProfile(userProfile);
         }
 
         const isUserLeader = Boolean(
@@ -149,9 +165,8 @@ export function TeamDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [id, isSignedIn, contextProfile]);
 
-  const userVerifiedSkills = profile?.skills || [];
   const isUserLeader = Boolean(
     team?.isLeader ||
     (profile && team?.members.some((m) => m.userId === profile.id && m.role === "Leader"))
@@ -551,7 +566,7 @@ export function TeamDetailPage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    {category ? (
+                    {isSignedIn && category ? (
                       <RecommendationBadge category={category} score={taxonomyScore} />
                     ) : (
                       <span className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
@@ -607,7 +622,12 @@ export function TeamDetailPage() {
                     <SkillTag
                       key={req}
                       skill={req}
-                      isMatched={userVerifiedSkills.includes(req)}
+                      isMatched={
+                        isSignedIn &&
+                        userVerifiedSkills.some(
+                          (s) => s.trim().toLowerCase() === req.trim().toLowerCase()
+                        )
+                      }
                     />
                   ))}
                 </div>
@@ -683,44 +703,72 @@ export function TeamDetailPage() {
             </div>
           </div>
 
-          {/* Right Column: Smart Recommendation Panel */}
+          {/* Right Column: Smart Recommendation Panel or Logged-Out CTA */}
           <div className="space-y-6">
-            <SmartRecommendationPanel
-              recommendation={{
-                teamId: team.id,
-                teamName: team.name,
-                category: category,
-                taxonomyScore: taxonomyScore,
-                fulfilledRequirements: fulfilledCount,
-                totalRequirements: team.requirements.length,
-                teamLeadName: team.members.find((m) => m.role === "Leader")?.name || team.members[0]?.name || "Team Lead",
-                teamLeadUniversity: team.university,
-                sameUniversity: Boolean(
-                  profile?.university &&
-                  team.university &&
-                  profile.university.toLowerCase() === team.university.toLowerCase()
-                ),
-                requirements: team.requirements,
-                userVerifiedSkills: userVerifiedSkills,
-                breakdown: recommendation?.requirementBreakdown?.map((item) => ({
-                  requirementName: item.requirementName,
-                  score: item.score,
-                  isDirectMatch: item.score >= 0.8,
-                  provenanceSource: item.bestUserSkillName ? `Skill: ${item.bestUserSkillName}` : "Taxonomy Alignment",
-                  explanation: item.explanationText,
-                })),
-              }}
-              isRecommended={Boolean(category && taxonomyScore !== undefined)}
-              onApply={() => setIsApplyModalOpen(true)}
-              onWithdraw={handleWithdrawApplication}
-              hasApplied={applied}
-            />
+            {!isSignedIn ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-5 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mx-auto shadow-2xs">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 font-heading">
+                    Want to join this squad?
+                  </h3>
+                  <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                    Sign in with your university account to verify your skills, see compatibility scores, and apply to open roles.
+                  </p>
+                </div>
+                {team.members.length >= totalSpots ? (
+                  <span className="w-full block py-2.5 text-center text-xs font-semibold text-slate-400 bg-slate-100 rounded-xl border border-slate-200">
+                    Squad Full • No Open Spots Left
+                  </span>
+                ) : (
+                  <SignInButton mode="modal">
+                    <button className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer">
+                      Sign In to Apply <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </SignInButton>
+                )}
+              </div>
+            ) : (
+              <SmartRecommendationPanel
+                recommendation={{
+                  teamId: team.id,
+                  teamName: team.name,
+                  category: category,
+                  taxonomyScore: taxonomyScore,
+                  fulfilledRequirements: fulfilledCount,
+                  totalRequirements: team.requirements.length,
+                  teamLeadName: team.members.find((m) => m.role === "Leader")?.name || team.members[0]?.name || "Team Lead",
+                  teamLeadUniversity: team.university,
+                  sameUniversity: Boolean(
+                    profile?.university &&
+                    team.university &&
+                    profile.university.toLowerCase() === team.university.toLowerCase()
+                  ),
+                  requirements: team.requirements,
+                  userVerifiedSkills: userVerifiedSkills,
+                  breakdown: recommendation?.requirementBreakdown?.map((item) => ({
+                    requirementName: item.requirementName,
+                    score: item.score,
+                    isDirectMatch: item.score >= 0.8,
+                    provenanceSource: item.bestUserSkillName ? `Skill: ${item.bestUserSkillName}` : "Taxonomy Alignment",
+                    explanation: item.explanationText,
+                  })),
+                }}
+                isRecommended={Boolean(category && taxonomyScore !== undefined)}
+                isFull={team.members.length >= totalSpots}
+                onApply={() => setIsApplyModalOpen(true)}
+                onWithdraw={handleWithdrawApplication}
+                hasApplied={applied}
+              />
+            )}
           </div>
         </div>
       )}
 
       {/* Apply Team Modal */}
-      {!isUserLeader && (
+      {!isUserLeader && isSignedIn && team.members.length < totalSpots && (
         <ApplyTeamModal
           isOpen={isApplyModalOpen}
           onClose={() => setIsApplyModalOpen(false)}

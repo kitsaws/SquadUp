@@ -1,6 +1,7 @@
 import React from "react";
 import { Users, ArrowRight, Check } from "lucide-react";
 import { RecommendationBadge, RecommendationTier, SkillTag } from "./Badges";
+import { useUserContext } from "../contexts/UserContext";
 
 export interface TeamMemberPreview {
   id: string;
@@ -42,26 +43,24 @@ export function TeamCard({
   onApply,
   hasApplied = false,
 }: TeamCardProps) {
+  const { isSignedIn, userVerifiedSkills } = useUserContext();
   const maxCapacity = team.maxCapacity || 4;
   const currentCount = team.members.length;
   const isFull = currentCount >= maxCapacity;
 
   const [isHovered, setIsHovered] = React.useState(false);
 
-  // Verified user competencies for requirement matching
-  const userVerifiedSkills = ["PostgreSQL", "React", "Python", "TypeScript", "FastAPI", "Docker"];
-
-  // Accent color for category
+  // Accent color for category (only active when signed in)
   let accentColor = "#94a3b8";
   let topHighlightColor = "#cbd5e1";
 
-  if (team.category === "BEST") {
+  if (isSignedIn && team.category === "BEST") {
     accentColor = "#68DBA9";
     topHighlightColor = "var(--sq-best-fit, #68DBA9)";
-  } else if (team.category === "GOOD_DIFFERENT_UNIVERSITY") {
+  } else if (isSignedIn && team.category === "GOOD_DIFFERENT_UNIVERSITY") {
     accentColor = "#6366F1";
     topHighlightColor = "var(--sq-cross-campus, #6366F1)";
-  } else if (team.category === "SAME_UNIVERSITY_LOWER_SCORE") {
+  } else if (isSignedIn && team.category === "SAME_UNIVERSITY_LOWER_SCORE") {
     accentColor = "#ffc761";
     topHighlightColor = "var(--sq-campus-explorer, #ffc761)";
   }
@@ -71,22 +70,32 @@ export function TeamCard({
       onClick={() => onInspect?.(team)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`bg-white rounded-xl border-2 p-5 sm:p-6 transition-[border-color,box-shadow] duration-200 cursor-pointer flex flex-col justify-between shadow-xs hover:shadow-md relative overflow-hidden group h-full w-full min-w-[320px] max-w-[420px] ${
-        isSelected
-          ? "ring-2 ring-blue-500/20 shadow-md"
-          : "hover:shadow-md"
+      className={`rounded-xl border-2 p-5 sm:p-6 transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden group h-full w-full min-w-[320px] max-w-[420px] ${
+        isFull
+          ? "opacity-60 bg-slate-50/70 border-slate-200"
+          : isSelected
+          ? "bg-white ring-2 ring-blue-500/20 shadow-md"
+          : "bg-white shadow-xs hover:shadow-md"
       }`}
       style={{
-        borderColor: isSelected ? accentColor : isHovered ? accentColor : "#e2e8f0",
+        borderColor: isFull
+          ? "#e2e8f0"
+          : isSelected
+          ? accentColor
+          : isHovered
+          ? accentColor
+          : "#e2e8f0",
       }}
     >
-      {/* Top Content: flex-1 ensures uniform expansion */}
-      <div className="flex-1 flex flex-col">
-        {/* Subtle top indicator */}
-        <div
-          className="absolute top-0 left-0 right-0 h-1 z-10"
-          style={{ backgroundColor: topHighlightColor }}
-        />
+      {/* Top Content: header, name, description */}
+      <div className="flex flex-col">
+        {/* Top Highlight indicator (only when logged in and tier is active) */}
+        {isSignedIn && team.category && !isFull && (
+          <div
+            className="absolute top-0 left-0 right-0 h-1 z-10"
+            style={{ backgroundColor: topHighlightColor }}
+          />
+        )}
 
         {/* Top Meta Bar */}
         <div className="flex items-start justify-between gap-2 mb-1.5 pt-0.5">
@@ -94,12 +103,15 @@ export function TeamCard({
             <span className="text-xs font-semibold text-blue-600 truncate block">
               {team.eventTitle}
             </span>
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 font-heading leading-tight mt-0.5 truncate" title={team.name}>
+            <h3
+              className="text-base sm:text-lg font-bold text-slate-900 font-heading leading-tight mt-0.5 truncate"
+              title={team.name}
+            >
               {team.name}
             </h3>
           </div>
 
-          {team.category && (
+          {isSignedIn && team.category && !isFull && (
             <RecommendationBadge category={team.category} score={team.taxonomyScore} />
           )}
         </div>
@@ -109,33 +121,40 @@ export function TeamCard({
           {team.university || ""}
         </div>
 
-        {/* Description snippet - fixed height 2 lines for uniform card sizes */}
-        <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-3 h-9" title={team.description}>
+        {/* Description snippet */}
+        <p
+          className="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-2"
+          title={team.description}
+        >
           {team.description || ""}
         </p>
+      </div>
 
-        {/* Stack Requirements Pills */}
-        <div className="mb-4 flex-1">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-            Needs/Requirements:
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {team.requirements.map((req, i) => {
-              const isMet = userVerifiedSkills.includes(req);
-              return (
-                <SkillTag
-                  key={i}
-                  skill={req}
-                  isMatched={isMet}
-                />
+      {/* Stack Requirements Pills: mt-auto anchors to bottom and expands upward */}
+      <div className="mt-auto pt-3 mb-4">
+        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+          Needs/Requirements:
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {team.requirements.map((req, i) => {
+            const isMet =
+              isSignedIn &&
+              userVerifiedSkills.some(
+                (s) => s.trim().toLowerCase() === req.trim().toLowerCase()
               );
-            })}
-          </div>
+            return (
+              <SkillTag
+                key={i}
+                skill={req}
+                isMatched={isMet}
+              />
+            );
+          })}
         </div>
       </div>
 
       {/* Footer Capacity & Actions */}
-      <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between mt-auto">
+      <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between">
         {/* Member Avatars & Spots */}
         <div className="flex items-center gap-2">
           <div className="flex -space-x-1.5">
@@ -171,7 +190,9 @@ export function TeamCard({
               Pending
             </span>
           ) : isFull ? (
-            <span className="text-xs font-medium text-slate-400">Squad Full</span>
+            <span className="text-xs font-semibold text-slate-400 bg-slate-100/80 px-2.5 py-1 rounded-md border border-slate-200">
+              Squad Full
+            </span>
           ) : (
             <button
               onClick={(e) => {
@@ -180,7 +201,7 @@ export function TeamCard({
               }}
               className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
             >
-              Inspect Fit <ArrowRight className="w-3.5 h-3.5" />
+              View Team <ArrowRight className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
