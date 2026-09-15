@@ -264,3 +264,23 @@ export const getProfileById = async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Failed to fetch candidate profile." });
   }
 };
+
+export const syncClerkData = async (req: Request, res: Response) => {
+  const auth = getAuth(req);
+  const { userId } = auth;
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const userInDb = await getOrCreateUserByClerkId(userId);
+    const { syncUserOrganizationsFromClerk } = await import("../utils/auth.utils.js");
+    await syncUserOrganizationsFromClerk(userInDb.id, userId);
+
+    return res.json({ success: true, message: "Clerk data synced successfully." });
+  } catch (error) {
+    console.error("[Profile API] Error syncing Clerk data:", error);
+    return res.status(500).json({ error: "Failed to sync Clerk data." });
+  }
+};
+

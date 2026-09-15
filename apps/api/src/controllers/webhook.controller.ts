@@ -6,10 +6,16 @@ import { CacheService } from "../services/cache.service.js";
 const prisma = new PrismaClient();
 
 export const clerkWebhookHandler = async (req: Request, res: Response) => {
+  const now = new Date().toLocaleTimeString();
+  console.log("\n" + "=".repeat(70));
+  console.log(`⚡ [CLERK WEBHOOK INCOMING] ${now}`);
+  console.log(`   Method: ${req.method} | URL: ${req.originalUrl}`);
+
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
-    console.error("[Clerk Webhook] Missing CLERK_WEBHOOK_SECRET in environment");
+    console.error("❌ [Clerk Webhook] Error: Missing CLERK_WEBHOOK_SECRET in environment");
+    console.log("=".repeat(70) + "\n");
     return res.status(500).json({ error: "Missing CLERK_WEBHOOK_SECRET" });
   }
 
@@ -18,14 +24,23 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
   const svix_timestamp = req.headers["svix-timestamp"] as string;
   const svix_signature = req.headers["svix-signature"] as string;
 
+  console.log(`   svix-id:        ${svix_id || "(missing)"}`);
+  console.log(`   svix-timestamp: ${svix_timestamp || "(missing)"}`);
+  console.log(`   svix-signature: ${svix_signature ? svix_signature.slice(0, 20) + "..." : "(missing)"}`);
+
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    console.warn("[Clerk Webhook] Missing required Svix headers");
+    console.warn("⚠️  [Clerk Webhook] Rejected: Missing required Svix headers");
+    console.log("=".repeat(70) + "\n");
     return res.status(400).json({ error: "Missing Svix headers" });
   }
 
-  // Get raw body
+  // Get raw body as string for Svix verification
   const payload = req.body;
-  const body = payload.toString();
+  const body = Buffer.isBuffer(payload)
+    ? payload.toString("utf8")
+    : typeof payload === "string"
+    ? payload
+    : JSON.stringify(payload || {});
 
   const wh = new Webhook(WEBHOOK_SECRET);
   let evt: any;
@@ -37,14 +52,19 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
       "svix-signature": svix_signature,
     });
   } catch (err) {
-    console.error("[Clerk Webhook] Signature verification failed:", err);
+    console.error(`❌ [Clerk Webhook] Signature verification failed: ${(err as Error).message}`);
+    console.log("=".repeat(70) + "\n");
     return res.status(400).json({ error: "Webhook signature verification failed" });
   }
 
   const eventType: string = evt.type;
   const data = evt.data;
 
-  console.log(`[Clerk Webhook] Processing event: ${eventType} (ID: ${data?.id})`);
+  console.log(`✅ [Clerk Webhook] Signature Verified Successfully!`);
+  console.log(`🏷️  [Clerk Webhook] Event Type: ${eventType} (ID: ${data?.id || "N/A"})`);
+  console.log(`📦 [Clerk Webhook] Event Payload:`);
+  console.log(JSON.stringify(data, null, 2));
+  console.log("-".repeat(70));
 
   try {
     switch (eventType) {
@@ -266,14 +286,14 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
 
         // Reset Profile.university if it was previously set to this organization
         if (user && org) {
-          const userProfile = await prisma.profile.findUnique({
-            where: { userId: user.id },
+          const updatedCount = await prisma.profile.updateMany({
+            where: {
+              userId: user.id,
+              university: org.name,
+            },
+            data: { university: null },
           });
-          if (userProfile && userProfile.university === org.name) {
-            await prisma.profile.update({
-              where: { userId: user.id },
-              data: { university: null },
-            });
+          if (updatedCount.count > 0) {
             console.log(
               `[Clerk Webhook] Reset profile university for user ${clerkUserId} after leaving ${org.name}`
             );
@@ -293,9 +313,12 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
       }
     }
 
+    console.log(`🎉 [Clerk Webhook] Successfully processed and committed "${eventType}" to DB.`);
+    console.log("=".repeat(70) + "\n");
     return res.status(200).json({ success: true, event: eventType });
   } catch (dbError) {
-    console.error(`[Clerk Webhook] Database error while processing ${eventType}:`, dbError);
+    console.error(`💥 [Clerk Webhook] Database error while processing ${eventType}:`, dbError);
+    console.log("=".repeat(70) + "\n");
     return res.status(500).json({ error: "Database error processing webhook" });
   }
 };

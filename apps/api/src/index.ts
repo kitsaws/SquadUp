@@ -22,7 +22,7 @@ import { clerkMiddleware } from "@clerk/express";
 app.use(clerkMiddleware());
 
 // Webhook routes MUST come before express.json() so they can parse raw bodies
-app.use("/api/webhooks", webhookRoutes);
+app.use(["/api/webhooks", "/api/webhook"], webhookRoutes);
 
 app.use(express.json());
 
@@ -68,6 +68,15 @@ app.get("/example", (_request, response) => {
   response.json({ user, team, event });
 });
 
+import { getClerkWebhookConfig } from "./config/webhook.config.js";
+
 app.listen(port, () => {
   console.log(`SquadUp API running on http://localhost:${port}`);
+  const { webhookUrl, isCustomUrlConfigured, hasSecret } = getClerkWebhookConfig();
+  console.log(
+    `[Clerk Webhook] Receiving URL: ${webhookUrl} (${isCustomUrlConfigured ? "configured via CLERK_WEBHOOK_URL" : "default localhost fallback"})`
+  );
+  if (!hasSecret) {
+    console.warn("[Clerk Webhook] Warning: CLERK_WEBHOOK_SECRET is not set. Incoming webhooks will fail verification.");
+  }
 });
