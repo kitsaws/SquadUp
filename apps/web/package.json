@@ -13,6 +13,7 @@
   "dependencies": {
     "@clerk/react": "^6.14.4",
     "@squadup/shared": "workspace:*",
+    "lucide-react": "^1.46.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router": "^8.3.0",

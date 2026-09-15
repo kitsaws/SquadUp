@@ -13,7 +13,7 @@ The system is designed to provide ultra-fast standard web API responses while se
 - **AI Service (`apps/ai-service`):** Python FastAPI application. Exists solely to run computationally heavy Python libraries (like `pdfplumber`) and interface with AI/LLM endpoints. It does *not* talk to the database directly.
 - **Job Queue:** BullMQ backed by Redis. Orchestrates asynchronous communication between the Backend API and the AI Service.
 - **Caching Layer:** Redis (`ioredis`) managed via `CacheService` for list queries and dynamic event TTL caching.
-- **Database:** PostgreSQL extended with `pgvector`.
+- **Database:** PostgreSQL.
 - **Authentication:** Clerk SDK, providing JWTs and managing university organizations.
 
 ## Request/Data Flows

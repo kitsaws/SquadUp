@@ -11,8 +11,10 @@
     "clean": "rimraf dist",
     "db:push": "dotenv -e ../../.env -- prisma db push",
     "db:generate": "dotenv -e ../../.env -- prisma generate",
-    "db:studio": "dotenv -e ../../.env -- prisma studio"
+    "db:studio": "dotenv -e ../../.env -- prisma studio",
+    "db:seed": "dotenv -e ../../.env -- tsx prisma/seed.ts"
   },
+
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5.1.6",
     "@clerk/express": "^2.1.60",
