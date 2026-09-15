@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, X, Calendar, Users, Sparkles, ArrowRight } from "lucide-react";
+import { Search, X, Calendar, Users, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { eventsApi, teamsApi } from "../services/api";
 
 interface SearchResult {
   id: string;
@@ -11,73 +12,6 @@ interface SearchResult {
   link: string;
 }
 
-const DEMO_SEARCH_DATA: SearchResult[] = [
-  {
-    id: "e1",
-    type: "event",
-    title: "TreeHacks 2026",
-    subtitle: "Oct 15–17, 2026 • Stanford, CA • Global Event",
-    badge: "12 Teams",
-    link: "/events",
-  },
-  {
-    id: "e2",
-    type: "event",
-    title: "CalHacks 12.0",
-    subtitle: "Nov 02–04, 2026 • San Francisco, CA • Global Event",
-    badge: "8 Teams",
-    link: "/events",
-  },
-  {
-    id: "e3",
-    type: "event",
-    title: "Stanford AI & MedTech Showcase",
-    subtitle: "Dec 05, 2026 • Stanford Campus Only",
-    badge: "5 Teams",
-    link: "/events",
-  },
-  {
-    id: "t1",
-    type: "team",
-    title: "AI Agents Guild",
-    subtitle: "TreeHacks 2026 • Needs React, FastAPI • 3/4 Spots",
-    badge: "92% Match",
-    link: "/teams",
-  },
-  {
-    id: "t2",
-    type: "team",
-    title: "CloudScale Engine",
-    subtitle: "TreeHacks 2026 • Needs Docker, Kubernetes • 2/4 Spots",
-    badge: "85% Match",
-    link: "/teams",
-  },
-  {
-    id: "t3",
-    type: "team",
-    title: "NeuroVision Health",
-    subtitle: "CalHacks 12.0 • Needs PyTorch, React Native • 3/4 Spots",
-    badge: "88% Match",
-    link: "/teams",
-  },
-  {
-    id: "s1",
-    type: "skill",
-    title: "React & TypeScript",
-    subtitle: "14 teams actively recruiting frontend developers",
-    badge: "Skill Match",
-    link: "/teams",
-  },
-  {
-    id: "s2",
-    type: "skill",
-    title: "FastAPI & Python",
-    subtitle: "9 teams seeking asynchronous API developers",
-    badge: "Skill Match",
-    link: "/teams",
-  },
-];
-
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -85,6 +19,8 @@ interface SearchModalProps {
 
 export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -92,6 +28,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       setTimeout(() => inputRef.current?.focus(), 50);
     } else {
       setQuery("");
+      setResults([]);
     }
   }, [isOpen]);
 
@@ -100,9 +37,6 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         if (isOpen) onClose();
-        else {
-          // Can be toggled externally
-        }
       }
       if (e.key === "Escape" && isOpen) {
         onClose();
@@ -112,15 +46,50 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  // Live debounced search across events and teams
+  useEffect(() => {
+    if (!isOpen) return;
+    const trimmed = query.trim();
 
-  const filtered = query.trim()
-    ? DEMO_SEARCH_DATA.filter(
-        (item) =>
-          item.title.toLowerCase().includes(query.toLowerCase()) ||
-          item.subtitle.toLowerCase().includes(query.toLowerCase())
-      )
-    : DEMO_SEARCH_DATA.slice(0, 5);
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const [eventsRes, teamsRes] = await Promise.all([
+          eventsApi.getEvents({ limit: 4, search: trimmed || undefined }),
+          teamsApi.getTeams({ limit: 4, search: trimmed || undefined }),
+        ]);
+
+        const combined: SearchResult[] = [
+          ...eventsRes.data.map((evt) => ({
+            id: `evt-${evt.id}`,
+            type: "event" as const,
+            title: evt.title,
+            subtitle: `${new Date(evt.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })} • ${evt.location} • ${evt.isGlobal ? "Global" : "Campus"}`,
+            badge: `${evt.teamsCount || 0} Teams`,
+            link: "/events",
+          })),
+          ...teamsRes.data.map((t) => ({
+            id: `team-${t.id}`,
+            type: "team" as const,
+            title: t.name,
+            subtitle: `${t.event?.title || "Event"} • Needs ${(t.requirements || []).slice(0, 2).join(", ")} • ${t.members.length}/4 spots`,
+            badge: t.university || "Squad",
+            link: `/team/${t.id}`,
+          })),
+        ];
+
+        setResults(combined);
+      } catch (err) {
+        console.warn("[SearchModal] Search error:", err);
+      } finally {
+        setLoading(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [query, isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
@@ -149,12 +118,19 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
         {/* Results List */}
         <div className="max-h-80 overflow-y-auto p-2 space-y-1">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="p-8 text-center text-slate-400 text-sm flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+              <span>Searching squads & hackathons...</span>
+            </div>
+          ) : results.length === 0 ? (
             <div className="p-8 text-center text-slate-400 text-sm">
-              No matching squads, events, or skills found for "{query}".
+              {query.trim()
+                ? `No matching squads or events found for "${query}".`
+                : "Type keywords to search across active squads and hackathons."}
             </div>
           ) : (
-            filtered.map((item) => (
+            results.map((item) => (
               <Link
                 key={item.id}
                 to={item.link}

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { useAuth } from "@clerk/react";
 import type { ProfileData, ResumeStatusResponse } from "@squadup/shared";
+import { profileApi, resumeApi, setAuthTokenGetter } from "../services/api";
 
 interface JobContextType {
   jobId: string | null;
@@ -32,40 +33,24 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
+  // Synchronize Clerk token getter with api service
+  useEffect(() => {
+    setAuthTokenGetter(() => getToken());
+  }, [getToken]);
+
   useEffect(() => {
     if (isSignedIn && !profileData) {
       const loadProfile = async () => {
         try {
-          console.log("[JobContext] Fetching token...");
-          const userToken = await getToken();
-          console.log("[JobContext] Token received:", userToken ? "Yes" : "No");
-          
-          if (!userToken) {
-            console.log("[JobContext] No token available, aborting fetch.");
-            return;
-          }
-          
-          console.log("[JobContext] Sending GET /api/profile");
-          const res = await fetch("http://localhost:3000/api/profile", {
-            headers: { Authorization: `Bearer ${userToken}` }
-          });
-          
-          console.log("[JobContext] API Response Status:", res.status);
-          
-          if (res.ok) {
-            const data = await res.json();
-            setProfileData(data);
-          } else {
-            const errText = await res.text();
-            console.error("[JobContext] API returned an error:", res.status, errText);
-          }
+          const data = await profileApi.getProfile();
+          setProfileData(data as any);
         } catch (err) {
-          console.error("Failed to load profile:", err);
+          console.warn("[JobContext] Could not load profile:", err);
         }
       };
       loadProfile();
     }
-  }, [isSignedIn, getToken, profileData]);
+  }, [isSignedIn, profileData]);
 
   const startJob = (newJobId: string, userToken: string) => {
     setJobId(newJobId);
@@ -75,14 +60,11 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    if (!jobId || !token) return;
+    if (!jobId) return;
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`http://localhost:3000/api/resume/status/${jobId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json() as ResumeStatusResponse;
+        const data = await resumeApi.getResumeStatus(jobId);
 
         if (data.state === "completed") {
           clearInterval(interval);
@@ -103,12 +85,12 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
         }
       } catch (err) {
-        console.error("Polling error", err);
+        console.error("[JobContext] Polling error:", err);
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [jobId, token]);
+  }, [jobId]);
 
   return (
     <JobContext.Provider

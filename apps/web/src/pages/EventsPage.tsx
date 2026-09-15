@@ -1,167 +1,201 @@
-import React, { useState } from "react";
-import { Search, Calendar, MapPin, Users, ArrowLeft, ArrowRight, Shield, Sparkles, Plus } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Search,
+  Calendar,
+  MapPin,
+  Users,
+  ArrowLeft,
+  ArrowRight,
+  Shield,
+  Sparkles,
+  Plus,
+  Loader2,
+  AlertCircle,
+  Clock,
+  ExternalLink,
+} from "lucide-react";
 import { EventCard, EventCardData } from "../components/EventCard";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
 import { CategoryLegend } from "../components/CategoryLegend";
 import { ScopeBadge } from "../components/Badges";
+import {
+  eventsApi,
+  recommendationsApi,
+  EventItem,
+  TeamItem,
+  PaginatedResponse,
+} from "../services/api";
 
-const DEMO_EVENTS_DIRECTORY: EventCardData[] = [
-  {
-    id: "e1",
-    title: "TreeHacks 2026",
-    organizerName: "ACM Stanford",
-    dateStr: "Oct 15 – 17, 2026",
-    location: "Stanford, CA (Arrillaga Center)",
-    isGlobal: true,
-    daysRemaining: 30,
-    description: "Stanford’s premier annual hackathon with tracks in Healthcare, AI Agents, and Sustainability.",
-    tracks: ["Healthcare", "AI Agents", "Sustainability"],
-    teamsCount: 12,
-    participantsCount: 48,
-  },
-  {
-    id: "e2",
-    title: "CalHacks 12.0",
-    organizerName: "Cal Hacks",
-    dateStr: "Nov 02 – 04, 2026",
-    location: "San Francisco, CA",
-    isGlobal: true,
-    daysRemaining: 48,
-    description: "The world’s largest collegiate hackathon hosted at the San Francisco Metreon.",
-    tracks: ["Web3 & Fintech", "Autonomous Systems"],
-    teamsCount: 8,
-    participantsCount: 32,
-  },
-  {
-    id: "e3",
-    title: "Stanford AI & MedTech Showcase",
-    organizerName: "Bio-X Stanford",
-    dateStr: "Dec 05, 2026",
-    location: "Li Ka Shing Center, Stanford",
-    isGlobal: false,
-    daysRemaining: 80,
-    description: "Interdisciplinary project fair matching CS students with medical researchers.",
-    tracks: ["Clinical AI", "Biotech"],
-    teamsCount: 5,
-    participantsCount: 20,
-  },
-  {
-    id: "e4",
-    title: "MIT Blueprint 2027",
-    organizerName: "MIT TechX",
-    dateStr: "Feb 20 – 22, 2027",
-    location: "Cambridge, MA",
-    isGlobal: true,
-    daysRemaining: 120,
-    description: "Undergraduate prototyping sprint focused on foundational infrastructure and hardware.",
-    tracks: ["Systems", "Robotics", "Applied ML"],
-    teamsCount: 15,
-    participantsCount: 60,
-  },
-  {
-    id: "e5",
-    title: "HackSC 2027",
-    organizerName: "HackSC Team",
-    dateStr: "Mar 12 – 14, 2027",
-    location: "Los Angeles, CA",
-    isGlobal: true,
-    daysRemaining: 142,
-    description: "Southern California’s flagship collegiate hackathon promoting human-centric technology.",
-    tracks: ["Creative Tech", "Social Impact"],
-    teamsCount: 7,
-    participantsCount: 28,
-  },
-  {
-    id: "e6",
-    title: "Stanford Hardware & Robotics Fair",
-    organizerName: "Stanford Robotics Club",
-    dateStr: "Jan 14, 2027",
-    location: "Stanford Robotics Lab",
-    isGlobal: false,
-    daysRemaining: 90,
-    description: "Showcase pairing embedded engineers with active autonomous robotics labs.",
-    tracks: ["ROS2", "Firmware", "Computer Vision"],
-    teamsCount: 4,
-    participantsCount: 16,
-  },
-];
+function formatEventDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
-const DEMO_EVENT_TEAMS: TeamCardData[] = [
-  {
-    id: "t1",
-    name: "AI Agents Guild",
-    eventId: "e1",
-    eventTitle: "TreeHacks 2026",
-    university: "Stanford University",
-    requirements: ["React", "FastAPI", "PostgreSQL"],
-    neededRequirement: "PostgreSQL",
-    taxonomyScore: 0.92,
-    category: "BEST",
-    description: "Autonomous task orchestrator with self-healing tools & local LLM reasoning.",
-    members: [{ id: "m1", name: "Jane Doe" }, { id: "m2", name: "Marcus Chen" }, { id: "m3", name: "Sofia Rodriguez" }],
-  },
-  {
-    id: "t2",
-    name: "CloudScale Engine",
-    eventId: "e1",
-    eventTitle: "TreeHacks 2026",
-    university: "UC Berkeley (Global Event Eligible)",
-    requirements: ["Docker", "Python", "Kubernetes"],
-    neededRequirement: "Kubernetes",
-    taxonomyScore: 0.85,
-    category: "GOOD_DIFFERENT_UNIVERSITY",
-    description: "Distributed telemetry backend and edge cluster orchestrator for IoT fleets.",
-    members: [{ id: "m4", name: "Liam Vance" }, { id: "m5", name: "Maya Lin" }],
-  },
-  {
-    id: "t4",
-    name: "BioSync Health",
-    eventId: "e1",
-    eventTitle: "TreeHacks 2026",
-    university: "Stanford University",
-    requirements: ["PyTorch", "React Native", "FHIR"],
-    neededRequirement: "FHIR",
-    taxonomyScore: 0.88,
-    category: "BEST",
-    description: "Real-time biometric analytics platform for clinical trial cohort telemetry.",
-    members: [{ id: "m9", name: "David Kim" }, { id: "m10", name: "Aria Stark" }, { id: "m11", name: "Kevin Patel" }],
-  },
-  {
-    id: "t5",
-    name: "Quantum Ledger",
-    eventId: "e1",
-    eventTitle: "TreeHacks 2026",
-    university: "Stanford University",
-    requirements: ["Rust", "Solidity", "TypeScript"],
-    neededRequirement: "TypeScript",
-    taxonomyScore: 0.68,
-    category: "SAME_UNIVERSITY_LOWER_SCORE",
-    description: "Post-quantum cryptographic verification layer for distributed consensus.",
-    members: [{ id: "m12", name: "Alex Rover" }, { id: "m13", name: "Samira Khan" }],
-  },
-];
+function calculateDaysRemaining(dateStr: string): number {
+  try {
+    const eventTime = new Date(dateStr).getTime();
+    const now = Date.now();
+    const diff = Math.ceil((eventTime - now) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diff);
+  } catch {
+    return 30;
+  }
+}
+
+function mapEventToCardData(item: EventItem): EventCardData {
+  return {
+    id: item.id,
+    title: item.title,
+    organizerName: item.organizerProfile?.name || item.organizer?.name || "Official Host",
+    organizerLogo: item.organizerProfile?.logoUrl || undefined,
+    dateStr: formatEventDate(item.date),
+    location: item.location,
+    isGlobal: item.isGlobal,
+    daysRemaining: calculateDaysRemaining(item.date),
+    description: item.description,
+    tracks: item.tracks && item.tracks.length > 0 ? item.tracks : ["General", "Open Track"],
+    teamsCount: item.teamsCount || 0,
+    participantsCount: item.participantsCount || (item.teamsCount ? item.teamsCount * 3 : 0),
+  };
+}
 
 export function EventsPage() {
+  const navigate = useNavigate();
+  const [events, setEvents] = useState<EventCardData[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EventCardData | null>(null);
-  const [scopeFilter, setScopeFilter] = useState<"all" | "global" | "campus">("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [eventTeams, setEventTeams] = useState<TeamCardData[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState<boolean>(false);
 
-  const filteredEvents = DEMO_EVENTS_DIRECTORY.filter((e) => {
-    if (scopeFilter === "global" && !e.isGlobal) return false;
-    if (scopeFilter === "campus" && e.isGlobal) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return (
-        e.title.toLowerCase().includes(q) ||
-        e.location.toLowerCase().includes(q) ||
-        e.organizerName.toLowerCase().includes(q)
-      );
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [scopeFilter, setScopeFilter] = useState<"all" | "global" | "org">("all");
+  const [searchInput, setSearchInput] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalEvents, setTotalEvents] = useState<number>(0);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Fetch paginated events from backend API
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchEvents() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const res: PaginatedResponse<EventItem> = await eventsApi.getEvents({
+          page: currentPage,
+          limit: 9,
+          search: debouncedSearch || undefined,
+          scope: scopeFilter,
+          sort: "date_asc",
+        });
+
+        if (!isMounted) return;
+
+        setEvents(res.data.map(mapEventToCardData));
+        setTotalPages(res.pagination.totalPages);
+        setTotalEvents(res.pagination.total);
+      } catch (err: any) {
+        console.error("[EventsPage] Error fetching events:", err);
+        if (isMounted) setError(err.message || "Failed to load events from server.");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     }
-    return true;
-  });
+
+    fetchEvents();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPage, debouncedSearch, scopeFilter]);
+
+  // When an event is selected, fetch participating teams from API
+  useEffect(() => {
+    let isMounted = true;
+    if (!selectedEvent) {
+      setEventTeams([]);
+      return;
+    }
+
+    async function fetchTeamsForEvent() {
+      setTeamsLoading(true);
+      try {
+        const res = await eventsApi.getEventTeams(selectedEvent!.id);
+        if (!isMounted) return;
+
+        // Try decorating with user recommendations if available
+        let recMap: Record<string, { score: number; category: any }> = {};
+        try {
+          const recRes = await recommendationsApi.getRecommendations({
+            eventId: selectedEvent!.id,
+            topK: 20,
+          });
+          recRes.recommendations.forEach((r) => {
+            recMap[r.teamId] = {
+              score: r.taxonomyScore,
+              category: r.recommendationCategory,
+            };
+          });
+        } catch {
+          // Unauthenticated or no resume
+        }
+
+        const mapped: TeamCardData[] = (res.teams || []).map((t: TeamItem) => ({
+          id: t.id,
+          name: t.name,
+          eventId: t.eventId,
+          eventTitle: selectedEvent!.title,
+          university: t.university || selectedEvent!.location,
+          requirements: t.requirements || [],
+          neededRequirement: t.requirements?.[0] || "Specialist",
+          members: (t.members || []).map((m) => ({
+            id: m.id,
+            name: m.name,
+            role: m.role,
+          })),
+          maxCapacity: t.maxCapacity || 4,
+          taxonomyScore: recMap[t.id]?.score,
+          category: recMap[t.id]?.category,
+          description: t.description || `Formed for ${selectedEvent!.title}.`,
+        }));
+
+        setEventTeams(mapped);
+      } catch (err: any) {
+        console.warn("[EventsPage] Error fetching teams for event:", err);
+      } finally {
+        if (isMounted) setTeamsLoading(false);
+      }
+    }
+
+    fetchTeamsForEvent();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedEvent]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-200">
       {/* ─────────────────────────────────────────────────────────────
           VIEW A: Clicked Event Detail View (When an event is selected)
          ───────────────────────────────────────────────────────────── */}
@@ -184,8 +218,8 @@ export function EventsPage() {
                     Hosted by {selectedEvent.organizerName}
                   </span>
                   <ScopeBadge isGlobal={selectedEvent.isGlobal} location={selectedEvent.location} />
-                  <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                    30 Days Remaining
+                  <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-slate-400" /> {selectedEvent.daysRemaining} Days Remaining
                   </span>
                 </div>
 
@@ -209,11 +243,20 @@ export function EventsPage() {
 
               {/* Action Panel */}
               <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
-                <button className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer">
-                  + Create a Team for {selectedEvent.title}
-                </button>
-                <button className="px-5 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer">
-                  Share Event
+                <Link
+                  to={`/teams?eventId=${selectedEvent.id}`}
+                  className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors text-center cursor-pointer"
+                >
+                  Explore Squads for this Event
+                </Link>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(window.location.href);
+                    alert("Event link copied to clipboard!");
+                  }}
+                  className="px-5 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Share Event Link
                 </button>
               </div>
             </div>
@@ -223,28 +266,28 @@ export function EventsPage() {
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
                 <span className="text-xs text-slate-500 block">Recruiting Squads</span>
                 <span className="text-xl font-bold text-slate-900 font-heading">
-                  {selectedEvent.teamsCount} Teams Active
+                  {eventTeams.length} Active
                 </span>
               </div>
 
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-xs text-slate-500 block">Participants</span>
-                <span className="text-xl font-bold text-slate-900 font-heading">
-                  {selectedEvent.participantsCount} Confirmed
+                <span className="text-xs text-slate-500 block">Event Track</span>
+                <span className="text-xl font-bold text-slate-900 font-heading truncate block">
+                  {selectedEvent.tracks?.[0] || "General Track"}
                 </span>
               </div>
 
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-xs text-slate-500 block">Roster Lock</span>
+                <span className="text-xs text-slate-500 block">Days to Kickoff</span>
                 <span className="text-xl font-bold text-slate-900 font-heading">
-                  In 30 Days
+                  {selectedEvent.daysRemaining} Days
                 </span>
               </div>
 
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                <span className="text-xs text-slate-500 block">Prize Pool</span>
+                <span className="text-xs text-slate-500 block">Access Scope</span>
                 <span className="text-xl font-bold text-slate-900 font-heading">
-                  $150,000+
+                  {selectedEvent.isGlobal ? "Global Open" : "Campus Locked"}
                 </span>
               </div>
             </div>
@@ -258,18 +301,43 @@ export function EventsPage() {
                   Recruiting Teams in {selectedEvent.title}
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Explore squads looking for specific technical roles for this hackathon.
+                  Explore squads actively seeking teammates for this competition.
                 </p>
               </div>
 
               <CategoryLegend />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {DEMO_EVENT_TEAMS.map((team) => (
-                <TeamCard key={team.id} team={team} />
-              ))}
-            </div>
+            {teamsLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center space-y-2">
+                <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                <p className="text-xs font-semibold text-slate-500">Loading participating squads...</p>
+              </div>
+            ) : eventTeams.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {eventTeams.map((team) => (
+                  <TeamCard
+                    key={team.id}
+                    team={team}
+                    onInspect={() => navigate(`/team/${team.id}`)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
+                <Users className="w-10 h-10 text-slate-300 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-800">No teams formed yet for this event</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Be the first to create a squad and invite peers to build with you.
+                </p>
+                <Link
+                  to="/teams"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Start a Squad
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -288,9 +356,12 @@ export function EventsPage() {
               </p>
             </div>
 
-            <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors self-start md:self-auto cursor-pointer">
-              <Plus className="w-3.5 h-3.5" /> Host an Event
-            </button>
+            <Link
+              to="/teams"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors self-start md:self-auto cursor-pointer"
+            >
+              <Users className="w-3.5 h-3.5" /> Browse All Squads
+            </Link>
           </div>
 
           {/* Search & Filter Toolbar */}
@@ -300,9 +371,9 @@ export function EventsPage() {
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search events by name, university, or tech track..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search events by name, location, or track..."
                 className="w-full text-xs text-slate-800 placeholder:text-slate-400 pl-9 pr-3 py-2 rounded-lg border border-slate-200 outline-hidden focus:border-blue-600 font-sans"
               />
             </div>
@@ -310,18 +381,24 @@ export function EventsPage() {
             {/* Scope Tabs */}
             <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-100 border border-slate-200 text-xs font-medium">
               <button
-                onClick={() => setScopeFilter("all")}
+                onClick={() => {
+                  setScopeFilter("all");
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   scopeFilter === "all"
                     ? "bg-white text-slate-900 shadow-2xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                All Events ({DEMO_EVENTS_DIRECTORY.length})
+                All Events ({totalEvents})
               </button>
 
               <button
-                onClick={() => setScopeFilter("global")}
+                onClick={() => {
+                  setScopeFilter("global");
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   scopeFilter === "global"
                     ? "bg-white text-slate-900 shadow-2xs font-bold"
@@ -332,50 +409,99 @@ export function EventsPage() {
               </button>
 
               <button
-                onClick={() => setScopeFilter("campus")}
+                onClick={() => {
+                  setScopeFilter("org");
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
-                  scopeFilter === "campus"
+                  scopeFilter === "org"
                     ? "bg-white text-slate-900 shadow-2xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                Stanford Only
+                Campus Only
               </button>
             </div>
           </div>
 
-          {/* Events Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEvents.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onSelect={(evt) => setSelectedEvent(evt)}
-              />
-            ))}
-          </div>
+          {/* Loading State */}
+          {loading ? (
+            <div className="py-20 flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+              <p className="text-xs font-semibold text-slate-500">Loading hackathons & competitions...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-white rounded-2xl border border-rose-200 p-8 text-center space-y-2">
+              <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
+              <p className="text-sm font-bold text-slate-800">Failed to load events</p>
+              <p className="text-xs text-slate-500">{error}</p>
+            </div>
+          ) : events.length > 0 ? (
+            /* Events Grid */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {events.map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  onSelect={(evt) => setSelectedEvent(evt)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-2">
+              <Calendar className="w-10 h-10 text-slate-300 mx-auto" />
+              <h4 className="text-sm font-bold text-slate-800">No events matched your criteria</h4>
+              <p className="text-xs text-slate-500">Try adjusting your search terms or scope filter.</p>
+            </div>
+          )}
 
           {/* Server-Side Pagination Footer */}
-          <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
-            <span>
-              Showing <strong className="text-slate-800">1 to {filteredEvents.length}</strong> of {filteredEvents.length} events
-            </span>
+          {!loading && events.length > 0 && (
+            <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
+              <span>
+                Page <strong className="text-slate-800">{currentPage}</strong> of {totalPages} (
+                {totalEvents} total events)
+              </span>
 
-            <div className="flex items-center gap-1">
-              <button disabled className="px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed">
-                Previous
-              </button>
-              <button className="px-3 py-1.5 rounded-md border border-blue-600 bg-blue-600 text-white font-bold">
-                1
-              </button>
-              <button className="px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700">
-                2
-              </button>
-              <button className="px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700">
-                Next →
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  Previous
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .map((pageNum, idx, arr) => (
+                    <React.Fragment key={pageNum}>
+                      {idx > 0 && arr[idx - 1] !== pageNum - 1 && (
+                        <span className="px-1 text-slate-400">...</span>
+                      )}
+                      <button
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-1.5 rounded-md border transition-colors cursor-pointer ${
+                          currentPage === pageNum
+                            ? "border-blue-600 bg-blue-600 text-white font-bold"
+                            : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    </React.Fragment>
+                  ))}
+
+                <button
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  Next →
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

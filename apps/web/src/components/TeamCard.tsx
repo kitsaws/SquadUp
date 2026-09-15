@@ -23,6 +23,8 @@ export interface TeamCardData {
   category?: RecommendationTier;
   isEligible?: boolean;
   description?: string;
+  isUserLeader?: boolean;
+  isUserMember?: boolean;
 }
 
 interface TeamCardProps {

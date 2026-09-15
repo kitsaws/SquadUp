@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useJobContext } from "../contexts/JobContext";
-import { useUser, Show, UserProfile } from "@clerk/react";
+import { useUser, UserProfile } from "@clerk/react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Shield,
@@ -18,86 +18,79 @@ import {
   Columns,
   MapPin,
   Mail,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { SkillTag } from "../components/Badges";
+import { profileApi, UserProfileResponse } from "../services/api";
 
 export function Profile() {
-  const { jobId, isUploading, status, profileData } = useJobContext();
+  const { jobId, isUploading, status } = useJobContext();
   const { user } = useUser();
   const navigate = useNavigate();
   const [showClerkSettings, setShowClerkSettings] = useState(false);
+  const [profile, setProfile] = useState<UserProfileResponse | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fallback demo profile for preview/design demonstration
-  const defaultProfile = {
-    name: user?.fullName || "Swastik Nagpal",
-    title: "Full-Stack Engineer & Autonomous Systems Builder | Distributed Backend Architecture",
-    university: "Stanford University",
-    department: "Computer Science (BS '26)",
-    location: "Stanford, California, United States",
-    summary:
-      "Passionate about distributed backend architectures, vector search systems, and high-performance developer tools. Previously built real-time streaming telemetry and LLM agent harnesses. Actively seeking teammates for TreeHacks 2026.",
-    skills: [
-      "TypeScript",
-      "React",
-      "Node.js",
-      "PostgreSQL",
-      "Python",
-      "FastAPI",
-      "Docker",
-      "Redis",
-      "Tailwind CSS",
-      "Vector Embeddings",
-    ],
-    education: [
-      {
-        college: "Stanford University",
-        degree: "B.S. in Computer Science (Artificial Intelligence Track)",
-        year: "2022 – 2026",
-      },
-    ],
-    experience: [
-      {
-        role: "Software Engineering Fellow",
-        company: "Stanford Distributed Systems Lab",
-        duration: "Jun 2025 – Present",
-        bullet_points: [
-          "Engineered distributed consensus benchmarking suite for Raft-based distributed key-value stores.",
-          "Optimized sub-millisecond gRPC streaming between worker nodes under artificial network partition simulations.",
-        ],
-      },
-      {
-        role: "Backend Engineering Intern",
-        company: "Scale AI",
-        duration: "Jun 2024 – Aug 2024",
-        bullet_points: [
-          "Developed high-throughput data pipelines indexing 5M+ multimodal synthetic samples daily.",
-          "Reduced Postgres cold query latency by 42% through targeted composite indexing and Redis cache invalidation.",
-        ],
-      },
-    ],
-    projects: [
-      {
-        name: "SquadUp Autonomous Formation",
-        description: "Intelligent team matching engine using taxonomy graph alignment and skill compatibility vectors.",
-        bullet_points: [
-          "Built asynchronous resume parsing engine with PDF extraction and Redis queue workers.",
-          "Designed polymorphic match scoring tiered by campus eligibility and domain strengths.",
-        ],
-      },
-    ],
-  };
+  useEffect(() => {
+    let isMounted = true;
+    async function loadProfile() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await profileApi.getProfile();
+        if (isMounted) setProfile(data);
+      } catch (err: any) {
+        console.error("[Profile] Error loading user profile:", err);
+        if (isMounted) setError(err.message || "Failed to load profile.");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <p className="text-sm font-semibold text-slate-600">Loading profile credentials...</p>
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="max-w-md mx-auto my-20 bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-4 shadow-sm">
+        <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
+        <h2 className="text-xl font-bold text-slate-900 font-heading">Profile Not Available</h2>
+        <p className="text-xs text-slate-500">{error || "Please sign in to view your profile."}</p>
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors"
+        >
+          Return Home
+        </Link>
+      </div>
+    );
+  }
 
   const activeData = {
-    name: profileData?.name || defaultProfile.name,
-    title: profileData?.title || defaultProfile.title,
-    university: profileData?.university || defaultProfile.university,
-    department: "Computer Science (BS '26)",
-    location: "Stanford, California, United States",
-    summary: profileData?.summary || defaultProfile.summary,
-    skills: profileData?.skills && profileData.skills.length > 0 ? profileData.skills : defaultProfile.skills,
-    education: profileData?.education && profileData.education.length > 0 ? profileData.education : defaultProfile.education,
-    experience: profileData?.experience && profileData.experience.length > 0 ? profileData.experience : defaultProfile.experience,
-    projects: profileData?.projects && profileData.projects.length > 0 ? profileData.projects : defaultProfile.projects,
+    name: profile.name || user?.fullName || "Student",
+    title: profile.title || "Full-Stack Engineer & Builder",
+    university: profile.university || "Collegiate Participant",
+    department: "Computer Science",
+    location: "Campus",
+    summary: profile.summary || "Upload a resume to automatically extract your skills, experience, and project highlights with AI.",
+    skills: profile.skills || [],
+    education: profile.education || [],
+    experience: profile.experience || [],
+    projects: profile.projects || [],
   };
 
   return (

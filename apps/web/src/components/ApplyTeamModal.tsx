@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useUser } from "@clerk/react";
 import { X, ArrowRight, CheckCircle2, Shield, Sparkles } from "lucide-react";
 import { TeamCardData } from "./TeamCard";
 
@@ -10,9 +11,16 @@ interface ApplyTeamModalProps {
 }
 
 export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamModalProps) {
-  const [selectedRole, setSelectedRole] = useState("Full Stack Developer");
+  const { user } = useUser();
+  const defaultRole = team.neededRequirement
+    ? `${team.neededRequirement} Specialist`
+    : team.requirements?.[0]
+    ? `${team.requirements[0]} Contributor`
+    : "Core Contributor";
+
+  const [selectedRole, setSelectedRole] = useState(defaultRole);
   const [message, setMessage] = useState(
-    "Hi Jane, I love the autonomous agent concept! I have production experience with FastAPI and React, and built a real-time telemetry dashboard recently. Would love to build the backend pipeline."
+    `Hi! I'd love to join ${team.name} for ${team.eventTitle || "the hackathon"}. My background aligns with your stack requirements, and I'm eager to contribute.`
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -25,10 +33,23 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
       setIsSubmitting(false);
       onSubmit(team.id, selectedRole, message);
       onClose();
-    }, 600);
+    }, 400);
   };
 
-  const roles = ["Full Stack Developer", "Backend Engineer", "Frontend Specialist"];
+  const roles = [
+    defaultRole,
+    "Full Stack Engineer",
+    "Backend Specialist",
+    "Frontend Specialist",
+  ].filter((v, i, a) => a.indexOf(v) === i);
+
+  const candidateName = user?.fullName || "Student Applicant";
+  const candidateInitials = candidateName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
@@ -46,7 +67,7 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
               Apply to {team.name}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              {team.eventTitle} • 1 Open Spot Remaining
+              {team.eventTitle || "Hackathon Squad"} • Open Recruitment
             </p>
           </div>
 
@@ -61,18 +82,22 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Applicant Snapshot */}
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-sm font-heading shrink-0">
-              S
+            <div className="w-10 h-10 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-sm font-heading shrink-0 overflow-hidden">
+              {user?.imageUrl ? (
+                <img src={user.imageUrl} alt={candidateName} className="w-full h-full object-cover" />
+              ) : (
+                candidateInitials || "U"
+              )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900 font-heading">Swastik Nagpal</span>
+                <span className="text-sm font-bold text-slate-900 font-heading">{candidateName}</span>
                 <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.2 rounded-full border border-emerald-200">
-                  Stanford CS '26
+                  Verified Dossier
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                Verified portfolio & skills will be shared with the squad leader.
+                Verified portfolio & competencies will be shared with the squad leader.
               </p>
             </div>
           </div>

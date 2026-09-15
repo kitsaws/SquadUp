@@ -46,6 +46,7 @@ interface SmartRecommendationPanelProps {
   isRecommended?: boolean;
   onApply?: () => void;
   onMessage?: () => void;
+  onWithdraw?: () => void;
   hasApplied?: boolean;
 }
 
@@ -54,6 +55,7 @@ export function SmartRecommendationPanel({
   isRecommended,
   onApply,
   onMessage,
+  onWithdraw,
   hasApplied = false,
 }: SmartRecommendationPanelProps) {
   // Determine if this team is an active smart recommendation
@@ -363,8 +365,18 @@ export function SmartRecommendationPanel({
       {/* Action Footer */}
       <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
         {hasApplied ? (
-          <div className="w-full text-center py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
-            ⏳ Your application is pending review by {recommendation.teamLeadName}
+          <div className="w-full space-y-2">
+            <div className="w-full text-center py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
+              ⏳ Your application is pending review by {recommendation.teamLeadName}
+            </div>
+            {onWithdraw && (
+              <button
+                onClick={onWithdraw}
+                className="w-full text-center py-1.5 rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Withdraw Application
+              </button>
+            )}
           </div>
         ) : (
           <>

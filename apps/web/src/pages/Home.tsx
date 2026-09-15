@@ -1,6 +1,8 @@
 import React, { useState, useRef } from "react";
 import { Show, SignUpButton, useAuth } from "@clerk/react";
 import { useJobContext } from "../contexts/JobContext";
+import { resumeApi } from "../services/api";
+import { toast } from "react-toastify";
 
 export function Home() {
   const { getToken } = useAuth();
@@ -19,30 +21,17 @@ export function Home() {
 
     try {
       const token = await getToken();
-      if (!token) return;
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("http://localhost:3000/api/resume/upload", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error("Upload failed");
-
-      const data = await res.json();
+      const data = await resumeApi.uploadResume(file);
       
       // Start polling in the global context
-      startJob(data.jobId, token);
+      startJob(data.jobId, token || "");
+      toast.info("Resume uploaded! AI extraction started.", { position: "bottom-right" });
       
       // Clear the selected file
       setFile(null);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("[Home] Resume upload error:", err);
+      toast.error(err.message || "Upload failed. Please try again.", { position: "bottom-right" });
     }
   };
 

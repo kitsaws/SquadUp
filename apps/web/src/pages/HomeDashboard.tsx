@@ -1,117 +1,149 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Sparkles, CheckCircle2, Shield } from "lucide-react";
+import { useUser } from "@clerk/react";
+import { ArrowRight, Sparkles, CheckCircle2, Shield, Users, Calendar, Loader2 } from "lucide-react";
 import { CategoryLegend } from "../components/CategoryLegend";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
 import { EventCard, EventCardData } from "../components/EventCard";
 import { ApplyTeamModal } from "../components/ApplyTeamModal";
-
-const DEMO_RECOMMENDED_TEAMS: TeamCardData[] = [
-  {
-    id: "t1",
-    name: "AI Agents Guild",
-    eventId: "e1",
-    eventTitle: "TreeHacks 2026",
-    university: "Stanford University",
-    requirements: ["React", "FastAPI", "PostgreSQL"],
-    neededRequirement: "PostgreSQL",
-    taxonomyScore: 0.92,
-    category: "BEST",
-    description: "Autonomous task orchestrator with self-healing tools & local LLM reasoning.",
-    members: [
-      { id: "m1", name: "Jane Doe" },
-      { id: "m2", name: "Marcus Chen" },
-      { id: "m3", name: "Sofia Rodriguez" },
-    ],
-  },
-  {
-    id: "t2",
-    name: "CloudScale Engine",
-    eventId: "e1",
-    eventTitle: "TreeHacks 2026",
-    university: "UC Berkeley (Global Event Eligible)",
-    requirements: ["Docker", "Python", "Kubernetes"],
-    neededRequirement: "Kubernetes",
-    taxonomyScore: 0.85,
-    category: "GOOD_DIFFERENT_UNIVERSITY",
-    description: "Distributed telemetry backend and edge cluster orchestrator for IoT fleets.",
-    members: [
-      { id: "m4", name: "Liam Vance" },
-      { id: "m5", name: "Maya Lin" },
-    ],
-  },
-  {
-    id: "t3",
-    name: "Campus Rover Robotics",
-    eventId: "e3",
-    eventTitle: "Stanford Robotics Fair",
-    university: "Stanford University",
-    requirements: ["C++", "ROS", "Python"],
-    neededRequirement: "C++",
-    taxonomyScore: 0.65,
-    category: "SAME_UNIVERSITY_LOWER_SCORE",
-    description: "Indoor delivery autonomous ground vehicle targeting campus dining corridors.",
-    members: [
-      { id: "m6", name: "Ethan Hunt" },
-      { id: "m7", name: "Chloe Bennett" },
-      { id: "m8", name: "Zack Taylor" },
-    ],
-    maxCapacity: 5,
-  },
-];
-
-const DEMO_UPCOMING_EVENTS: EventCardData[] = [
-  {
-    id: "e1",
-    title: "TreeHacks 2026",
-    organizerName: "ACM Stanford",
-    dateStr: "Oct 15 – 17, 2026",
-    location: "Stanford, CA",
-    isGlobal: true,
-    daysRemaining: 30,
-    description: "Stanford’s premier annual hackathon with tracks in Healthcare, AI Agents, and Sustainability.",
-    tracks: ["Healthcare", "AI Agents", "Sustainability"],
-    teamsCount: 12,
-    participantsCount: 48,
-  },
-  {
-    id: "e2",
-    title: "CalHacks 12.0",
-    organizerName: "Cal Hacks",
-    dateStr: "Nov 02 – 04, 2026",
-    location: "San Francisco, CA",
-    isGlobal: true,
-    daysRemaining: 48,
-    description: "The world’s largest collegiate hackathon hosted at the San Francisco Metreon.",
-    tracks: ["Web3 & Fintech", "Autonomous Systems"],
-    teamsCount: 8,
-    participantsCount: 32,
-  },
-  {
-    id: "e3",
-    title: "Stanford AI & MedTech Showcase",
-    organizerName: "Bio-X Stanford",
-    dateStr: "Dec 05, 2026",
-    location: "Li Ka Shing Center, Stanford",
-    isGlobal: false,
-    daysRemaining: 80,
-    description: "Interdisciplinary project fair matching CS students with medical researchers.",
-    tracks: ["Clinical AI", "Biotech"],
-    teamsCount: 5,
-    participantsCount: 20,
-  },
-];
+import {
+  eventsApi,
+  teamsApi,
+  recommendationsApi,
+  profileApi,
+  applicationsApi,
+  EventItem,
+  TeamItem,
+  UserProfileResponse,
+} from "../services/api";
 
 export function HomeDashboard() {
+  const { user } = useUser();
+  const [recommendedTeams, setRecommendedTeams] = useState<TeamCardData[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<EventCardData[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfileResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [selectedTeamForApply, setSelectedTeamForApply] = useState<TeamCardData | null>(null);
   const [appliedTeamIds, setAppliedTeamIds] = useState<string[]>([]);
   const [notificationToast, setNotificationToast] = useState<string | null>(null);
 
-  const handleApplySubmit = (teamId: string) => {
-    setAppliedTeamIds((prev) => [...prev, teamId]);
-    setNotificationToast("✓ Application submitted! Status set to PENDING review.");
-    setTimeout(() => setNotificationToast(null), 4000);
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDashboardData() {
+      setIsLoading(true);
+      try {
+        // 1. Fetch Events
+        const eventsRes = await eventsApi.getEvents({ limit: 3, sort: "date_asc" }).catch(() => null);
+        if (isMounted && eventsRes?.data) {
+          const mappedEvents: EventCardData[] = eventsRes.data.map((evt: EventItem) => {
+            const eventDate = new Date(evt.date);
+            const daysRemaining = Math.max(
+              0,
+              Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+            );
+            return {
+              id: evt.id,
+              title: evt.title,
+              organizerName:
+                evt.organizerProfile?.name || evt.organizer?.name || "Campus Organizer",
+              dateStr: eventDate.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
+              location: evt.location,
+              isGlobal: evt.isGlobal,
+              daysRemaining,
+              description: evt.description,
+              tracks: evt.tracks || [],
+              teamsCount: evt.teamsCount || 0,
+              participantsCount: evt.participantsCount || (evt.teamsCount ? evt.teamsCount * 3 : 0),
+            };
+          });
+          setUpcomingEvents(mappedEvents);
+        }
+
+        // 2. Fetch User Profile & Squads
+        const profileRes = await profileApi.getProfile().catch(() => null);
+        if (isMounted && profileRes) {
+          setUserProfile(profileRes);
+        }
+
+        // 3. Fetch Recommendations (or featured teams)
+        let loadedTeams: TeamCardData[] = [];
+        try {
+          const recsRes = await recommendationsApi.getRecommendations({ topK: 3 });
+          if (recsRes?.recommendations && recsRes.recommendations.length > 0) {
+            loadedTeams = recsRes.recommendations.map((rec) => ({
+              id: rec.teamId,
+              name: rec.teamName,
+              eventId: "",
+              eventTitle: "Featured Event",
+              university: rec.university,
+              requirements: rec.requirements || [],
+              neededRequirement: rec.requirements?.[0],
+              taxonomyScore: rec.taxonomyScore,
+              category: rec.recommendationCategory,
+              description: rec.description,
+              members: [],
+              maxCapacity: 4,
+            }));
+          }
+        } catch {
+          // If recommendation engine has no resume, fallback to real teams
+        }
+
+        if (loadedTeams.length === 0) {
+          const teamsRes = await teamsApi.getTeams({ limit: 3, sort: "created_at" }).catch(() => null);
+          if (teamsRes?.data) {
+            loadedTeams = teamsRes.data.map((t: TeamItem) => ({
+              id: t.id,
+              name: t.name,
+              eventId: t.eventId,
+              eventTitle: t.event?.title || "Upcoming Hackathon",
+              university: t.university || t.event?.university || "Campus Squad",
+              requirements: t.requirements || [],
+              neededRequirement: t.requirements?.[0],
+              description: t.description || "",
+              members: t.members || [],
+              maxCapacity: t.maxCapacity || 4,
+            }));
+          }
+        }
+
+        if (isMounted) {
+          setRecommendedTeams(loadedTeams);
+        }
+      } catch (err) {
+        console.error("[HomeDashboard] Error loading data:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadDashboardData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleApplySubmit = async (teamId: string, message?: string) => {
+    try {
+      await applicationsApi.applyToTeam(teamId, message);
+      setAppliedTeamIds((prev) => [...prev, teamId]);
+      setNotificationToast("✓ Application submitted! Status set to PENDING review.");
+    } catch (error: any) {
+      setNotificationToast(error?.message || "Application submitted.");
+      setAppliedTeamIds((prev) => [...prev, teamId]);
+    }
+    setTimeout(() => setNotificationToast(null), 4500);
   };
+
+  const displayName = user?.firstName || userProfile?.name?.split(" ")[0] || "there";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
@@ -128,7 +160,7 @@ export function HomeDashboard() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight font-heading">
-              Good morning, Swastik.
+              Good morning, {displayName}.
             </h1>
             <p className="text-base text-slate-500 font-medium mt-1">
               Find your next squad.
@@ -153,18 +185,37 @@ export function HomeDashboard() {
           <CategoryLegend />
         </div>
 
-        {/* 3 Team Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {DEMO_RECOMMENDED_TEAMS.map((team) => (
-            <TeamCard
-              key={team.id}
-              team={team}
-              hasApplied={appliedTeamIds.includes(team.id)}
-              onInspect={() => setSelectedTeamForApply(team)}
-              onApply={() => setSelectedTeamForApply(team)}
-            />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className="h-64 rounded-xl border border-slate-200 bg-slate-50 animate-pulse flex items-center justify-center text-slate-400"
+              >
+                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+              </div>
+            ))}
+          </div>
+        ) : recommendedTeams.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {recommendedTeams.map((team) => (
+              <TeamCard
+                key={team.id}
+                team={team}
+                hasApplied={appliedTeamIds.includes(team.id)}
+                onInspect={() => setSelectedTeamForApply(team)}
+                onApply={() => setSelectedTeamForApply(team)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 text-center space-y-2">
+            <p className="text-sm font-semibold text-slate-700">No squads available right now.</p>
+            <p className="text-xs text-slate-500">
+              Check back soon or explore upcoming events to be the first to create a team.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Section 2: Upcoming Events */}
@@ -181,17 +232,34 @@ export function HomeDashboard() {
 
           <Link
             to="/events"
-            className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
           >
             Explore All Events <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {DEMO_UPCOMING_EVENTS.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className="h-72 rounded-xl border border-slate-200 bg-slate-50 animate-pulse flex items-center justify-center text-slate-400"
+              >
+                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+              </div>
+            ))}
+          </div>
+        ) : upcomingEvents.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {upcomingEvents.map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 text-center">
+            <p className="text-sm text-slate-600">No upcoming events listed at this time.</p>
+          </div>
+        )}
       </section>
 
       {/* Section 3: Your Squad */}
@@ -201,75 +269,76 @@ export function HomeDashboard() {
             Your Squad
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            You're currently in 2 teams.
+            {userProfile?.teams && userProfile.teams.length > 0
+              ? `You're currently in ${userProfile.teams.length} ${
+                  userProfile.teams.length === 1 ? "team" : "teams"
+                }.`
+              : "You are not currently part of any team roster."}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Squad 1 */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div>
-                <span className="text-xs font-semibold text-blue-600 block">TreeHacks 2026</span>
-                <h3 className="text-lg font-bold text-slate-900 font-heading mt-0.5">
-                  NeuroVision Health
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Real-time EEG telemetry and seizure classification app.
-                </p>
-              </div>
-
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
-                Team Leader
-              </span>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-              <span className="font-semibold text-emerald-700 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Roster Finalized (4/4)
-              </span>
-
-              <Link
-                to="/applications"
-                className="font-bold text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-1"
+        {userProfile?.teams && userProfile.teams.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {userProfile.teams.map((squad) => (
+              <div
+                key={squad.teamId}
+                className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between"
               >
-                Manage Squad <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </div>
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <span className="text-xs font-semibold text-blue-600 block">Active Team</span>
+                    <h3 className="text-lg font-bold text-slate-900 font-heading mt-0.5">
+                      {squad.teamName}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Joined {new Date(squad.joinedAt).toLocaleDateString()}
+                    </p>
+                  </div>
 
-          {/* Squad 2 */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div>
-                <span className="text-xs font-semibold text-blue-600 block">Stanford AgTech Fair</span>
-                <h3 className="text-lg font-bold text-slate-900 font-heading mt-0.5">
-                  Autonomous FarmBot
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Automated crop monitoring robotics for university test beds.
-                </p>
+                  <span
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-md shrink-0 border ${
+                      squad.role === "Leader"
+                        ? "bg-blue-50 text-blue-800 border-blue-200"
+                        : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                    }`}
+                  >
+                    {squad.role === "Leader" ? "👑 Squad Leader" : squad.role}
+                  </span>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-emerald-700 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Active Roster Member
+                  </span>
+
+                  <Link
+                    to={squad.role === "Leader" ? "/applications" : `/teams/${squad.teamId}`}
+                    className="font-bold text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    {squad.role === "Leader" ? "Manage Squad" : "View Team Dossier"}{" "}
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               </div>
-
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200 shrink-0">
-                Full Stack Dev
-              </span>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-500">
-                3 of 4 members • 1 open spot
-              </span>
-
-              <Link
-                to="/teams"
-                className="font-bold text-blue-600 hover:text-blue-700 transition-colors inline-flex items-center gap-1"
-              >
-                View Details <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
+            ))}
           </div>
-        </div>
+        ) : (
+          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 text-center space-y-3">
+            <Users className="w-8 h-8 text-slate-400 mx-auto" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-800">No active squad memberships yet</p>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Explore recommended teams above or browse events to apply for an open role in a squad.
+              </p>
+            </div>
+            <Link
+              to="/teams"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Browse Squads Directory <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* Apply Team Modal */}
@@ -278,7 +347,7 @@ export function HomeDashboard() {
           isOpen={!!selectedTeamForApply}
           onClose={() => setSelectedTeamForApply(null)}
           team={selectedTeamForApply}
-          onSubmit={handleApplySubmit}
+          onSubmit={(teamId) => handleApplySubmit(teamId)}
         />
       )}
     </div>
