@@ -9,12 +9,16 @@ SquadUp is a professional team-forming and event-hosting platform built specific
 
 **Major Features:**
 - Automated AI resume parsing to generate pristine structured JSON profiles.
+- 24-hour resume rate limiting with local PDF persistence and inline browser streaming.
 - V2 Multi-source Evidence Extraction from skills, projects, and work experience.
 - Deterministic 143-Node Knowledge Hierarchy matching with zero hallucinations.
 - Decoupled `UserTaxonomy` and `TeamTaxonomy` relational architecture.
 - Real-time pure compatibility scoring (< 20ms over 10,000 teams) with LCA decision explainability.
 - Event Scoping & Hard Eligibility (global vs. university-isolated events).
-- Creation of Events and Teams with email-based invitations.
+- Full Event and Team CRUD with standard server-side pagination by default.
+- Redis Query Caching with dynamic event TTLs (event date + 3 days) and instant invalidation.
+- Team Application & Opt-Out Lifecycle with institutional eligibility guards.
+- University `Organization` and Sub-Organizer `Organizer` (Clubs/Societies) role-based management.
 
 ## Tech Stack
 
@@ -25,6 +29,7 @@ SquadUp is a professional team-forming and event-hosting platform built specific
 - **ORM:** Prisma
 - **Authentication:** Clerk (with Clerk Organizations for university isolation)
 - **Asynchronous Jobs/Queues:** Redis, BullMQ
+- **Caching Layer:** Redis (`ioredis`)
 - **AI/LLM API:** Groq API
 - **Infrastructure:** Docker Compose (local Postgres and Redis), Turborepo (Monorepo management)
 
@@ -36,16 +41,18 @@ SquadUp is structured as a pnpm Turborepo.
 | -------------- | ------- | ------------------------------- |
 | `apps/api/` | The core Node.js backend. | When modifying API routes, controllers, or BullMQ jobs. |
 | `apps/api/prisma/schema.prisma` | The absolute source of truth for the database. | ALWAYS inspect this before interacting with database logic. |
+| `apps/api/src/services/cache.service.ts` | Redis query caching & dynamic TTL calculator. | When debugging cache behavior or invalidation. |
 | `apps/api/src/utils/auth.utils.ts` | Contains critical Auth mappings (Clerk to DB). | When dealing with user auth or mapping user IDs. |
 | `apps/ai-service/` | The Python microservice for AI tasks. | When altering how resumes are parsed or text is embedded. |
 | `apps/web/` | The React frontend UI. | When building user-facing features. |
 | `packages/shared/` | Shared TypeScript interfaces and types. | When changing API payloads to ensure frontend/backend remain in sync. |
+| `docs/endpoints.md` | Complete REST API specification for frontend developers. | When building UI components that interact with backend endpoints. |
 | `docker-compose.yml` | Local background infrastructure. | When debugging Redis/Postgres connection issues. |
 
 ## System Overview
 
 SquadUp utilizes a **Hybrid Microservice Architecture**.
-The core Express API (`apps/api`) handles standard fast CRUD operations (creating teams, events, users). 
+The core Express API (`apps/api`) handles fast CRUD operations (creating teams, events, users, applications, and organizers). 
 Heavy, slow, or resource-intensive tasks (like parsing a PDF resume with AI) are offloaded. The Express API pushes a job to a Redis queue (BullMQ), which is processed asynchronously. The Node worker then makes an HTTP call to the isolated Python `ai-service`, allowing Python to handle the heavy machine learning/LLM lifting without blocking the Node event loop.
 
 ## Data Flow
@@ -56,12 +63,14 @@ Heavy, slow, or resource-intensive tasks (like parsing a PDF resume with AI) are
 3. Backend creates a new row in the Postgres `User` table, storing the `clerkId`.
 4. Subsequent API calls extract the `clerkId` from the JWT and resolve it to the internal `User.id` via `getOrCreateUserByClerkId()`.
 
-### Document Ingestion Flow (Resume Parsing)
-1. User uploads a PDF resume to `/api/resume/upload`.
-2. Controller adds the file buffer to the `ai-tasks` BullMQ queue and returns a `jobId` (HTTP 202).
-3. The Node worker pops the job from the queue and sends an HTTP POST to `ai-service` at `http://localhost:8000/api/parse-resume`.
-4. Python service uses `pdfplumber` to extract text, then uses Groq API to convert the text to structured JSON.
-5. Python service returns the JSON. The Node worker then `upserts` this data into the Postgres `Profile` table.
+### Document Ingestion & Resume Flow
+1. User uploads a PDF resume to `POST /api/resume/upload`.
+2. Controller verifies the 24-hour rate limit (bypassed for dev testing).
+3. PDF buffer is saved to disk (`uploads/resumes/:userId.pdf`) and metadata is stored in `Profile`.
+4. Controller enqueues the file buffer in BullMQ (`ai-tasks`) and returns a `jobId` (HTTP 202).
+5. Python AI service extracts text via `pdfplumber` and prompts Groq LLM to return typed structured JSON.
+6. The Node worker upserts `Profile` and calls `AIService.resolveUserTaxonomy` to update `UserTaxonomy`.
+7. Frontend can render the PDF anytime via `GET /api/resume/view` in an embedded iframe.
 
 ## External Services
 
@@ -75,6 +84,7 @@ Heavy, slow, or resource-intensive tasks (like parsing a PDF resume with AI) are
 - `GROQ_API_KEY`: API key for the Groq LLM service.
 - `CLERK_SECRET_KEY`: Backend secret for the Clerk SDK.
 - `CLERK_WEBHOOK_SECRET`: Secret to verify incoming Clerk webhooks.
+- `BYPASS_RESUME_RATE_LIMIT`: Set to `"true"` to disable 24h upload cooldown in dev.
 
 *(See `.env.example` in the root folder for templates).*
 
@@ -88,4 +98,4 @@ Heavy, slow, or resource-intensive tasks (like parsing a PDF resume with AI) are
 
 ## Current State
 
-The backend API is largely feature-complete for core entities. Resume parsing via AI is fully implemented and queued gracefully. Deterministic taxonomy resolution and the V2 pure recommendation engine are fully integrated across Node, Python, and PostgreSQL. The upcoming focus area is the Frontend (`apps/web`) UI integration to display categorized recommendations and LCA explainability breakdowns.
+The backend API is complete and verified across Events, Teams, Applications, Profiles, Resumes, and University Sub-Organizers. The system features standard server-side pagination by default, Redis caching with dynamic event TTLs, and instant real-time taxonomy sync. The upcoming focus area is the Frontend (`apps/web`) UI integration.

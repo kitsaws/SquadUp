@@ -4,7 +4,10 @@ This document provides a snapshot of the current state of the SquadUp project. I
 
 ## Current Focus
 
-The primary focus is completing the **Frontend UI integration** (`apps/web`) to consume the new recommendation endpoint (`POST /api/teams/recommendations`), render candidate teams with visual category badges (`BEST`, `GOOD_DIFFERENT_UNIVERSITY`, `SAME_UNIVERSITY_LOWER_SCORE`), and display interactive LCA explainability decision trees.
+The core backend (Events, Teams, Users, Profiles, Resumes, Applications, and University Sub-Organizers) is fully implemented and tested. The primary upcoming focus is the **Frontend UI integration** (`apps/web`):
+1. Connecting the React frontend to the new paginated Events & Teams APIs with search and filter controls.
+2. Integrating Team Application flows with client-side checks for `isGlobal`.
+3. Consuming the recommendation endpoint (`POST /api/teams/recommendations`) and rendering cards with category badges and expandable LCA decision drawers.
 
 ## Completed
 
@@ -17,42 +20,63 @@ The primary focus is completing the **Frontend UI integration** (`apps/web`) to 
   - V2 Multi-source Evidence Extractor (skills: 0.65, projects: 0.85, experience: 1.00) with concrete provenance snippets.
   - Directional 7-rule structural pair scoring and coverage aggregation.
   - In-memory User Pre-Scoring Vector optimization (< 20ms over 10,000 teams).
-- **Core API Routes:** 
-  - `POST /api/events/create` (Supports global and org-scoped events).
-  - `POST /api/teams` (Atomic team creation + automatic `TeamTaxonomy` resolution).
-  - `POST /api/teams/recommendations` (Push-down DB filtering + pure taxonomy scoring + categorization).
-  - `POST /api/teams/invites/:inviteId/accept`
+- **Core API & Full CRUD:**
+  - **Events API (`/api/events`):**
+    - Standard server-side pagination by default (`page`, `limit`, `search`, `scope`, `sort`).
+    - Redis query caching (5-minute list TTL) and dynamic event TTL (seconds until event + 3 days).
+    - Single event details with team count and team previews.
+    - Create, Update, and Delete routes with organizer/club-admin authorization and instant cache invalidation.
+    - Listing teams registered under an event.
+  - **Teams API (`/api/teams`):**
+    - Server-side pagination and filtering by `eventId`, `myTeams`, `search`, and `sort`.
+    - Real-time `TeamTaxonomy` synchronization when team requirements change.
+    - Delete team and team member removal with leader authorization.
+    - Email invites lifecycle: send (`POST /:id/invites`), list pending (`GET /invites/my-invites`), accept (`POST /invites/:id/accept`), decline (`POST /invites/:id/decline`), and cancel (`DELETE /:id/invites/:id`).
+    - Team Application lifecycle: apply (`POST /:id/apply`), withdraw (`DELETE /:id/apply`), review applications (`GET /:id/applications`), accept (`POST /applications/:id/accept`), and reject (`POST /applications/:id/reject`).
+    - Member opt-out (`DELETE /:id/leave`) with automatic leadership transfer to the next member (or team deletion if sole member).
+    - Push-down DB filtering + pure taxonomy scoring recommendations (`POST /api/teams/recommendations`).
+  - **User & Profile API (`/api/profile`):**
+    - Profile retrieval with full user details, active teams, pending invites, and taxonomy nodes.
+    - Profile updates (`PATCH /api/profile`) with automatic real-time `UserTaxonomy` re-indexing when skills or projects change.
+    - Public candidate profile viewing (`GET /api/profile/:userId`).
+  - **Resume PDF Storage & Rate Limiting (`/api/resume`):**
+    - Local disk persistence of uploaded resume PDFs under `uploads/resumes/`.
+    - Inline browser streaming routes (`GET /api/resume/view` and `GET /api/resume/view/:targetUserId`) for rendering in `<iframe src="...">` or viewer.
+    - 24-hour rate limit per user tracked on `Profile.lastResumeUploadedAt` with HTTP 429 response.
+    - Testing/dev bypass for designated emails (`nagpalswastik@gmail.com`, `razediff0@gmail.com`) and `BYPASS_RESUME_RATE_LIMIT=true`.
+  - **University & Sub-Organizers API (`/api/organizers`):**
+    - University `Organization` model mapping to Clerk `orgId` (`/universities`).
+    - Sub-organizer `Organizer` model for university clubs and societies (e.g. ACM, Robotics, GDSC).
+    - Role-based membership (`OrganizerMember`) allowing club admins to create and manage events.
 - **Decoupled Relational Database:**
-  - `UserTaxonomy` (1:1 with `User`, storing `taxonomyNodeIds`, `rawSkills`, and `evidence` JSON).
-  - `TeamTaxonomy` (1:1 with `Team`, storing `requirementNodeIds` and `rawRequirements`).
-  - Removed obsolete vector embeddings from `Profile` and `Team`.
-- **Decoupled Auth:** Clerk webhooks and internal database `cuid()` generation are fully separated using the `getOrCreateUserByClerkId` helper.
-- **Type Safety:** `@squadup/shared` package maintains absolute cross-boundary typing for recommendation DTOs, evidence items, and categories.
+  - `UserTaxonomy` (1:1 with `User`) and `TeamTaxonomy` (1:1 with `Team`).
+  - `Organization`, `Organizer`, `OrganizerMember`, and `TeamApplication` models.
+  - `Profile` updated with `resumePdfPath`, `resumeOriginalName`, and `lastResumeUploadedAt`.
+- **Decoupled Auth:** Clerk webhooks and internal database `cuid()` generation are fully separated using `getOrCreateUserByClerkId`.
+- **Type Safety:** `@squadup/shared` package maintains absolute cross-boundary typing for events, teams, applications, organizers, profiles, and recommendations.
+
+## Client-Side & Frontend Constraints to Note
+
+1. **`isGlobal` Team Application Check:**
+   When an event is non-global (`event.isGlobal === false`), the backend rejects applications from users of different institutions with HTTP 403 Forbidden.
+   *Future Frontend Guideline:* When rendering team cards, check `team.event.isGlobal`. If false and the user's university does not match the team/event, disable or hide the "Apply" button proactively with a tooltip indicating institutional restriction.
+2. **Server-Side Pagination Reset:**
+   The frontend should request a new server-filtered page whenever search, university scope, or sort changes, always resetting to `page=1`.
 
 ## In Progress
 
-- **Frontend UI (`apps/web`):** The React frontend exists but requires UI components to consume the recommendation API (e.g. Teams directory, category badges, requirement fulfillment progress bars, and expandable LCA decision drawers).
-- **Clerk Organization Switcher:** Needs to be embedded in the React frontend Navbar so users can actively switch between universities.
-
-## Not Yet Implemented (Planned)
-
-- **Clerk Webhooks in Production:** Currently, local development relies heavily on the `getOrCreateUserByClerkId` fallback because Clerk webhooks cannot easily hit `localhost` without ngrok. A public endpoint is required for production.
+- **Frontend UI (`apps/web`):**
+  - Building components to display paginated Events and Teams.
+  - Rendering recommended teams with category badges and LCA breakdown drawers.
+  - Embedding resume PDF viewer in user profile.
+  - Clerk Organization Switcher in Navbar for university switching.
 
 ## Known Issues
 
-- **Windows Prisma Locking:** Running `npx prisma db push` while the Next/Vite dev servers are running on Windows can occasionally throw `EPERM` errors because the query engine DLL is locked. (Workaround: Stop the server, push, restart).
-
-## Recent Changes
-
-- Replaced vector embeddings with deterministic 143-node knowledge hierarchy matching.
-- Added `UserTaxonomy` and `TeamTaxonomy` decoupled Prisma models and migrated database.
-- Implemented V2 multi-source extraction in Python AI service with provenance evidence snippets.
-- Implemented User Pre-Scoring Vector optimization for recommendation engine (~10–20ms for 10,000 teams).
-- Added `POST /api/teams/recommendations` endpoint with database push-down filtering and 3-category presentation (`BEST`, `GOOD_DIFFERENT_UNIVERSITY`, `SAME_UNIVERSITY_LOWER_SCORE`).
-- Created comprehensive technical documentation in `docs/recommendation_system.md`.
+- **Windows Prisma Locking:** Running `npx prisma db push` while Next/Vite dev servers are actively holding DLL locks can occasionally throw `EPERM` errors. (Workaround: stop dev server, push schema, restart).
 
 ## Next Steps
 
-1. **Frontend Recommendations View:** Build React components to call `POST /api/teams/recommendations` and render recommended team cards with category badges and expandable requirement breakdown accordions.
-2. **Event Scoping UI:** Allow users to filter teams by event or view global recommendations.
-
+1. **Frontend Events & Teams Directory:** Build React views connecting to `GET /api/events` and `GET /api/teams` with pagination and search.
+2. **Frontend Application & Invite Modals:** Provide UI for candidates to apply and for leaders to review applicants.
+3. **Frontend Recommendations View:** Render team recommendation cards with category badges and expandable requirement breakdown accordions.

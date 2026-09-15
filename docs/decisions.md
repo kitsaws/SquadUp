@@ -89,3 +89,89 @@ Attempting to blend university into a numerical formula (e.g. 80% technical + 20
 
 ### Status
 Accepted
+
+---
+
+## [Server-Side Pagination by Default for Event and Team Directories]
+
+### Decision
+Standardized all directory endpoints (`GET /api/events`, `GET /api/teams`) on database-level server-side pagination (`page` defaulting to 1, `limit` defaulting to 10). When dataset-affecting filters change on the frontend, the client requests a newly filtered page starting at `page=1`.
+
+### Context
+Attempting to handle pagination purely on the frontend while relying on server-side limits leads to split data states where filters miss items located on subsequent pages. Conversely, loading the entire database to the client degrades performance as the platform scales.
+
+### Consequences
+- **Positive:** Scales gracefully to millions of events and teams. Memory usage remains bounded on both client and server.
+- **Negative:** Requires an HTTP round-trip whenever filters or pages change (mitigated by Redis caching).
+
+### Status
+Accepted
+
+---
+
+## [Multi-Tiered University (Organization) and Sub-Organizer (Clubs/Societies) Hierarchy]
+
+### Decision
+Modeled universities via `Organization` (matching Clerk's `clerkOrgId`) and university clubs/societies via `Organizer` with role-based member permissions (`OrganizerMember`). Events maintain their primary contact (`organizerId` -> `User`), but can be optionally linked to an `organizerProfileId` -> `Organizer`.
+
+### Context
+University hackathons and tech events are rarely organized by isolated individuals. They are hosted by university chapters (e.g. ACM, IEEE, GDSC) or hackathon committees with multi-person leadership teams.
+
+### Consequences
+- **Positive:** Allows student clubs to establish persistent profiles, co-organize events, and delegate administrative rights to club officers.
+- **Negative:** Requires checking club membership roles (`ADMIN`) when modifying club-hosted events.
+
+### Status
+Accepted
+
+---
+
+## [Redis Query Caching with Dynamic Event TTL and Invalidation on Mutation]
+
+### Decision
+Integrated Redis caching for directory queries (`events:list:*`, `teams:list:*`) with a 5-minute TTL, and single event queries (`event:<id>`) with dynamic TTLs ($\max(300, \text{event date} + 3\text{ days} - \text{now})$ capped at 14 days). Mutations trigger instant cache invalidation.
+
+### Context
+Event and team listings are read-heavy and queried frequently by students browsing opportunities. Dynamic TTL ensures active events remain hot in cache until their conclusion, automatically expiring afterward.
+
+### Consequences
+- **Positive:** Response times for cached listings drop to < 2ms. Database load is minimized.
+- **Negative:** Mutation endpoints must carefully call cache invalidation patterns to prevent stale data.
+
+### Status
+Accepted
+
+---
+
+## [Resume PDF Local Storage, Inline Streaming, and 24-Hour Rate Limiting with Allowlist]
+
+### Decision
+Uploaded PDF resumes are saved locally to disk (`uploads/resumes/:userId.pdf`) with streaming endpoints (`/api/resume/view`) for inline browser display. Users are rate-limited to 1 resume upload per 24 hours (tracked via `Profile.lastResumeUploadedAt`), with a configurable bypass for developer/tester emails.
+
+### Context
+Re-parsing resumes repeatedly incurs Groq API and microservice costs. Storing the PDF allows teammates and organizers to view the original resume directly on the candidate profile without re-uploading.
+
+### Consequences
+- **Positive:** Prevents LLM cost exploitation and server flooding. Provides an authentic PDF viewing experience on the frontend.
+- **Negative:** Requires disk storage management for PDF files.
+
+### Status
+Accepted
+
+---
+
+## [Team Application Lifecycle and Institutional Scoping Guard]
+
+### Decision
+Introduced a formal `TeamApplication` join model with candidate join requests and leader review decisions. Enforced a hard server-side check that prevents users from applying to teams belonging to non-global events of other universities.
+
+### Context
+Beyond leaders inviting users via email, candidates need a discovery mechanism to request to join open teams. Institutional events must enforce student eligibility before applicants can enter team rosters.
+
+### Consequences
+- **Positive:** Eliminates disorganized messaging channels for team joining. Enforces institution isolation safely at the API layer.
+- **Negative:** Frontend must reflect application states (`PENDING`, `ACCEPTED`, `REJECTED`) and disable the Apply button proactively when non-global universities mismatch.
+
+### Status
+Accepted
+

@@ -14,6 +14,8 @@ To avoid breaking existing functionality, you must read the following architectu
 4. **[database.md](docs/database.md)**: Details on PostgreSQL, Prisma, decoupled taxonomy models, and the Clerk authentication decoupling.
 5. **[recommendation_system.md](docs/recommendation_system.md)**: Complete guide to the 143-node taxonomy hierarchy, V2 multi-source extraction, pure compatibility scoring, and categorization.
 6. **[progress.md](docs/progress.md)**: The current state of the project, including completed features and immediate next steps.
+7. **[endpoints.md](docs/endpoints.md)**: Complete REST API specification and developer contract for frontend developers.
+
 
 ## 🏛️ Source of Truth
 

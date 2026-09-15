@@ -38,6 +38,19 @@ By leveraging AI and deterministic knowledge hierarchies, SquadUp eliminates the
   - `UserTaxonomy` and `TeamTaxonomy` decoupled from core `User`, `Profile`, and `Team` models to avoid schema bloat.
 - **Decoupled Clerk Authentication:**
   - Clerk IDs decoupled from internal database `cuid()` keys, protecting the relational schema from vendor lock-in.
+- **Standard Server-Side Pagination & Redis Caching:**
+  - Standard database-level pagination by default (`page`, `limit`, `search`, `scope`, `sort`) for Events and Teams.
+  - High-performance Redis query caching with 5-minute list TTLs and dynamic event TTLs ($\text{event date} + 3\text{ days}$).
+- **Team Applications & Roster Workflows:**
+  - Candidate join requests (`TeamApplication`), leader application review, member opt-out/leave with automatic leader reassignment, and hard `isGlobal` university checks.
+- **University Sub-Organizers (Clubs & Societies):**
+  - Multi-tiered hierarchy: University `Organization` linked to Clerk `orgId`, with student club `Organizer` profiles and role-based officer permissions.
+- **Resume Local PDF Persistence & Rate Limiting:**
+  - Resumes saved to disk under `uploads/resumes/` and streamed inline via `GET /api/resume/view`.
+  - 24-hour upload cooldown with developer testing bypass.
+- **Real-Time AI Taxonomy Synchronization:**
+  - Manual edits to profile skills or team requirements immediately re-index taxonomy nodes in real-time.
+
 
 ### Upcoming Focus (In Progress)
 - **Frontend UI Integration (`apps/web`):** Building React components to display recommended teams with category badges, requirement fulfillment progress bars, and expandable LCA decision drawers.
@@ -73,13 +86,15 @@ SquadUp is managed as a **pnpm Turborepo**:
 ├── packages
 │   └── shared               # Shared TypeScript types & DTOs across the monorepo
 ├── docs                     # Comprehensive architectural documentation
+│   ├── endpoints.md         # Complete REST API specification for frontend devs
 │   ├── recommendation_system.md # Full math & engine specification
-│   ├── architecture.md      # Microservice workflows & queues
+│   ├── architecture.md      # Microservice workflows, queues, & Redis caching
 │   ├── database.md          # PostgreSQL schemas & decoupled taxonomy
 │   ├── decisions.md         # Architecture Decision Log (ADRs)
 │   └── progress.md          # Project roadmap & state
 ├── docker-compose.yml       # PostgreSQL and Redis containers
 └── turbo.json               # Turborepo task pipeline
+
 ```
 
 ---
