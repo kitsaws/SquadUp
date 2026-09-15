@@ -94,3 +94,43 @@ export interface TeamQueryFilters {
   sort?: "created_at" | "name";
 }
 
+export interface MyApplicationResponse {
+  id: string;
+  teamId: string;
+  teamName: string;
+  eventId: string;
+  eventTitle: string;
+  university?: string | null;
+  requirements: string[];
+  message?: string | null;
+  status: string; // PENDING, ACCEPTED, REJECTED, WITHDRAWN
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IncomingApplicationSkill {
+  name: string;
+  provenance: string;
+  score: number;
+}
+
+export interface IncomingApplicationResponse {
+  id: string;
+  candidateId: string;
+  name: string;
+  avatarUrl?: string | null;
+  university: string;
+  year?: string | null;
+  appliedRole: string;
+  matchScore: number; // 0.0 to 1.0
+  isCampusMatch: boolean;
+  appliedTimeAgo: string;
+  coverNote: string;
+  skills: IncomingApplicationSkill[];
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN";
+  teamId: string;
+  teamName: string;
+  createdAt: string;
+}
+
+

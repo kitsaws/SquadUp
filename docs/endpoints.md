@@ -491,34 +491,106 @@ Submits a join application.
   > **Frontend UI Check:** Check `team.event.isGlobal`. If `false` and the logged-in user's university does not match the team or event location, disable the "Apply" button with an informative tooltip.
 
 ### 6.2 Withdraw Application
-Candidate withdraws their own pending application.
+Candidate withdraws their own pending application. Can be done by Team ID or Application ID.
 
 - **Method:** `DELETE`
-- **Path:** `/api/teams/:id/apply`
+- **Path:** `/api/teams/:id/apply` or `/api/teams/applications/:applicationId` or `/api/applications/:applicationId`
 - **Auth:** Required
 
-### 6.3 List Applications for a Team
+### 6.3 Get My Submitted Applications (Candidate View)
+Retrieves all applications submitted by the logged-in candidate across all teams and events.
+
+- **Method:** `GET`
+- **Path:** `/api/teams/applications/my-applications` or `/api/applications/my-applications`
+- **Auth:** Required
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "total": 2,
+    "applications": [
+      {
+        "id": "cmu25...",
+        "teamId": "cmu25...",
+        "teamName": "NeuroVision Health",
+        "eventId": "cmu25...",
+        "eventTitle": "TreeHacks 2026",
+        "university": "Stanford University",
+        "requirements": ["PostgreSQL", "FastAPI"],
+        "message": "I spent last summer optimizing time-series ingestion pipelines...",
+        "status": "PENDING",
+        "createdAt": "2026-09-15T12:00:00.000Z",
+        "updatedAt": "2026-09-15T12:00:00.000Z"
+      }
+    ]
+  }
+  ```
+
+### 6.4 Get Incoming Applications (Squad Leader Dashboard)
+Retrieves incoming candidate applications across all teams led by the current user (powers `ApplicationsPage.tsx`).
+
+- **Method:** `GET`
+- **Path:** `/api/teams/applications/incoming` or `/api/applications/incoming`
+- **Auth:** Required (returns applications for all teams where caller is `Leader`)
+- **Query Parameters:**
+  - `teamId`: *(Optional)* Filter incoming candidates for a specific team.
+  - `status`: *(Optional)* Filter by `"PENDING"`, `"ACCEPTED"`, or `"REJECTED"`.
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "total": 3,
+    "applications": [
+      {
+        "id": "cmu25...",
+        "candidateId": "cmu25...",
+        "name": "Alex Rivera",
+        "avatarUrl": null,
+        "university": "Stanford University",
+        "year": "CS Junior",
+        "appliedRole": "PostgreSQL & Distributed Lead",
+        "matchScore": 0.94,
+        "isCampusMatch": true,
+        "appliedTimeAgo": "2h ago",
+        "coverNote": "Hey! I saw NeuroVision on the board. Would love to own telemetry storage.",
+        "skills": [
+          { "name": "PostgreSQL", "provenance": "Resume: Datadog Internship", "score": 0.96 },
+          { "name": "Distributed Systems", "provenance": "Resume: Distributed Systems Course", "score": 0.92 }
+        ],
+        "status": "PENDING",
+        "teamId": "cmu25...",
+        "teamName": "NeuroVision Health",
+        "createdAt": "2026-09-15T10:00:00.000Z"
+      }
+    ]
+  }
+  ```
+
+### 6.5 Get Single Application Details
+- **Method:** `GET`
+- **Path:** `/api/teams/applications/:applicationId` or `/api/applications/:applicationId`
+- **Auth:** Required (Applicant or Squad Leader only)
+
+### 6.6 List Applications for a Specific Team
 Retrieves pending applications with candidate profile, skills, and taxonomy nodes. Caller must be team `Leader`.
 
 - **Method:** `GET`
 - **Path:** `/api/teams/:id/applications`
 - **Auth:** Required (Leader only)
 
-### 6.4 Accept Application
+### 6.7 Accept Application
 Leader accepts applicant $\to$ adds user as `TeamMember` (`role: "Member"`).
 
 - **Method:** `POST`
-- **Path:** `/api/teams/applications/:applicationId/accept`
+- **Path:** `/api/teams/applications/:applicationId/accept` or `/api/applications/:applicationId/accept`
 - **Auth:** Required (Leader only)
 
-### 6.5 Reject Application
+### 6.8 Reject Application
 Leader rejects applicant $\to$ sets status to `"REJECTED"`.
 
 - **Method:** `POST`
-- **Path:** `/api/teams/applications/:applicationId/reject`
+- **Path:** `/api/teams/applications/:applicationId/reject` or `/api/applications/:applicationId/reject`
 - **Auth:** Required (Leader only)
 
-### 6.6 Leave Team (Opt-Out)
+### 6.9 Leave Team (Opt-Out)
 Caller leaves the team.
 - If a regular `Member`: removes membership row.
 - If the `Leader`: automatically promotes the next earliest joined member to `Leader`. If the leader was the sole member, the team is deleted.
@@ -527,7 +599,7 @@ Caller leaves the team.
 - **Path:** `/api/teams/:id/leave`
 - **Auth:** Required
 
-### 6.7 Remove Member
+### 6.10 Remove Member
 Leader removes a member from the team.
 
 - **Method:** `DELETE`

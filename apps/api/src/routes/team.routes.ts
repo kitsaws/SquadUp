@@ -12,7 +12,11 @@ import {
   cancelInvite,
   applyToTeam,
   withdrawApplication,
+  withdrawApplicationById,
   getTeamApplications,
+  getMyApplications,
+  getIncomingApplications,
+  getApplicationById,
   acceptApplication,
   rejectApplication,
   leaveTeam,
@@ -32,7 +36,13 @@ router.get("/invites/my-invites", getMyInvites);
 router.post("/invites/:inviteId/accept", acceptInvite);
 router.post("/invites/:inviteId/decline", declineInvite);
 
-// Leader application decisions
+// User-level applications
+router.get("/applications/my-applications", getMyApplications);
+router.get("/my-applications", getMyApplications);
+router.get("/applications/incoming", getIncomingApplications);
+router.get("/incoming-applications", getIncomingApplications);
+router.get("/applications/:applicationId", getApplicationById);
+router.delete("/applications/:applicationId", withdrawApplicationById);
 router.post("/applications/:applicationId/accept", acceptApplication);
 router.post("/applications/:applicationId/reject", rejectApplication);
 

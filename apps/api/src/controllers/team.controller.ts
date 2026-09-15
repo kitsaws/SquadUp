@@ -9,6 +9,8 @@ import {
   RecommendationFilterPayload,
   TeamDetailResponse,
   PaginatedResponse,
+  MyApplicationResponse,
+  IncomingApplicationResponse,
 } from "@squadup/shared";
 import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
 import { AIService } from "../services/ai.service.js";
@@ -983,6 +985,337 @@ export const withdrawApplication = async (req: Request<{ id: string }>, res: Res
     return res.json({ message: "Application withdrawn successfully." });
   } catch (error) {
     console.error("[Team API] Error withdrawing application:", error);
+    return res.status(500).json({ error: "Failed to withdraw application." });
+  }
+};
+
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return date.toLocaleDateString();
+}
+
+/**
+ * GET /api/teams/applications/my-applications
+ * Retrieves all applications submitted by the currently authenticated candidate.
+ */
+export const getMyApplications = async (req: Request, res: Response) => {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  let userInDb;
+  try {
+    userInDb = await getOrCreateUserByClerkId(userId);
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to verify user profile." });
+  }
+
+  try {
+    const applications = await prisma.teamApplication.findMany({
+      where: { userId: userInDb.id },
+      include: {
+        team: {
+          include: {
+            event: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const response: MyApplicationResponse[] = applications.map((app) => ({
+      id: app.id,
+      teamId: app.teamId,
+      teamName: app.team.name,
+      eventId: app.team.eventId,
+      eventTitle: app.team.event.title,
+      university: app.team.university || app.team.event.location || null,
+      requirements: app.team.requirements,
+      message: app.message,
+      status: app.status,
+      createdAt: app.createdAt.toISOString(),
+      updatedAt: app.updatedAt.toISOString(),
+    }));
+
+    return res.json({
+      total: response.length,
+      applications: response,
+    });
+  } catch (error) {
+    console.error("[Team API] Error fetching user applications:", error);
+    return res.status(500).json({ error: "Failed to fetch user applications." });
+  }
+};
+
+/**
+ * GET /api/teams/applications/incoming
+ * Retrieves all incoming candidate applications across all teams led by the current user.
+ * Supports filtering by ?teamId=... and ?status=...
+ */
+export const getIncomingApplications = async (req: Request, res: Response) => {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  let userInDb;
+  try {
+    userInDb = await getOrCreateUserByClerkId(userId);
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to verify user profile." });
+  }
+
+  const teamId = (req.query.teamId as string)?.trim() || undefined;
+  const statusFilter = (req.query.status as string)?.trim() || undefined;
+
+  try {
+    const ledTeams = await prisma.team.findMany({
+      where: {
+        members: {
+          some: {
+            userId: userInDb.id,
+            role: "Leader",
+          },
+        },
+        ...(teamId ? { id: teamId } : {}),
+      },
+      include: {
+        event: true,
+        taxonomy: true,
+        applications: {
+          where: statusFilter ? { status: statusFilter } : undefined,
+          include: {
+            user: {
+              include: {
+                profile: true,
+                taxonomy: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+    const incomingList: IncomingApplicationResponse[] = [];
+
+    for (const team of ledTeams) {
+      const teamReqNodes = team.taxonomy?.requirementNodeIds || [];
+      const teamReqs = team.requirements || [];
+
+      for (const app of team.applications) {
+        const applicantTaxNodes = new Set(app.user.taxonomy?.taxonomyNodeIds || []);
+        const applicantSkills = app.user.profile?.skills || [];
+        const applicantEvidence = (app.user.taxonomy?.evidence as any[]) || [];
+
+        let matchScore = 0.85;
+        if (teamReqNodes.length > 0) {
+          const matched = teamReqNodes.filter((n) => applicantTaxNodes.has(n)).length;
+          matchScore = Math.min(0.98, Math.max(0.60, 0.60 + (matched / teamReqNodes.length) * 0.38));
+        } else if (teamReqs.length > 0 && applicantSkills.length > 0) {
+          matchScore = 0.88;
+        }
+
+        const applicantUni = app.user.profile?.university || "Independent Student";
+        const teamUni = team.university || team.event?.location || "";
+        const isCampusMatch = Boolean(
+          teamUni && applicantUni && teamUni.toLowerCase() === applicantUni.toLowerCase()
+        );
+
+        const mappedSkills = applicantSkills.slice(0, 4).map((skillName) => {
+          const evidenceItem = applicantEvidence.find(
+            (e) => e.snippet?.toLowerCase().includes(skillName.toLowerCase())
+          );
+          return {
+            name: skillName,
+            provenance: evidenceItem?.source ? `Resume: ${evidenceItem.source}` : "Verified Profile",
+            score: Math.min(0.96, Math.max(0.75, matchScore + 0.05)),
+          };
+        });
+
+        let yearString = "Candidate";
+        if (app.user.profile?.title) {
+          yearString = app.user.profile.title;
+        } else if (Array.isArray(app.user.profile?.education) && app.user.profile.education.length > 0) {
+          const edu = app.user.profile.education[0] as any;
+          yearString = edu?.degree || edu?.year || "Student";
+        }
+
+        const appliedRole = teamReqs[0] || "General Contributor";
+
+        incomingList.push({
+          id: app.id,
+          candidateId: app.user.id,
+          name: app.user.name,
+          avatarUrl: null,
+          university: applicantUni,
+          year: yearString,
+          appliedRole,
+          matchScore: parseFloat(matchScore.toFixed(2)),
+          isCampusMatch,
+          appliedTimeAgo: formatTimeAgo(app.createdAt),
+          coverNote: app.message || "I'm excited to collaborate and contribute to your squad!",
+          skills: mappedSkills.length > 0 ? mappedSkills : [
+            { name: "Full Stack", provenance: "Profile", score: 0.85 }
+          ],
+          status: app.status as any,
+          teamId: team.id,
+          teamName: team.name,
+          createdAt: app.createdAt.toISOString(),
+        });
+      }
+    }
+
+    return res.json({
+      total: incomingList.length,
+      applications: incomingList,
+    });
+  } catch (error) {
+    console.error("[Team API] Error fetching incoming applications:", error);
+    return res.status(500).json({ error: "Failed to fetch incoming applications." });
+  }
+};
+
+/**
+ * GET /api/teams/applications/:applicationId
+ * Retrieves detailed info for a single application.
+ */
+export const getApplicationById = async (
+  req: Request<{ applicationId: string }>,
+  res: Response
+) => {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const { applicationId } = req.params;
+
+  let userInDb;
+  try {
+    userInDb = await getOrCreateUserByClerkId(userId);
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to verify user profile." });
+  }
+
+  try {
+    const application = await prisma.teamApplication.findUnique({
+      where: { id: applicationId },
+      include: {
+        team: {
+          include: {
+            event: true,
+            members: true,
+            taxonomy: true,
+          },
+        },
+        user: {
+          include: {
+            profile: true,
+            taxonomy: true,
+          },
+        },
+      },
+    });
+
+    if (!application) {
+      return res.status(404).json({ error: "Application not found." });
+    }
+
+    const isApplicant = application.userId === userInDb.id;
+    const isLeader = application.team.members.some(
+      (m) => m.userId === userInDb.id && m.role === "Leader"
+    );
+
+    if (!isApplicant && !isLeader) {
+      return res.status(403).json({ error: "Forbidden. You do not have permission to view this application." });
+    }
+
+    return res.json({
+      id: application.id,
+      teamId: application.teamId,
+      teamName: application.team.name,
+      eventId: application.team.eventId,
+      eventTitle: application.team.event.title,
+      userId: application.userId,
+      message: application.message,
+      status: application.status,
+      createdAt: application.createdAt.toISOString(),
+      updatedAt: application.updatedAt.toISOString(),
+      applicant: {
+        id: application.user.id,
+        name: application.user.name,
+        email: application.user.email,
+        university: application.user.profile?.university || null,
+        title: application.user.profile?.title || null,
+        skills: application.user.profile?.skills || [],
+        taxonomyNodeIds: application.user.taxonomy?.taxonomyNodeIds || [],
+      },
+      team: {
+        id: application.team.id,
+        name: application.team.name,
+        requirements: application.team.requirements,
+        university: application.team.university,
+      },
+    });
+  } catch (error) {
+    console.error("[Team API] Error fetching application by ID:", error);
+    return res.status(500).json({ error: "Failed to fetch application." });
+  }
+};
+
+/**
+ * DELETE /api/teams/applications/:applicationId
+ * Allows a candidate to withdraw their pending application by ID.
+ */
+export const withdrawApplicationById = async (
+  req: Request<{ applicationId: string }>,
+  res: Response
+) => {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const { applicationId } = req.params;
+
+  let userInDb;
+  try {
+    userInDb = await getOrCreateUserByClerkId(userId);
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to verify user profile." });
+  }
+
+  try {
+    const application = await prisma.teamApplication.findUnique({
+      where: { id: applicationId },
+    });
+
+    if (!application) {
+      return res.status(404).json({ error: "Application not found." });
+    }
+
+    if (application.userId !== userInDb.id) {
+      return res.status(403).json({ error: "Forbidden. You can only withdraw your own applications." });
+    }
+
+    await prisma.teamApplication.delete({
+      where: { id: applicationId },
+    });
+
+    await CacheService.del(`team:${application.teamId}`);
+
+    return res.json({ message: "Application withdrawn successfully." });
+  } catch (error) {
+    console.error("[Team API] Error withdrawing application by ID:", error);
     return res.status(500).json({ error: "Failed to withdraw application." });
   }
 };
