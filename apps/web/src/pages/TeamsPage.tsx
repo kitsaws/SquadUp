@@ -248,14 +248,6 @@ export function TeamsPage() {
             Browse hackathon teams recruiting talent. Filter by skills, event, or campus match.
           </p>
         </div>
-
-        <Link
-          to="/profile"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-        >
-          <Shield className="w-4 h-4 text-blue-600" />
-          <span>My AI Profile & Skills</span>
-        </Link>
       </div>
 
       {/* Search & Filter Bar */}
@@ -280,11 +272,10 @@ export function TeamsPage() {
                 setIsFilterOpen(!isFilterOpen);
                 setIsSortOpen(false);
               }}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                activeFilterCount > 0
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${activeFilterCount > 0
                   ? "bg-blue-50 text-blue-700 border-blue-300"
                   : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-              }`}
+                }`}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
               <span>Filter</span>
@@ -325,44 +316,40 @@ export function TeamsPage() {
                       <button
                         type="button"
                         onClick={() => setFilterTier("ALL")}
-                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                          filterTier === "ALL"
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "ALL"
                             ? "bg-blue-50 text-blue-700 font-bold"
                             : "text-slate-700 hover:bg-slate-100"
-                        }`}
+                          }`}
                       >
                         All Tiers
                       </button>
                       <button
                         type="button"
                         onClick={() => setFilterTier("BEST")}
-                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                          filterTier === "BEST"
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "BEST"
                             ? "bg-emerald-600 text-white"
                             : "text-[#059669] hover:bg-[#10b981] hover:text-white"
-                        }`}
+                          }`}
                       >
                         Best Fit
                       </button>
                       <button
                         type="button"
                         onClick={() => setFilterTier("CROSS_CAMPUS")}
-                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                          filterTier === "CROSS_CAMPUS"
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "CROSS_CAMPUS"
                             ? "bg-indigo-600 text-white"
                             : "text-[#4f46e5] hover:bg-[#6366F1] hover:text-white"
-                        }`}
+                          }`}
                       >
                         Cross-Campus
                       </button>
                       <button
                         type="button"
                         onClick={() => setFilterTier("CAMPUS_EXPLORER")}
-                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                          filterTier === "CAMPUS_EXPLORER"
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "CAMPUS_EXPLORER"
                             ? "bg-amber-500 text-white"
                             : "text-[#d97706] hover:bg-[#d97706] hover:text-white"
-                        }`}
+                          }`}
                       >
                         Same Campus
                       </button>
@@ -386,11 +373,10 @@ export function TeamsPage() {
                         key={opt.id}
                         type="button"
                         onClick={() => setFilterCampus(opt.id)}
-                        className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                          filterCampus === opt.id
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${filterCampus === opt.id
                             ? "bg-blue-50 text-blue-700 font-bold"
                             : "text-slate-700 hover:bg-slate-100"
-                        }`}
+                          }`}
                       >
                         {opt.label}
                       </button>
@@ -430,15 +416,15 @@ export function TeamsPage() {
                 {(
                   (isSignedIn
                     ? [
-                        { id: "FIT_DESC", label: "Fit Score (Highest)" },
-                        { id: "FIT_ASC", label: "Fit Score (Lowest)" },
-                        { id: "SPOTS_DESC", label: "Open Spots (Most)" },
-                        { id: "NAME_ASC", label: "Squad Name (A-Z)" },
-                      ]
+                      { id: "FIT_DESC", label: "Fit Score (Highest)" },
+                      { id: "FIT_ASC", label: "Fit Score (Lowest)" },
+                      { id: "SPOTS_DESC", label: "Open Spots (Most)" },
+                      { id: "NAME_ASC", label: "Squad Name (A-Z)" },
+                    ]
                     : [
-                        { id: "SPOTS_DESC", label: "Open Spots (Most)" },
-                        { id: "NAME_ASC", label: "Squad Name (A-Z)" },
-                      ]) as { id: SortOption; label: string }[]
+                      { id: "SPOTS_DESC", label: "Open Spots (Most)" },
+                      { id: "NAME_ASC", label: "Squad Name (A-Z)" },
+                    ]) as { id: SortOption; label: string }[]
                 ).map((opt) => (
                   <button
                     key={opt.id}
@@ -446,11 +432,10 @@ export function TeamsPage() {
                       setSortBy(opt.id);
                       setIsSortOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
-                      sortBy === opt.id
+                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${sortBy === opt.id
                         ? "bg-blue-50 text-blue-700 font-bold"
                         : "text-slate-700 hover:bg-slate-50"
-                    }`}
+                      }`}
                   >
                     <span>{opt.label}</span>
                     {sortBy === opt.id && <Check className="w-3.5 h-3.5 text-blue-600" />}
@@ -495,9 +480,8 @@ export function TeamsPage() {
             </div>
           ) : (
             <div
-              className={`grid gap-6 ${
-                inspectedTeam ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-              }`}
+              className={`grid gap-6 ${inspectedTeam ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+                }`}
             >
               {filteredTeams.map((team) => (
                 <div key={team.id} id={`team-card-${team.id}`} className="h-full scroll-mt-24">
@@ -602,15 +586,14 @@ export function TeamsPage() {
             {/* Skill & Requirement Alignment */}
             {isSignedIn ? (
               <div
-                className={`p-3.5 rounded-xl border space-y-3 ${
-                  inspectedTeam.category === "BEST"
+                className={`p-3.5 rounded-xl border space-y-3 ${inspectedTeam.category === "BEST"
                     ? "bg-emerald-50/60 border-emerald-200/90"
                     : inspectedTeam.category === "GOOD_DIFFERENT_UNIVERSITY"
-                    ? "bg-indigo-50/60 border-indigo-200/90"
-                    : inspectedTeam.category === "SAME_UNIVERSITY_LOWER_SCORE"
-                    ? "bg-amber-50/60 border-amber-200/90"
-                    : "bg-slate-50 border-slate-200/80"
-                }`}
+                      ? "bg-indigo-50/60 border-indigo-200/90"
+                      : inspectedTeam.category === "SAME_UNIVERSITY_LOWER_SCORE"
+                        ? "bg-amber-50/60 border-amber-200/90"
+                        : "bg-slate-50 border-slate-200/80"
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
@@ -644,8 +627,8 @@ export function TeamsPage() {
                       {inspectedTeam.neededRequirement
                         ? `Actively seeking ${inspectedTeam.neededRequirement} lead`
                         : inspectedTeam.category
-                        ? "Matching your core technical competencies"
-                        : "General technical vacancy"}
+                          ? "Matching your core technical competencies"
+                          : "General technical vacancy"}
                     </p>
                     <p className="text-[11px] text-slate-500 leading-snug">
                       {inspectedTeam.category

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useJobContext } from "../contexts/JobContext";
-import { useUser, UserProfile, SignInButton } from "@clerk/react";
+import { useUser, useClerk, SignInButton } from "@clerk/react";
 import { Link, useParams } from "react-router-dom";
 import {
   Shield,
@@ -22,6 +22,7 @@ import {
   MapPin,
   Loader2,
   AlertCircle,
+  LogOut,
 } from "lucide-react";
 import { SkillTag } from "../components/Badges";
 import {
@@ -35,12 +36,12 @@ export function ProfileSplit() {
   const { candidateId } = useParams<{ candidateId?: string }>();
   const { jobId, isUploading, status } = useJobContext();
   const { user } = useUser();
+  const { openUserProfile, signOut } = useClerk();
 
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [myApplications, setMyApplications] = useState<CandidateApplicationItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [showClerkSettings, setShowClerkSettings] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -146,24 +147,6 @@ export function ProfileSplit() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-in fade-in duration-200">
-      {/* Clerk User Management Modal */}
-      {showClerkSettings && !isCandidateView && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
-            <button
-              onClick={() => setShowClerkSettings(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold text-sm bg-slate-100 p-2 rounded-full cursor-pointer"
-            >
-              ✕
-            </button>
-            <h3 className="text-lg font-black text-slate-900 mb-4 font-heading">
-              Clerk Account & Authentication Settings
-            </h3>
-            <UserProfile routing="hash" />
-          </div>
-        </div>
-      )}
-
       {/* Uploading Status Banner */}
       {jobId && isUploading && (
         <div className="bg-blue-50 border border-blue-200 p-6 rounded-2xl flex items-center gap-4">
@@ -184,6 +167,17 @@ export function ProfileSplit() {
             {/* Banner */}
             <div className="h-32 w-full bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 relative">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.25),transparent_50%)]" />
+              {!isCandidateView && (
+                <button
+                  type="button"
+                  onClick={() => signOut({ redirectUrl: "/" })}
+                  className="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-200 hover:text-white bg-black/30 hover:bg-black/50 backdrop-blur-md border border-white/15 transition-all cursor-pointer shadow-xs"
+                  title="Sign out of SquadUp"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Log Out</span>
+                </button>
+              )}
             </div>
 
             {/* Avatar & Personal Info */}
@@ -256,22 +250,34 @@ export function ProfileSplit() {
 
               {/* Action Buttons (Current User Only) */}
               {!isCandidateView && (
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-                  <button
-                    onClick={() => setShowClerkSettings(true)}
-                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                    <span>Account</span>
-                  </button>
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openUserProfile()}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Account</span>
+                    </button>
 
-                  <Link
-                    to="/resume-upload"
-                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
+                    <Link
+                      to="/resume-upload"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Update Profile</span>
+                    </Link>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => signOut({ redirectUrl: "/" })}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50/70 hover:bg-rose-100 hover:text-rose-800 border border-rose-200/60 transition-colors cursor-pointer"
                   >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Update Profile</span>
-                  </Link>
+                    <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Log Out</span>
+                  </button>
                 </div>
               )}
 
@@ -453,7 +459,7 @@ export function ProfileSplit() {
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-slate-900 font-heading uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-blue-600" /> Verified Skills & Taxonomy
+                <Sparkles className="w-4 h-4 text-blue-600" /> Skills
               </h3>
               <span className="text-xs text-slate-400">
                 {skillsList.length} Competencies
