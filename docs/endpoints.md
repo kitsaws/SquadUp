@@ -816,10 +816,29 @@ Runs user capability nodes against eligible candidate teams using the V2 Pure Ta
 
 ## 10. Clerk Webhook Endpoints (`/api/webhooks`)
 
-### 10.1 Clerk Event Receiver
+### 10.1 Webhook Configuration & Health Check
+- **Method:** `GET`
+- **Path:** `/api/webhooks` or `/api/webhooks/config`
+- **Auth:** Public
+- **Description:** Returns the active external receiving URL configured for Clerk/Svix and reports whether signature verification (`CLERK_WEBHOOK_SECRET`) is loaded.
+- **Response Format:**
+  ```json
+  {
+    "status": "active",
+    "service": "squadup-clerk-webhook",
+    "endpoint": "https://your-ngrok-subdomain.ngrok-free.app/api/webhooks",
+    "isCustomUrlConfigured": true,
+    "secretConfigured": true
+  }
+  ```
+
+### 10.2 Clerk Event Receiver
 - **Method:** `POST`
-- **Path:** `/api/webhooks/clerk`
-- **Auth:** Svix Signature Verification (`CLERK_WEBHOOK_SECRET`)
+- **Path:** `/api/webhooks` or `/api/webhooks/clerk`
+- **Configured Receiving URL:** Controlled via environment variable `CLERK_WEBHOOK_URL`.
+  - Local Development: e.g. `https://<ngrok-subdomain>.ngrok-free.app/api/webhooks`
+  - Production: e.g. `https://api.squadup.dev/api/webhooks`
+- **Auth:** Svix Cryptographic Signature Verification (`CLERK_WEBHOOK_SECRET`)
 - **Headers Required:**
   - `svix-id`: Unique Svix message ID
   - `svix-timestamp`: Unix timestamp

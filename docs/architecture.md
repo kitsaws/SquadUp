@@ -90,9 +90,10 @@ Authentication heavily leverages Clerk, but utilizes a decoupled architecture to
 
 1. **Frontend Authentication:** Clerk manages frontend sessions and provides session JWTs.
 2. **Decoupled Identity Mapping:** The database stores native `cuid()` values as primary keys (`User.id`, `Organization.id`). External Clerk IDs are stored in indexed, unique columns (`User.clerkId`, `Organization.clerkOrgId`).
-3. **Svix Cryptographic Webhook Receiver (`/api/webhooks/clerk`):**
-   - Webhook requests are verified using Svix headers (`svix-id`, `svix-timestamp`, `svix-signature`) against `CLERK_WEBHOOK_SECRET`.
-   - Express handles the raw JSON buffer prior to parsing to ensure uncorrupted HMAC verification.
+3. **Environment-Configurable Svix Webhook Receiver (`/api/webhooks`):**
+   - The externally reachable receiving URL is configured dynamically via `CLERK_WEBHOOK_URL`, allowing seamless tunneling in local development (e.g. ngrok or Cloudflare Tunnels) and production domain routing without hardcoding URLs in code.
+   - Webhook requests are cryptographically verified using Svix headers (`svix-id`, `svix-timestamp`, `svix-signature`) against `CLERK_WEBHOOK_SECRET`.
+   - Express intercepts the raw JSON buffer prior to parsing to ensure uncorrupted HMAC verification.
 4. **Supported Webhook Events (9 Total):**
    - **User Lifecycle (`user.created`, `user.updated`, `user.deleted`):** Upserts internal `User` records with primary email resolution, initializes a clean `Profile`, and safely cascades deletions while invalidating Redis caches.
    - **Organization Lifecycle (`organization.created`, `organization.updated`, `organization.deleted`):** Synchronizes universities into the `Organization` table, updating metadata and gracefully unlinking events/teams upon deletion.

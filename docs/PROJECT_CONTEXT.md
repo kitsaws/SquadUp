@@ -83,7 +83,8 @@ Heavy, slow, or resource-intensive tasks (like parsing a PDF resume with AI) are
 - `REDIS_URL`: Connection string for Redis.
 - `GROQ_API_KEY`: API key for the Groq LLM service.
 - `CLERK_SECRET_KEY`: Backend secret for the Clerk SDK.
-- `CLERK_WEBHOOK_SECRET`: Secret to verify incoming Clerk webhooks.
+- `CLERK_WEBHOOK_SECRET`: Secret used by Svix to verify incoming Clerk webhooks.
+- `CLERK_WEBHOOK_URL`: Externally reachable base/receiving URL where Clerk/Svix dispatches events (e.g. ngrok tunnel URL during local dev or production API domain).
 - `BYPASS_RESUME_RATE_LIMIT`: Set to `"true"` to disable 24h upload cooldown in dev.
 
 *(See `.env.example` in the root folder for templates).*

@@ -3,6 +3,7 @@ dist
 .turbo
 .env
 .env.*
+!.env.example
 *.local
 coverage
 *.tsbuildinfo
@@ -19,3 +20,7 @@ env/
 htmlcov/
 
 next_instructions
+
+# Uploads
+uploads/
+apps/api/uploads/

@@ -119,6 +119,19 @@ cp .env.example .env
 ```
 Ensure you provide your `GROQ_API_KEY`, `DATABASE_URL`, `REDIS_URL`, and Clerk authentication keys.
 
+#### Clerk Webhook Configuration
+- `CLERK_WEBHOOK_SECRET`: The signing secret from the Clerk Dashboard (starts with `whsec_...`) used by Svix to verify payload authenticity.
+- `CLERK_WEBHOOK_URL`: The externally reachable receiving URL where Clerk delivers webhooks.
+  - **Local Development (via ngrok):** Start an ngrok tunnel to port 3000 (`ngrok http 3000`) and set:
+    ```env
+    CLERK_WEBHOOK_URL=https://<your-ngrok-subdomain>.ngrok-free.app/api/webhooks
+    ```
+    Then configure this endpoint in your Clerk Dashboard under **Webhooks**.
+  - **Production:** Set to your canonical API domain:
+    ```env
+    CLERK_WEBHOOK_URL=https://api.squadup.dev/api/webhooks
+    ```
+
 ### 4. Install Dependencies & Migrate Database
 Install workspace dependencies and push the Prisma schema to PostgreSQL:
 ```bash
