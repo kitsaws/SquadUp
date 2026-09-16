@@ -35,29 +35,67 @@ export const aiWorker = new Worker(
       // Ensure the user exists in our DB to prevent Foreign Key constraints (e.g. if webhook failed)
       let userInDb = await getOrCreateUserByClerkId(userId);
 
+      // Update User name if candidate's name was extracted and current user name is empty or default
+      if (profileData.name && typeof profileData.name === 'string') {
+        const trimmedName = profileData.name.trim();
+        if (trimmedName && (!userInDb.name || userInDb.name === 'User' || userInDb.name === userInDb.email.split('@')[0])) {
+          try {
+            await prisma.user.update({
+              where: { id: userInDb.id },
+              data: { name: trimmedName },
+            });
+            userInDb.name = trimmedName;
+          } catch (nameErr) {
+            console.warn(`[Job ${job.id}] Failed to update user name:`, nameErr);
+          }
+        }
+      }
+
+      // Detect university from education if available
+      let detectedUniversity: string | null = null;
+      if (Array.isArray(profileData.education) && profileData.education.length > 0) {
+        const topEdu = profileData.education[0];
+        if (topEdu && (topEdu.college || topEdu.university)) {
+          const rawUni = String(topEdu.college || topEdu.university).trim();
+          const cleanUni = rawUni.split(/\s*[\(,]\s*/)[0].trim();
+          detectedUniversity = cleanUni.length > 2 ? cleanUni : rawUni;
+        }
+      }
+
+      const githubUrl = profileData.links?.github ? String(profileData.links.github).trim() : null;
+      const linkedinUrl = profileData.links?.linkedin ? String(profileData.links.linkedin).trim() : null;
+      const title = profileData.title ? String(profileData.title).trim() : null;
+      const summary = profileData.summary ? String(profileData.summary).trim() : null;
+
       // Save the result to the database
       const profile = await prisma.profile.upsert({
         where: { userId: userInDb.id },
         update: {
-          title: profileData.title,
-          summary: profileData.summary,
+          ...(title ? { title } : {}),
+          ...(summary ? { summary } : {}),
           skills: profileData.skills || [],
           education: profileData.education || [],
           experience: profileData.experience || [],
           projects: profileData.projects || [],
-          githubUrl: profileData.links?.github,
-          linkedinUrl: profileData.links?.linkedin,
+          ...(githubUrl ? { githubUrl } : {}),
+          ...(linkedinUrl ? { linkedinUrl } : {}),
+          ...(detectedUniversity ? { university: detectedUniversity } : {}),
+          ...(filename ? { resumeOriginalName: filename } : {}),
+          lastResumeUploadedAt: new Date(),
         },
         create: {
           userId: userInDb.id,
-          title: profileData.title,
-          summary: profileData.summary,
+          title: title || "",
+          summary: summary || "",
           skills: profileData.skills || [],
           education: profileData.education || [],
           experience: profileData.experience || [],
           projects: profileData.projects || [],
-          githubUrl: profileData.links?.github,
-          linkedinUrl: profileData.links?.linkedin,
+          githubUrl: githubUrl || "",
+          linkedinUrl: linkedinUrl || "",
+          university: detectedUniversity || null,
+          resumeOriginalName: filename || null,
+          lastResumeUploadedAt: new Date(),
         }
       });
       

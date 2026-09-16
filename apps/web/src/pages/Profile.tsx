@@ -85,7 +85,7 @@ const formatLinkedinUrl = (url?: string | null) => {
 
 export function Profile() {
   const { candidateId } = useParams<{ candidateId?: string }>();
-  const { jobId, isUploading, status } = useJobContext();
+  const { jobId, isUploading, status, profileData } = useJobContext();
   const { user } = useUser();
   const { openUserProfile, signOut } = useClerk();
   const { updateToken } = usePalette();
@@ -160,18 +160,20 @@ export function Profile() {
   // Auto-refresh profile when background resume parsing completes
   const prevUploadingRef = useRef(isUploading);
   useEffect(() => {
-    if (prevUploadingRef.current && !isUploading && !jobId) {
-      profileApi
-        .getProfile()
-        .then((refreshed) => {
-          setProfile(refreshed);
-        })
-        .catch((err) => {
-          console.error("[Profile] Failed to re-fetch profile after resume processing:", err);
-        });
+    if ((prevUploadingRef.current && !isUploading && !jobId) || profileData) {
+      if (!candidateId) {
+        profileApi
+          .getProfile()
+          .then((refreshed) => {
+            setProfile(refreshed);
+          })
+          .catch((err) => {
+            console.error("[Profile] Failed to re-fetch profile after resume processing:", err);
+          });
+      }
     }
     prevUploadingRef.current = isUploading;
-  }, [isUploading, jobId]);
+  }, [isUploading, jobId, profileData, candidateId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -369,7 +371,6 @@ export function Profile() {
               }
               className="h-32 w-full relative transition-all duration-300 overflow-hidden group"
             >
-              {/* <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.25),transparent_50%)]" /> */}
               {!isCandidateView && (
                 <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
                   <button

@@ -47,11 +47,11 @@ async def parse_resume(file: UploadFile = File(...)):
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        resume_text = extract_text_from_pdf(temp_file_path)
+        resume_text, hyperlinks = extract_text_from_pdf(temp_file_path)
         if not resume_text:
             raise HTTPException(status_code=400, detail="No readable text found in PDF.")
             
-        profile = generate_profile_data(resume_text)
+        profile = generate_profile_data(resume_text, hyperlinks=hyperlinks)
         return profile
     finally:
         if os.path.exists(temp_file_path):

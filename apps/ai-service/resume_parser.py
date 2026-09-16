@@ -45,19 +45,25 @@ PROFILE_SCHEMA = {
     }
 }
 
-def extract_text_from_pdf(file_path: str) -> str:
+def extract_text_from_pdf(file_path: str):
     text = ""
+    hyperlinks = []
     try:
         with pdfplumber.open(file_path) as pdf:
             for page in pdf.pages:
                 extracted = page.extract_text()
                 if extracted:
                     text += extracted + "\n"
+                if page.hyperlinks:
+                    for hl in page.hyperlinks:
+                        uri = hl.get("uri")
+                        if uri and uri not in hyperlinks:
+                            hyperlinks.append(uri)
     except Exception as e:
         raise Exception(f"Failed to extract text from PDF: {str(e)}")
-    return text.strip()
+    return text.strip(), hyperlinks
 
-def generate_profile_data(resume_text: str) -> dict:
+def generate_profile_data(resume_text: str, hyperlinks: list = None) -> dict:
     if not GROQ_API_KEY:
         raise HTTPException(status_code=500, detail="GROQ_API_KEY environment variable is not set")
         
@@ -65,24 +71,33 @@ def generate_profile_data(resume_text: str) -> dict:
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
+
+    links_section = ""
+    if hyperlinks:
+        links_section = "\n\nDetected URLs / Hyperlinks from PDF document annotations:\n" + "\n".join(f"- {l}" for l in hyperlinks)
     
     prompt = (
-        "Extract a professional candidate profile from this resume text.\n\n"
+        "Extract and synthesize a complete, professional candidate profile from this resume text.\n\n"
         "Use this exact JSON shape:\n"
         f"{json.dumps(PROFILE_SCHEMA, indent=2)}\n\n"
-        "Instructions:\n"
-        "- Extract all explicit technical skills into 'skills'.\n"
-        "- For each project and experience entry, identify the specific programming languages, frameworks, databases, and tools used and populate 'technologies'.\n"
-        "- Split role descriptions into clean concise 'bullet_points'.\n"
-        "- If a field is missing, use an empty string or empty array.\n\n"
-        "Resume text:\n"
+        "CRITICAL EXTRACTION GUIDELINES:\n"
+        "1. 'name': Extract the candidate's full name from the header/contact section.\n"
+        "2. 'title': Synthesize an accurate, high-impact professional headline (e.g. 'Full Stack Developer', 'AI/ML Engineer & Systems Builder', 'Backend & Cloud Engineer', 'Software Engineering Student') that best summarizes their stack and capabilities. NEVER leave title empty or blank.\n"
+        "3. 'summary': Write a concise, compelling 2 to 3 sentence professional bio highlighting their core technical competencies, top projects, and engineering achievements. NEVER leave summary empty or blank.\n"
+        "4. 'skills': Extract all technical skills (languages, frameworks, libraries, databases, cloud, dev tools) into clean string items.\n"
+        "5. 'education': Extract all degrees, universities or colleges, graduation dates or ranges, and GPA/marks if mentioned.\n"
+        "6. 'projects': Extract ALL software projects, apps, platforms, or tools mentioned. NEVER skip any project. For each project, extract clean 'name', 1-2 sentence 'description', specific 'bullet_points', and list of 'technologies' used.\n"
+        "7. 'experience': Extract all work experiences, internships, fellowships, hackathons/engineering competitions, client work, or student leadership roles. For each, extract 'company' (or hackathon/organization name), 'role', 'duration', concise 'bullet_points', and 'technologies'. If there is an 'ACHIEVEMENTS' or 'AWARDS' or 'HACKATHONS' section with notable technical work, include them as entries in experience or projects so the candidate's achievements are represented.\n"
+        "8. 'links': Extract their GitHub URL and LinkedIn URL. Use the detected hyperlinks provided below if available.\n\n"
+        f"Resume text:\n"
         f"{resume_text}"
+        f"{links_section}"
     )
 
     payload = {
         "model": GROQ_MODEL,
         "temperature": 0.2,
-        "max_completion_tokens": 1400,
+        "max_completion_tokens": 4096,
         "top_p": 1,
         "stream": False,
         "response_format": {"type": "json_object"},
@@ -98,7 +113,7 @@ def generate_profile_data(resume_text: str) -> dict:
         ]
     }
     
-    response = requests.post(GROQ_API_URL, headers=headers, json=payload)
+    response = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=60)
     
     if not response.ok:
         raise HTTPException(status_code=response.status_code, detail=f"LLM request failed: {response.text}")
