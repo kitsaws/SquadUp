@@ -1,12 +1,13 @@
 // ai.service.ts
-// Communicates with the Python FastAPI AI Microservice
-import type { 
-  ProfileData, 
+// In-process AI & Taxonomy Service (Node.js native implementation)
+import type {
+  CandidateProfileData,
+  ProfileData,
   TeamRecommendationDTO,
-  TaxonomyEvidenceItem
+  TaxonomyEvidenceItem,
 } from "@squadup/shared";
-
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+import { parseResume as parseResumeFromBuffer } from "./resume.parser.js";
+import { TaxonomyService } from "../taxonomy/taxonomy.service.js";
 
 export interface ResolveUserTaxonomyResponse {
   user_id: string;
@@ -34,94 +35,66 @@ export interface CandidateTeamPayload {
 
 export class AIService {
   /**
-   * Sends a PDF resume buffer to the AI microservice for parsing.
+   * Parses a PDF resume buffer in Node.js using pdfjs-dist and Groq LLM.
    */
-  static async parseResume(fileBuffer: Buffer, filename: string): Promise<any> {
-    const formData = new FormData();
-    const blob = new Blob([fileBuffer as any], { type: 'application/pdf' });
-    formData.append('file', blob, filename);
-
+  static async parseResume(fileBuffer: Buffer, filename: string): Promise<CandidateProfileData> {
     try {
-      const response = await fetch(`${AI_SERVICE_URL}/api/parse-resume`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI Service returned ${response.status}: ${errorText}`);
-      }
-
-      return await response.json();
+      return await parseResumeFromBuffer(fileBuffer, filename);
     } catch (error) {
-      console.error('Error calling AI microservice (parseResume):', error);
+      console.error("[AIService] Error parsing resume:", error);
       throw error;
     }
   }
 
   /**
    * Resolves user skills, projects, and work experience to canonical taxonomy nodes
-   * with V2 multi-source provenance evidence.
+   * with V2 multi-source provenance evidence deterministically in-process.
    */
   static async resolveUserTaxonomy(
     userId: string,
     profileData: Partial<ProfileData>
   ): Promise<ResolveUserTaxonomyResponse> {
     try {
-      const response = await fetch(`${AI_SERVICE_URL}/api/taxonomy/resolve-user`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          skills: profileData.skills || [],
-          projects: profileData.projects || [],
-          experience: [...(profileData.experience || []), ...(profileData.achievements || [])],
-        }),
+      const result = TaxonomyService.resolveUserTaxonomy(userId, {
+        skills: profileData.skills || [],
+        projects: (profileData.projects as any) || [],
+        experience: (profileData.experience as any) || [],
+        achievements: (profileData.achievements as any) || [],
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI Service returned ${response.status}: ${errorText}`);
-      }
-
-      return await response.json();
+      return {
+        user_id: result.user_id,
+        taxonomy_node_ids: result.taxonomy_node_ids,
+        raw_skills: result.raw_skills,
+        evidence: result.evidence as TaxonomyEvidenceItem[],
+      };
     } catch (error) {
-      console.error('Error calling AI microservice (resolveUserTaxonomy):', error);
+      console.error("[AIService] Error resolving user taxonomy:", error);
       throw error;
     }
   }
 
   /**
-   * Resolves team requirement tags to canonical requirement node IDs.
+   * Resolves team requirement tags to canonical requirement node IDs deterministically in-process.
    */
   static async resolveTeamRequirements(
     teamId: string,
     requirements: string[]
   ): Promise<ResolveTeamTaxonomyResponse> {
     try {
-      const response = await fetch(`${AI_SERVICE_URL}/api/taxonomy/resolve-team`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          team_id: teamId,
-          requirements: requirements || [],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI Service returned ${response.status}: ${errorText}`);
-      }
-
-      return await response.json();
+      const result = TaxonomyService.resolveTeamRequirements(teamId, requirements);
+      return {
+        team_id: result.team_id,
+        requirement_node_ids: result.requirement_node_ids,
+        raw_requirements: result.raw_requirements,
+      };
     } catch (error) {
-      console.error('Error calling AI microservice (resolveTeamRequirements):', error);
+      console.error("[AIService] Error resolving team requirements:", error);
       throw error;
     }
   }
 
   /**
-   * Computes V2 pure taxonomy recommendations for a user given candidate teams.
+   * Computes V2 pure taxonomy recommendations for a user given candidate teams deterministically in-process.
    */
   static async getRecommendations(payload: {
     userId: string;
@@ -131,25 +104,15 @@ export class AIService {
     topK?: number;
   }): Promise<TeamRecommendationDTO[]> {
     try {
-      const response = await fetch(`${AI_SERVICE_URL}/api/recommendations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: payload.userId,
-          user_taxonomy_node_ids: payload.userTaxonomyNodeIds,
-          user_university: payload.userUniversity || null,
-          candidate_teams: payload.candidateTeams,
-          top_k: payload.topK || 50,
-        }),
+      const recommendations = TaxonomyService.getRecommendations({
+        userId: payload.userId,
+        userTaxonomyNodeIds: payload.userTaxonomyNodeIds,
+        userUniversity: payload.userUniversity,
+        candidateTeams: payload.candidateTeams,
+        topK: payload.topK,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI Service returned ${response.status}: ${errorText}`);
-      }
-
-      const data = await response.json();
-      return data.map((item: any) => ({
+      return recommendations.map((item) => ({
         rank: item.rank,
         teamId: item.team_id,
         teamName: item.team_name,
@@ -163,7 +126,7 @@ export class AIService {
         recommendationCategory: item.recommendation_category,
         fulfilledRequirementsCount: item.fulfilled_requirements_count,
         totalRequirementsCount: item.total_requirements_count,
-        requirementBreakdown: (item.requirement_breakdown || []).map((rb: any) => ({
+        requirementBreakdown: (item.requirement_breakdown || []).map((rb) => ({
           requirementNodeId: rb.requirement_node_id,
           requirementName: rb.requirement_name,
           bestUserSkillName: rb.best_user_skill_name,
@@ -173,7 +136,7 @@ export class AIService {
         })),
       }));
     } catch (error) {
-      console.error('Error calling AI microservice (getRecommendations):', error);
+      console.error("[AIService] Error computing recommendations:", error);
       throw error;
     }
   }
