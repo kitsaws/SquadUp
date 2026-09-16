@@ -19,6 +19,11 @@ SquadUp is a professional team-forming and event-hosting platform built specific
 - Redis Query Caching with dynamic event TTLs (event date + 3 days) and instant invalidation.
 - Team Application & Opt-Out Lifecycle with institutional eligibility guards.
 - University `Organization` and Sub-Organizer `Organizer` (Clubs/Societies) role-based management.
+- Dedicated `UserPreferences` model for centralized theme, notification, and matching preferences.
+- Tailwind CSS v4 Semantic `@theme` tokenization with dynamic runtime `color-mix()` palette cascading.
+- Dynamic banner personalization with client-side canvas compression and cross-device sync.
+- Mobile LAN testing on demand via `pnpm dev:host` alongside secure default localhost development.
+- Sign-out confirmation modal safeguard on user profile.
 
 ## Tech Stack
 

@@ -103,6 +103,27 @@ $$\text{TTL} = \max(300, (\text{eventDate} + 3\text{ days}) - \text{now})$$
 4. **Completion & Hand-off:**
    - The user lands on the main SquadUp discovery feed (`/teams`), where institutional event filtering (`isGlobal`) and real-time team recommendations immediately reflect their university and skill graph.
 
+### 8. User Preferences, Dynamic Theme Cascading & Banner Sync Flow
+
+1. **Retrieval & Auto-Provisioning:**
+   - On app boot or profile visit, the frontend fetches `GET /api/preferences`.
+   - If no record exists (e.g. newly registered user), the backend transparently auto-provisions a default `UserPreferences` record.
+2. **Semantic Theme Tokenization & Runtime Cascading:**
+   - Tailwind CSS v4 `@theme` tokens in `styles.css` define the application design system: primary brand actions, recommendation tiers (`best-fit`, `cross-campus`, `campus-explorer`), surfaces, and borders.
+   - The frontend `PaletteContext` injects dynamic CSS variables into `:root`. When a user picks a preset or custom hex, `color-mix(in srgb, ...)` generates complementary hover, light background, and border shades at runtime without requiring component re-renders or page reloads.
+3. **Banner Personalization & Canvas Compression:**
+   - Users can configure gradient banners (two colors + angle) or upload custom imagery.
+   - For images, the client runs `compressImage()` on an off-screen HTML5 canvas, downscaling large uploads to a maximum 1400px width at 0.85 JPEG quality (~150KB).
+   - The compressed payload is sent to `PATCH /api/preferences` or saved via `PATCH /api/profile`.
+   - The Express backend accepts up to 15MB (`express.json({ limit: "15mb" })`), avoiding HTTP 413 Payload Too Large rejections.
+4. **Cross-Device & Peer Profile Delivery:**
+   - The backend includes `bannerConfig` directly in `getProfile` and `getProfileById` responses.
+   - This ensures custom banners persist seamlessly across devices (desktop, tablet, mobile) and render identically when peers inspect a candidate's profile.
+5. **Mobile Network Testing (`pnpm dev:host`):**
+   - For local mobile testing over Wi-Fi, `pnpm dev:host` binds Vite to `0.0.0.0`, while keeping standard `pnpm dev` bound strictly to `localhost` for local security.
+6. **Sign-Out Confirmation Safety Guard:**
+   - A dedicated confirmation modal wraps the sign-out trigger on the profile page, preventing accidental logouts on mobile touches and desktop clicks.
+
 ## Database Interaction
 
 - **Exclusive Access:** The Node.js Express Backend (`apps/api`) has exclusive access to the PostgreSQL database. The Python AI service never queries the database directly.

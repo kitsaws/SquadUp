@@ -60,12 +60,39 @@ The immediate next priority is implementing the **First-Time User Onboarding Flo
     - Full handling for `organization.created`, `organization.updated`, and `organization.deleted` with metadata synchronization and cascade cleanup.
     - Full handling for `organizationMembership.created`, `organizationMembership.updated`, and `organizationMembership.deleted` with internal `OrganizationMembership` tracking (`org:admin` vs `org:member`).
     - **Automatic synchronization of `Profile.university`** with organization name when joining/updating, and resetting to `null` upon leaving.
+- **Frontend Design System & Semantic Theme Tokenization (`apps/web`):**
+  - Configured Tailwind CSS v4 `@theme` directive in `styles.css` declaring full semantic design tokens: brand primary & derivatives (`--color-primary-action`, `--color-primary-hover`, `--color-primary-light`, `--color-primary-border`), recommendation tiers (`--color-best-fit*`, `--color-cross-campus*`, `--color-campus-explorer*`), and structural foundations (`--color-canvas`, `--color-surface*`, `--color-border-main`, `--color-text-*`).
+  - Dynamic runtime color cascading via `PaletteContext` utilizing CSS `color-mix(in srgb, ...)`. Selecting a preset or syncing banner colors instantly propagates across buttons, badges, rings, and accents without component re-renders.
+  - Systematically refactored all 11 components and 8 pages, eliminating hardcoded `blue-*` classes and arbitrary hexes.
+- **UserPreferences Database Model & Persistence:**
+  - Added `UserPreferences` in PostgreSQL (Prisma) with 1:1 cascade relation to `User`.
+  - Stored fields: `themeMode` (`system` | `light` | `dark`), `palettePreset`, `primaryColor`, `bannerConfig` (`Json`), notification settings (`emailNotifications`, `teamInvitesNotification`, `applicationUpdates`, `marketingEmails`), and matching preferences (`defaultCampusOnly`, `openToCollaboration`, `preferredRoles`).
+  - Auto-provisioned on user registration and profile sync via `auth.utils.ts`.
+  - Dedicated REST endpoints: `GET /api/preferences` and `PATCH /api/preferences` with payload whitelisting.
+- **User Preferences Modal (`UserPreferencesModal.tsx`):**
+  - Sleek 3-tab settings dialog:
+    1. **Theme & Appearance**: Light/Dark/System theme selector, Palette preset cards, custom primary color picker, and banner sync toggle.
+    2. **Notifications**: Master email toggle, squad invite alerts, application updates, and digest toggles.
+    3. **Squads & Matching**: Default campus-only filter toggle, Open to collaboration status toggle, and preferred roles selector.
+  - Integrated into the Profile action menu and synced with PostgreSQL.
+- **Banner Customization, Canvas Compression & Cross-Device Sync:**
+  - Dynamic banner editor supporting custom CSS gradients (two-color pickers, angle slider) and image upload.
+  - Expanded Express body limits to 15MB (`express.json({ limit: "15mb" })`) to support image data payloads.
+  - Client-side canvas compression (`compressImage`) automatically downscaling images to max 1400px width at 0.85 JPEG quality (~150KB), ensuring instant mobile loading and zero server rejections.
+  - Direct delivery of `bannerConfig` on `getProfile` and `getProfileById` responses so custom banners render immediately across all devices and for visiting peers.
+- **Profile Experience & Safety:**
+  - "Preferences & Settings" action button integrated into the profile identity card.
+  - Explicit Sign Out Confirmation Modal to prevent accidental logout.
+  - Collapsible sections for skills, experience items, and project cards.
+  - Direct links for GitHub and LinkedIn profiles, and click-to-copy email with toast notification.
+- **Mobile Development Host Script:**
+  - Added dedicated `pnpm dev:host` (`npm run dev:host`) script to bind Vite to `0.0.0.0` on demand for testing on mobile devices over local Wi-Fi, while keeping `npm run dev` private to `localhost` by default.
 - **Decoupled Relational Database:**
-  - `UserTaxonomy` (1:1 with `User`) and `TeamTaxonomy` (1:1 with `Team`).
+  - `UserTaxonomy` (1:1 with `User`), `TeamTaxonomy` (1:1 with `Team`), and `UserPreferences` (1:1 with `User`).
   - `Organization`, `OrganizationMembership`, `Organizer`, `OrganizerMember`, and `TeamApplication` models.
   - `Profile` updated with `resumePdfPath`, `resumeOriginalName`, and `lastResumeUploadedAt`.
 - **Decoupled Auth:** Clerk webhooks and internal database `cuid()` generation are fully separated using `getOrCreateUserByClerkId`.
-- **Type Safety:** `@squadup/shared` package maintains absolute cross-boundary typing for events, teams, applications, organizers, profiles, and recommendations.
+- **Type Safety:** `@squadup/shared` package maintains absolute cross-boundary typing for events, teams, applications, organizers, profiles, preferences, and recommendations.
 
 ## Client-Side & Frontend Constraints to Note
 
@@ -77,15 +104,10 @@ The immediate next priority is implementing the **First-Time User Onboarding Flo
 
 ## In Progress
 
-- **First-Time User Onboarding Architecture (`apps/web`):**
-  - Designing the guided Onboarding Flow and client-side route guards (`/onboarding`).
-  - Specifying the searchable university dropdown mapped to `clerkOrgId`.
-  - Defining the dual profile creation path: Highlighted AI Resume Parsing (recommended primary CTA) vs. Manual Profile Builder.
-- **Frontend UI (`apps/web`):**
-  - Building components to display paginated Events and Teams.
-  - Rendering recommended teams with category badges and LCA breakdown drawers.
-  - Embedding resume PDF viewer in user profile.
-  - Clerk Organization Switcher in Navbar for university switching.
+- **First-Time User Onboarding Flow (`apps/web`):**
+  - Implementing the guided Onboarding Flow and client-side route guard (`/onboarding`).
+  - Implementing the searchable university dropdown mapped to `clerkOrgId`.
+  - Implementing the dual profile creation path: Highlighted AI Resume Parsing (recommended primary CTA) vs. Manual Profile Builder.
 
 ## Known Issues
 
@@ -100,6 +122,4 @@ The immediate next priority is implementing the **First-Time User Onboarding Flo
      - **Screen 2 (Profile Setup Path Selection):**
        - **Option A (Highlighted/Promoted):** "Upload Resume" -> dispatches to `POST /api/resume/upload` for async LLM parsing & taxonomy resolution, showing clear background processing status with optimistic continuation.
        - **Option B (Secondary/Manual):** "Build Manually" -> intuitive form modal/view updating `PATCH /api/profile`.
-2. **Frontend Events & Teams Directory:** Build React views connecting to `GET /api/events` and `GET /api/teams` with pagination and search.
-3. **Frontend Application & Invite Modals:** Provide UI for candidates to apply and for leaders to review applicants.
-4. **Frontend Recommendations View:** Render team recommendation cards with category badges and expandable requirement breakdown accordions.
+

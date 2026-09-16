@@ -14,7 +14,7 @@ The absolute source of truth for the database is `apps/api/prisma/schema.prisma`
 - **Important Fields:**
   - `id`: Internal `cuid()`. The primary key used across all relations.
   - `clerkId`: Unique string mapping to the external Clerk authentication system.
-- **Relationships:** Has one `Profile`, has one `UserTaxonomy`, owns many `Event`s, belongs to many `Team`s, sends many `TeamInvite`s, owns `Organizer` profiles, holds `OrganizerMember` and `OrganizationMembership` memberships, and submits `TeamApplication`s.
+- **Relationships:** Has one `Profile`, has one `UserTaxonomy`, has one `UserPreferences`, owns many `Event`s, belongs to many `Team`s, sends many `TeamInvite`s, owns `Organizer` profiles, holds `OrganizerMember` and `OrganizationMembership` memberships, and submits `TeamApplication`s.
 
 ### `Profile`
 - **Purpose:** Stores the AI-parsed resume profile data for a user.
@@ -33,6 +33,19 @@ The absolute source of truth for the database is `apps/api/prisma/schema.prisma`
   - `rawSkills`: Original input skill strings for auditing.
   - `evidence`: JSON array of `TaxonomyEvidenceItem` capturing source section (`skills`, `projects`, `experience`), concrete snippet text, and aggregated strength weight.
 - **Relationships:** 1:1 relation with `User`.
+
+### `UserPreferences`
+- **Purpose:** Stores user-specific customization, theme settings, notification configurations, and default matching preferences.
+- **Important Fields:**
+  - `themeMode`: Interface mode (`"light"` | `"dark"` | `"system"`).
+  - `palettePreset`: Active color palette preset (`"default"` | `"midnight"` | `"emerald"` | `"slate"` | `"custom"`).
+  - `primaryColor`: Optional custom brand hex override (e.g. `"#2563eb"`).
+  - `bannerConfig`: Rich JSON object storing `{ type: "gradient" | "image" | "default", gradient?: { color1, color2, angle }, imageUrl?: string, syncTheme: boolean }`.
+  - `emailNotifications`, `teamInvitesNotification`, `applicationUpdates`, `marketingEmails`: Granular boolean notification toggles.
+  - `defaultCampusOnly`: Boolean setting to pre-filter squad searches to the user's university.
+  - `openToCollaboration`: Boolean availability flag for squad recruiters.
+  - `preferredRoles`: String array of preferred role tags (e.g. `["Frontend", "AI / ML"]`).
+- **Relationships:** 1:1 relation with `User` (`onDelete: Cascade`).
 
 ### `Organization` (University)
 - **Purpose:** Represents an academic institution / university mapped to a Clerk Organization.

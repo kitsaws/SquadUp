@@ -212,5 +212,91 @@ SquadUp's core algorithms rely on institutional affiliation (for `isGlobal` scop
 ### Status
 Accepted
 
+---
+
+## [Dedicated UserPreferences Entity & Centralized Settings Persistence]
+
+### Decision
+Store user preferences (interface theme mode, palette presets, custom primary hex, banner configuration, notification toggles, and matching defaults) in a dedicated PostgreSQL table `UserPreferences` with a 1:1 cascade relationship to `User`, rather than overloading `Profile` or keeping preferences purely in client-side `localStorage`.
+
+### Context
+Users customize their experience via themes, notification settings, and profile banners. Keeping these preferences solely in client `localStorage` causes them to vanish across devices (e.g. configuring a theme or banner on a desktop browser did not sync to mobile or appear to peers viewing the profile). Storing them directly in `Profile` would conflate academic/technical credentials (skills, degree, resume) with ephemeral presentation and notification preferences.
+
+### Consequences
+- **Positive:** Full cross-device synchronization (desktop, tablet, mobile) and consistent banner rendering for visiting peers. Clear separation of concerns between user identity/credentials and presentation/notification preferences.
+- **Negative:** Requires an extra database table and dedicated `GET /api/preferences` and `PATCH /api/preferences` endpoints with auto-provisioning logic.
+
+### Status
+Accepted
+
+---
+
+## [Tailwind CSS v4 Semantic @theme Tokenization & Runtime Palette Cascading]
+
+### Decision
+Declare centralized semantic design tokens in `styles.css` using Tailwind CSS v4 `@theme` (e.g. `--color-primary-action`, `--color-primary-hover`, `--color-primary-light`, `--color-primary-border`, `--color-surface-*`, `--color-border-main`, recommendation tiers). Dynamically cascade active theme colors at runtime via `PaletteContext` utilizing CSS `color-mix(in srgb, ...)`.
+
+### Context
+Hardcoding arbitrary utility colors (`bg-blue-600`, `text-blue-500`, `#2563eb`) across dozens of components led to inconsistent contrast, broken dark-mode variants, and an inability to support user-selected themes, color presets, or banner-driven primary accents.
+
+### Consequences
+- **Positive:** Single source of truth for color tokens. Selecting a palette preset or syncing banner colors instantly updates primary buttons, badges, rings, and borders application-wide without requiring component re-renders or page refreshes.
+- **Negative:** Requires disciplined use of semantic tokens instead of quick ad-hoc Tailwind color utilities.
+
+### Status
+Accepted
+
+---
+
+## [Client-Side Canvas Compression & High-Capacity Payload Configuration for Banners]
+
+### Decision
+Implement client-side HTML5 canvas compression (`compressImage`) in `EditProfileModal` to scale uploaded banner images to a maximum width of 1400px at 0.85 JPEG quality (~150KB), while concurrently expanding Express's default JSON payload limit from 100KB to 15MB (`express.json({ limit: "15mb" })`).
+
+### Context
+Standard uncompressed smartphone or camera photos range from 3MB to 12MB. Express's default 100KB body parser silently failed with HTTP 413 "Payload Too Large" when users uploaded banners, causing them to fall back to `localStorage` caching and fail cross-device sync.
+
+### Consequences
+- **Positive:** Fast mobile uploads, zero server rejection, minimal database storage footprints, and instant image delivery across devices.
+- **Negative:** Canvas compression occurs on the client's device, using slight CPU during the image selection step.
+
+### Status
+Accepted
+
+---
+
+## [Sign-Out Confirmation Safety Guard on User Profile]
+
+### Decision
+Wrap the user profile sign-out action with an explicit modal confirmation dialog requiring the user to confirm before invoking `clerk.signOut()`.
+
+### Context
+On mobile screens and tight responsive viewports, the sign-out button is located adjacent to settings and edit controls. Direct execution of sign-out upon a single touch led to accidental session terminations, causing frustration and requiring re-authentication.
+
+### Consequences
+- **Positive:** Completely prevents accidental logouts. Clear, reassuring UX dialog with cancel option.
+- **Negative:** Adds one extra click for intentional logouts.
+
+### Status
+Accepted
+
+---
+
+## [Isolated Localhost Development with On-Demand LAN Binding (dev:host)]
+
+### Decision
+Keep default `npm run dev` / `pnpm dev` bound strictly to `localhost` (`127.0.0.1`), and provide an explicit separate script `pnpm dev:host` (`turbo dev:host` -> `vite --host`) to expose the frontend to the local area network (`0.0.0.0`) on demand.
+
+### Context
+Developers need to preview the application on physical mobile devices connected to the same Wi-Fi network. However, binding to `0.0.0.0` by default exposes the local development server to every device on public or shared networks (e.g. university Wi-Fi, coffee shops), posing security risks.
+
+### Consequences
+- **Positive:** Secure by default on all developer environments while remaining trivial to spin up network-accessible testing with a single command (`pnpm dev:host`).
+- **Negative:** Requires running a different npm script when testing on a phone.
+
+### Status
+Accepted
+
+
 
 

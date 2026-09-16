@@ -96,6 +96,11 @@ Retrieves the logged-in user's profile, active teams, resume status, and AI-reso
         "joinedAt": "2026-09-15T09:15:00.000Z"
       }
     ],
+    "bannerConfig": {
+      "type": "gradient",
+      "gradient": { "color1": "#0f172a", "color2": "#1e3a8a", "angle": 135 },
+      "syncTheme": true
+    },
     "createdAt": "2026-09-15T08:00:00.000Z",
     "updatedAt": "2026-09-15T09:30:00.000Z"
   }
@@ -152,9 +157,81 @@ Fetches a candidate's profile for teammates or leaders evaluating applicants.
     "linkedinUrl": null,
     "hasResume": true,
     "resumeViewUrl": "/api/resume/view/cmu25...",
-    "taxonomyNodeIds": ["react", "frontend_development"]
+    "taxonomyNodeIds": ["react", "frontend_development"],
+    "bannerConfig": {
+      "type": "gradient",
+      "gradient": { "color1": "#0f172a", "color2": "#1e3a8a", "angle": 135 },
+      "syncTheme": true
+    }
   }
   ```
+
+---
+
+## 2.4 User Preferences Endpoints (`/api/preferences`)
+
+### 2.4.1 Get Current User Preferences
+Retrieves the logged-in user's preferences, including theme settings, notification configurations, and default squad matching options. Auto-initializes default preferences if none exist.
+
+- **Method:** `GET`
+- **Path:** `/api/preferences`
+- **Auth:** Required
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "id": "cmpref...",
+    "userId": "cmu25...",
+    "themeMode": "system",
+    "palettePreset": "default",
+    "primaryColor": "#2563eb",
+    "bannerConfig": {
+      "type": "gradient",
+      "gradient": {
+        "color1": "#0f172a",
+        "color2": "#1e3a8a",
+        "angle": 135
+      },
+      "syncTheme": true
+    },
+    "emailNotifications": true,
+    "teamInvitesNotification": true,
+    "applicationUpdates": true,
+    "marketingEmails": false,
+    "defaultCampusOnly": false,
+    "openToCollaboration": true,
+    "preferredRoles": ["Frontend", "AI / ML"],
+    "createdAt": "2026-09-15T08:00:00.000Z",
+    "updatedAt": "2026-09-15T09:30:00.000Z"
+  }
+  ```
+
+### 2.4.2 Update User Preferences
+Partially updates user preferences with field whitelisting. Unspecified fields remain untouched.
+
+- **Method:** `PATCH`
+- **Path:** `/api/preferences`
+- **Auth:** Required
+- **Request Body (`UpdateUserPreferencesRequest`):**
+  ```json
+  {
+    "themeMode": "dark",
+    "palettePreset": "Emerald Focus",
+    "primaryColor": "#059669",
+    "bannerConfig": {
+      "type": "image",
+      "imageUrl": "data:image/jpeg;base64,...",
+      "syncTheme": true
+    },
+    "emailNotifications": true,
+    "teamInvitesNotification": true,
+    "applicationUpdates": true,
+    "marketingEmails": false,
+    "defaultCampusOnly": true,
+    "openToCollaboration": true,
+    "preferredRoles": ["Full Stack", "DevOps / Cloud"]
+  }
+  ```
+- **Success Response (`200 OK`):** Returns the updated `UserPreferences` object.
 
 ---
 
