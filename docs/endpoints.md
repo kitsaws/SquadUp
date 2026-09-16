@@ -859,9 +859,36 @@ Runs user capability nodes against eligible candidate teams using the V2 Pure Ta
 - **Onboarding Integration:**
   - The client displays `name`, `location`, and `logoUrl` in the searchable select list.
   - The underlying value bound to each option is `clerkOrgId`.
-  - When the user selects an institution, the web app associates the user with that `clerkOrgId` via Clerk, triggering the `organizationMembership.created` webhook which automatically sets `Profile.university`.
+  - When the user selects an institution, the web app associates the user with that `clerkOrgId` via Clerk or calls `POST /api/organizers/universities/select` to atomically commit membership and set `Profile.university`.
 
-### 9.2 Create University Record
+### 9.2 Select University (Onboarding & Membership Sync)
+- **Method:** `POST`
+- **Path:** `/api/organizers/universities/select`
+- **Auth:** Required
+- **Description:** Atomically links the authenticated user's `OrganizationMembership` and updates `Profile.university` upon completing the onboarding flow.
+- **Request Body:**
+  ```json
+  {
+    "clerkOrgId": "org_3IHwqmkzEfISGzP4JQGimqIz8WM"
+  }
+  ```
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "message": "University selected successfully",
+    "organization": {
+      "id": "cuid_org_1",
+      "clerkOrgId": "org_3IHwqmkzEfISGzP4JQGimqIz8WM",
+      "name": "Thapar Institute of Engineering and Technology, Patiala"
+    },
+    "profile": {
+      "userId": "cuid_user_1",
+      "university": "Thapar Institute of Engineering and Technology, Patiala"
+    }
+  }
+  ```
+
+### 9.3 Create University Record
 - **Method:** `POST`
 - **Path:** `/api/organizers/universities`
 - **Auth:** Required
@@ -876,7 +903,7 @@ Runs user capability nodes against eligible candidate teams using the V2 Pure Ta
   }
   ```
 
-### 9.3 Get University Details by Clerk Org ID
+### 9.4 Get University Details by Clerk Org ID
 - **Method:** `GET`
 - **Path:** `/api/organizers/universities/:clerkOrgId`
 - **Auth:** Optional

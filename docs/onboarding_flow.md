@@ -1,6 +1,6 @@
 # First-Time User Onboarding Specification
 
-This document defines the complete technical and interaction design specification for the **First-Time User Onboarding** feature in `apps/web`.
+This document defines the complete technical and interaction design specification for the **First-Time User Onboarding** feature in `apps/web` and `apps/api`.
 
 ---
 
@@ -17,16 +17,16 @@ User Signs Up (Clerk)
        ▼
 [Onboarding Guard] ──(Profile incomplete)──► /onboarding
        │
-       ├─► Step 1: Select University (Searchable dropdown bound to clerkOrgId)
+       ├─► Step 1: Select University (Searchable dropdown with safety reminder/warning modal)
        │
        └─► Step 2: Choose Profile Creation Method
              │
-             ├──► [PRIMARY / HIGHLIGHTED] Upload Resume (Fast, AI-parsed, non-blocking)
+             ├──► [PRIMARY / HIGHLIGHTED] Upload Resume (Preview file -> Explicit "Generate Profile" -> Celebration Modal)
              │
-             └──► [SECONDARY / FALLBACK]  Build Manually (Structured form)
+             └──► [SECONDARY / FALLBACK]  Build Manually (Compact modal -> "Save & Complete Profile" -> Celebration Modal)
        │
        ▼
-Discover Teams & Events (Personalized recommendations active)
+Onboarding Completed Modal ──► "Browse Events" (/events) or "Explore Squads" (/teams)
 ```
 
 ---
@@ -35,75 +35,55 @@ Discover Teams & Events (Personalized recommendations active)
 
 ### Step 0: Authentication & Route Gate (`OnboardingGuard`)
 - **Trigger:** Any authenticated user visiting the application.
-- **Evaluation:**
-  - Client checks user profile (`GET /api/profile`) or Clerk organization memberships.
-  - **Incomplete Condition:** `profile.university === null` OR user has zero active organization memberships.
-  - If incomplete and current path is not `/onboarding`, redirect to `/onboarding`.
-  - If complete and user attempts to navigate to `/onboarding`, redirect to `/teams`.
+- **Race Condition Prevention:** The guard waits until `hasInitialProfileLoaded === true` before making redirect decisions to avoid prematurely booting logging-in users to `/onboarding`.
+- **Incomplete Condition:** `profile.university === null` AND user has zero skills, experience, projects, or uploaded resumes.
+- **Non-Forced Exit:** The route guard does not forcibly unmount or redirect `/onboarding` when `profile` updates mid-flow, allowing the celebration modal to display smoothly.
 
 ---
 
 ### Step 1: University / Organization Selection
-- **Objective:** Establish the user's home educational institution.
-- **UI Design:**
-  - Clean, centered card layout with heading: *"Where do you study?"* and subtitle: *"SquadUp connects you with teams and hackathons at your university."*
-  - **Searchable Dropdown Component:**
-    - Live search input filtering university list by name, domain, or location.
-    - Result items display: University Logo/Emblem, Name, and Location badge.
-    - Empty state: *"Don't see your university? Contact support or join as independent."*
-  - **Data Source:** `GET /api/organizers/universities`.
-  - **Data Binding:**
-    - Each university item contains `{ id, clerkOrgId, name, domain, location, logoUrl }`.
-    - Selected value is bound strictly to `clerkOrgId` (Clerk Organization ID).
-  - **Action & State Transition:**
-    - User clicks **"Continue"**.
-    - The client uses Clerk's organization client to assign/join the organization (`clerk.setActive({ organization: clerkOrgId })` or backend join route).
-    - Clerk emits an `organizationMembership.created` webhook to `/api/webhooks`.
-    - Express webhook handler records `OrganizationMembership` in PostgreSQL and updates `Profile.university = Organization.name`.
-    - UI animates smoothly to Step 2.
+- **Objective:** Establish the user's home educational institution or independent status.
+- **UI Design (`UniversitySearchSelect.tsx`):**
+  - Searchable dropdown with fuzzy filtering across university names, domains, and locations.
+  - Institutional cards showing emblem, location, and verified email domain pills (`@thapar.edu`, `@bits-pilani.ac.in`).
+  - Option to continue as **Independent / Unaffiliated**.
+  - Full keyboard accessibility (`ArrowUp`, `ArrowDown`, `Enter`, `Escape`).
+- **Confirmation & Warning Dialogs (`UniversityReminderModal.tsx`):**
+  - **University Selected:** Reminds the student that campus selection impacts eligible events and squad formations.
+  - **Independent Selected:** Warns the student that without university affiliation, they are restricted to Global hackathons and open teams.
+- **Deferred Backend Commit:** The selection is held in React state during Step 1 and atomically committed to PostgreSQL only when Step 2 completes.
 
 ---
 
-### Step 2: Profile Creation Method Selection
-- **Objective:** Populate the user's technical profile to activate deterministic taxonomy scoring.
-- **UI Design:**
-  - Heading: *"Let's build your developer profile"*
-  - Subtitle: *"SquadUp matches you with teammates based on verified skills and project experience."*
-  - Side-by-side or stacked selection cards:
+### Step 2: Profile Creation Method Selection (`ProfileChoiceCards.tsx`)
+- **Institution Summary Bar:** Displays current university selection with a `"Change"` link to navigate back to Step 1 at any point.
 
 #### Option A: Build via Resume (Highlighted / Recommended CTA)
 - **Visual Emphasis:**
-  - Prominent border accent, subtle gradient background tint, and a `"Recommended — Takes 10s"` pill badge.
-  - Icon: File text / AI sparkle.
-  - Value proposition copy: *"Upload your PDF resume. Our AI parser automatically extracts your technologies, projects, and work experience into your profile."*
-- **Interaction:**
-  - Drag-and-drop file zone with a *"Browse Files"* button.
-  - Restricts to `.pdf` files, max 5MB.
-  - On file selection, triggers `POST /api/resume/upload` with `multipart/form-data`.
-- **Non-Blocking Processing UX:**
-  - The client displays an immediate optimistic confirmation: *"Resume uploaded! Your profile is being generated in the background."*
-  - Prominent CTA: *"Start Exploring SquadUp"* allowing the student to browse teams and events immediately while BullMQ and the Python AI service process the document.
-  - Background polling or toast notification alerts user once parsing and taxonomy indexing are complete.
+  - Border accent, subtle gradient background tint, and a `"Recommended — Takes 10s"` pill badge.
+- **Interaction (`ResumeDropzone.tsx`):**
+  - Accepts PDF documents up to 10MB via drag-and-drop or file browser.
+  - **File Preview:** Displays selected file card with name, file size, "Ready to parse" badge, and remove (`X`) button. Does **not** auto-dispatch on file drop.
+  - **Explicit CTA:** Prominent **"Generate Profile"** button with loading spinner state (`"Analyzing Resume & Building Profile..."`).
+  - Dispatches `POST /api/resume/upload` to BullMQ.
+  - Commits university selection via `POST /api/organizers/universities/select`.
+  - Refreshes `UserContext` and immediately opens `OnboardingCompletedModal`.
 
 #### Option B: Build Manually (Secondary / Fallback Path)
-- **Visual Emphasis:**
-  - Clean, neutral card with subtle hover outline.
-  - Copy: *"Don't have a resume handy? Enter your details, degree, and skills manually."*
-- **Interaction:**
-  - Clicking opens a streamlined profile form (or modal) with fields:
-    - **Headline / Role** (e.g. *"Full Stack Developer"*).
-    - **Degree & Graduation Year** (e.g. *"B.S. Computer Science, 2027"*).
-    - **Bio** (short markdown-supported about text).
-    - **Links** (GitHub URL, LinkedIn URL, Portfolio).
-    - **Skills Multi-Select / Tag Input** (searchable against canonical taxonomy aliases).
-  - Submits via `PATCH /api/profile`.
-  - On save, backend triggers `AIService.resolveUserTaxonomy` deterministically and completes onboarding.
+- **Visual Emphasis:** Clean, neutral card with `"Enter Details Manually"` button.
+- **Interaction (`ManualProfileModal.tsx`):**
+  - Compact `max-w-lg` modal dialog with 2-row bio, quick skill chips (`React`, `TypeScript`, `Python`, `Docker`, `PostgreSQL`), degree/grad year, and GitHub/LinkedIn links.
+  - Submits via `PATCH /api/profile` (triggering deterministic taxonomy indexing) and `POST /api/organizers/universities/select`.
+  - On clicking **"Save & Complete Profile"**, refreshes `UserContext` and immediately opens `OnboardingCompletedModal`.
 
 ---
 
-### Step 3: Onboarding Completion
-- Client marks onboarding state complete in local state/cache.
-- User is navigated to `/teams` with their university filter pre-selected and personalized match scores calculating in real time.
+### Step 3: Celebration & Navigation (`OnboardingCompletedModal.tsx`)
+- Celebration dialog with emerald checkmark badge and confirmed institutional affiliation.
+- **Action Buttons:**
+  - **"Browse Events"** (primary) $\to$ navigates directly to `/events`.
+  - **"Explore Squads & Teams"** $\to$ navigates to `/teams`.
+- Dismiss button (`X`) allows viewing the underlying `ResumeProcessingNotice.tsx` status page.
 
 ---
 
@@ -112,15 +92,18 @@ Discover Teams & Events (Personalized recommendations active)
 ```
 apps/web/src/
 ├── components/
+│   ├── Navbar.tsx                   # Dynamic 2-step Onboarding Progression Bar
 │   └── onboarding/
 │       ├── OnboardingGuard.tsx          # Route guard redirecting incomplete profiles
 │       ├── UniversitySearchSelect.tsx   # Searchable dropdown for organizations
+│       ├── UniversityReminderModal.tsx  # Campus confirmation & independent warning modal
 │       ├── ProfileChoiceCards.tsx       # Dual-path selector (Resume vs Manual)
-│       ├── ResumeDropzone.tsx           # Drag-and-drop PDF upload component
+│       ├── ResumeDropzone.tsx           # Drag-and-drop PDF upload with explicit Generate CTA
+│       ├── ManualProfileModal.tsx       # Compact manual profile builder form modal
 │       ├── ResumeProcessingNotice.tsx   # Optimistic background progress callout
-│       └── ManualProfileModal.tsx       # Concise manual form fallback
+│       └── OnboardingCompletedModal.tsx # Celebration dialog with Browse Events navigation
 └── pages/
-    └── Onboarding.tsx                   # Master step container (Step 1 -> Step 2)
+    └── Onboarding.tsx                   # Master step container (Step 1 -> Step 2 -> Step 3)
 ```
 
 ---
@@ -130,7 +113,8 @@ apps/web/src/
 | Endpoint | Method | Purpose in Onboarding |
 | :--- | :--- | :--- |
 | `/api/organizers/universities` | `GET` | Fetches available organizations for searchable dropdown. |
-| `/api/profile` | `GET` | Evaluates current user onboarding state (`university`, resume status). |
+| `/api/organizers/universities/select` | `POST` | Atomically links `OrganizationMembership` and `Profile.university`. |
+| `/api/profile` | `GET` | Evaluates current user onboarding state (`university`, resume, skills). |
 | `/api/resume/upload` | `POST` | Dispatches PDF for BullMQ async parsing (Highlighted Path). |
 | `/api/profile` | `PATCH` | Saves manual profile fields & triggers taxonomy sync (Manual Path). |
 | `/api/webhooks` | `POST` | Clerk webhook syncs `organizationMembership` and sets `Profile.university`. |

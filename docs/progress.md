@@ -4,14 +4,29 @@ This document provides a snapshot of the current state of the SquadUp project. I
 
 ## Current Focus
 
-The immediate next priority is implementing the **First-Time User Onboarding Flow** (`apps/web`):
-1. **First-Time Onboarding Gate & Route Guard:** Detecting new/incomplete users (`Profile.university === null` or no organization membership) and redirecting them to `/onboarding`.
-2. **University/Organization Selection Screen:** A clean, searchable dropdown menu of educational institutions linked directly to their `clerkOrgId` (Clerk Organization ID), updating institutional membership and synchronizing `Profile.university`.
-3. **Profile Creation Choice Screen:** Presenting users with two paths to build their profile:
-   - **Upload Resume (Highlighted / Primary CTA):** Automated AI resume parsing that extracts skills, projects, and work experience to populate the `UserTaxonomy` graph with zero manual typing.
-   - **Build Manually (Secondary / Fallback):** Intuitive manual form entry for bio, degree, links, and skill tags.
+The platform features a complete First-Time User Onboarding flow with dynamic Navbar progression. Immediate upcoming focus is further refinement of the student squad discovery and organizer management workflows.
 
 ## Completed
+
+- **First-Time User Onboarding Flow with Dynamic Navbar Progression (`apps/web`):**
+  - **Dynamic Navbar Progression Bar:** Adapts on `/onboarding` to render an animated 2-step progress track (`1. Select Campus` $\to$ `2. Build Profile`) with percentage badges (`50% Complete` $\to$ `Step 2 of 2` $\to$ `Ready`), active step ring accents, and completed step checkmarks.
+  - **Step 1 — Searchable University Selector (`UniversitySearchSelect.tsx`):**
+    - Live fuzzy search filtering institutions by name, location, and verified email domain.
+    - Institutional cards displaying university emblem/logo, location badges, and domain tags (`@thapar.edu`, `@bits-pilani.ac.in`, etc.).
+    - Independent / Unaffiliated option for unaffiliated students.
+    - Full keyboard navigation (`ArrowUp`, `ArrowDown`, `Enter`, `Escape`).
+  - **Institutional Safety Modals (`UniversityReminderModal.tsx`):**
+    - **University Confirmation Reminder:** Confirms the student's selected campus and informs them that institutional selection governs campus-only event eligibility.
+    - **Independent Warning Modal:** Informs unaffiliated students that they will only have access to Global hackathons and open teams.
+  - **Deferred University Backend Commit:** University choice is preserved in local state during Step 1 and atomically committed to the database only when the user finishes onboarding in Step 2.
+  - **Step 2 — Dual Profile Creation (`ProfileChoiceCards.tsx`):**
+    - **Option A (AI Resume Upload — Primary Recommended CTA):** Prominent gradient styling with "Recommended — Takes 10s" badge, drag-and-drop PDF dropzone (`ResumeDropzone.tsx`), file preview card with remove action, and explicit **"Generate Profile"** button (does not auto-trigger on file drop).
+    - **Optimistic Non-Blocking Processing (`ResumeProcessingNotice.tsx`):** Submits to BullMQ (`POST /api/resume/upload`) and provides an immediate "Start Exploring SquadUp" CTA without trapping the user on a loading screen.
+    - **Option B (Manual Profile Builder — Secondary Fallback):** Compact modal form (`ManualProfileModal.tsx`, `max-w-lg`) capturing headline, degree, bio, links, and curated skill tag suggestions with instant real-time taxonomy sync (`PATCH /api/profile`).
+  - **Onboarding Completed Celebration Modal (`OnboardingCompletedModal.tsx`):**
+    - Displays celebration checkmark badge, confirmed university/independent status, and direct navigation buttons to **"Browse Events"** (`/events`) and **"Explore Squads & Teams"** (`/teams`).
+  - **Client-Side Route Guarding (`OnboardingGuard.tsx`):** Protects application routes and gracefully redirects incomplete profiles to `/onboarding`. Resolved authentication race conditions using `hasInitialProfileLoaded` and non-forced exit handling.
+  - **Backend University Selection Endpoint (`POST /api/organizers/universities/select`):** Atomic backend handler in `organizer.controller.ts` establishing `OrganizationMembership` and `Profile.university`.
 
 - **Backend Consolidation & Pure Node.js Architecture (Completed):**
   - Consolidated all AI & Resume processing from `Prototyping/ResumeToProfile` directly into `apps/api/src/services/resume.parser.ts` using `pdfjs-dist` and direct Groq LLM API integration.
@@ -123,10 +138,8 @@ The immediate next priority is implementing the **First-Time User Onboarding Flo
 
 ## In Progress
 
-- **First-Time User Onboarding Flow (`apps/web`):**
-  - Implementing the guided Onboarding Flow and client-side route guard (`/onboarding`).
-  - Implementing the searchable university dropdown mapped to `clerkOrgId`.
-  - Implementing the dual profile creation path: Highlighted AI Resume Parsing (recommended primary CTA) vs. Manual Profile Builder.
+- **Student Squad Discovery & Event Exploration:**
+  - Continued enhancements to team recommendation sorting and application lifecycle notifications.
 
 ## Known Issues
 
@@ -134,11 +147,6 @@ The immediate next priority is implementing the **First-Time User Onboarding Flo
 
 ## Next Steps
 
-1. **First-Time User Onboarding (`apps/web`):**
-   - Implement `/onboarding` route and gate:
-     - User signs up / logs in -> system checks if `Profile.university` is set or user belongs to an organization.
-     - **Screen 1 (University/Organization Selection):** Searchable dropdown consuming `/api/organizers/universities`, bound to `clerkOrgId`. Triggers Clerk org membership & auto-syncs `Profile.university`.
-     - **Screen 2 (Profile Setup Path Selection):**
-       - **Option A (Highlighted/Promoted):** "Upload Resume" -> dispatches to `POST /api/resume/upload` for async LLM parsing & taxonomy resolution, showing clear background processing status with optimistic continuation.
-       - **Option B (Secondary/Manual):** "Build Manually" -> intuitive form modal/view updating `PATCH /api/profile`.
+1. **Team Card Institutional Restriction Tooltip:** Add proactive visual indicators on non-global event team cards when the viewing student's university differs from the team's host institution.
+2. **Squad Discovery Filter Enhancements:** Add multi-tag filtering across skills and roles on the `/teams` page.
 
