@@ -2,16 +2,15 @@
 
 ## Architecture Overview
 
-SquadUp utilizes a **Hybrid Microservice Architecture** managed within a Turborepo monorepo.
+SquadUp utilizes a **Consolidated Node.js Backend Architecture** managed within a Turborepo monorepo.
 
-The system is designed to provide ultra-fast standard web API responses while seamlessly offloading computationally heavy AI tasks. It achieves this by separating the core Node.js backend from a specialized Python AI service, connected via a Redis-backed job queue.
+The system is designed to provide ultra-fast standard web API responses while seamlessly offloading computationally heavy AI tasks. It achieves this using a Node.js Express backend, asynchronous Redis/BullMQ job processing, in-memory graph taxonomy algorithms, and direct Groq LLM integration.
 
 ## Component Architecture
 
 - **Frontend (`apps/web`):** React application built with Vite. Communicates with the Backend API over HTTP.
-- **Backend API (`apps/api`):** Node.js Express application written in TypeScript. It is the primary gateway for all frontend requests, directly manages the PostgreSQL database via Prisma, acts as producer for the job queue, and interfaces with the Redis caching layer.
-- **AI Service (`apps/ai-service`):** Python FastAPI application. Exists solely to run computationally heavy Python libraries (like `pdfplumber`) and interface with AI/LLM endpoints. It does *not* talk to the database directly.
-- **Job Queue:** BullMQ backed by Redis. Orchestrates asynchronous communication between the Backend API and the AI Service.
+- **Backend API (`apps/api`):** Node.js Express application written in TypeScript. It is the primary gateway for all frontend requests, directly manages the PostgreSQL database via Prisma, hosts the in-process deterministic Taxonomy & Recommendation Engine, acts as producer/worker for the job queue, and interfaces with the Redis caching layer.
+- **Job Queue:** BullMQ backed by Redis. Orchestrates asynchronous resume processing and profile synthesis in the background without blocking the Node event loop.
 - **Caching Layer:** Redis (`ioredis`) managed via `CacheService` for list queries and dynamic event TTL caching.
 - **Database:** PostgreSQL.
 - **Authentication:** Clerk SDK, providing JWTs and managing university organizations.
@@ -23,22 +22,21 @@ The system is designed to provide ultra-fast standard web API responses while se
 1. **User** uploads a PDF via the Frontend to `POST /api/resume/upload`.
 2. **Backend API (`resume.controller.ts`)** enforces the 24-hour upload cooldown (bypassed for approved test emails and dev mode).
 3. Backend writes the PDF buffer directly to disk under `uploads/resumes/:userId.pdf` and records the path in `Profile.resumePdfPath`.
-4. Backend pushes a `parse-resume` job with the base64 string to the **Redis Queue** and immediately returns HTTP 202 Accepted with a `jobId`.
-5. **Node Worker (`ai.queue.ts`)** pops the job and sends a blocking HTTP POST request to the **Python AI Service**.
-6. **AI Service (`resume_parser.py`)**:
-   - Dynamically loads the single-source-of-truth JSON schema from `@squadup/shared` (`packages/shared/schemas/profile.schema.json`).
-   - Extracts raw text and PDF hyperlink annotations (`page.hyperlinks`) with `pdfplumber`.
-   - Prompts **Groq API** to extract structured candidate profile data with strict guidelines:
+4. Backend pushes a `parse-resume` job with the base64 string to the **Redis Queue** (`ai-tasks`) and immediately returns HTTP 202 Accepted with a `jobId`.
+5. **Node BullMQ Worker (`ai.queue.ts`)**:
+   - Pops the job and invokes `ResumeParser.parseResume` directly in Node.
+   - Extracts raw text and hyperlink annotations using `pdfjs-dist`.
+   - Prompts **Groq API** with the canonical `@squadup/shared` schema (`packages/shared/schemas/profile.schema.json`) to synthesize candidate profile data:
      - **`experience`**: Strictly formal corporate employment, company internships, and research fellowships. If the candidate has no formal corporate employment, returns `[]`.
      - **`achievements`**: Hackathon victories (e.g. JPMorgan Code for Good, Israeli-Indian Hackathon), coding competitions, academic honors, scholarships, and open source awards (`title`, `organization`, `award_tier`, `year`, `description`, `technologies`).
      - **`projects`**: Technical software projects with full bullet points and technology tags.
-     - **`links`**: Extracts GitHub and LinkedIn URLs from hyperlink annotations and text.
-7. **Node Worker (`ai.queue.ts`)**:
+     - **`links`**: Extracts GitHub and LinkedIn URLs.
+6. **Node Worker (`ai.queue.ts`)**:
    - Upserts PostgreSQL `Profile` table with `title`, `summary`, `skills`, `education`, `experience`, `achievements`, `projects`, and links.
    - **Guarantees `Profile.university` is never overwritten or altered**, preserving institutional affiliation.
-   - Feeds both `experience` and `achievements` into `AIService.resolveUserTaxonomy` to persist canonical node IDs and provenance evidence in `UserTaxonomy`.
-8. Frontend polling receives `{ state: "completed" }` and reactive hooks instantly refresh `/api/profile`, rendering separate **Work Experience** and **Achievements & Hackathons** cards.
-9. Frontend can stream the original resume PDF anytime via `GET /api/resume/view` in an embedded iframe.
+   - Feeds extracted skills, projects, experience, and achievements into the in-process `TaxonomyService.resolveUserTaxonomy` to persist canonical node IDs and provenance evidence in `UserTaxonomy`.
+7. Frontend polling receives `{ state: "completed" }` and reactive hooks instantly refresh `/api/profile`, rendering separate **Work Experience** and **Achievements & Hackathons** cards.
+8. Frontend can stream the original resume PDF anytime via `GET /api/resume/view` in an embedded iframe.
 
 ### 2. Query Caching & Server-Side Pagination Flow
 
@@ -62,9 +60,9 @@ $$\text{TTL} = \max(300, (\text{eventDate} + 3\text{ days}) - \text{now})$$
 ### 4. Team Creation & Requirement Taxonomy Sync Flow
 
 1. User creates a team via `POST /api/teams` with `requirements` (e.g. `["React", "FastAPI"]`).
-2. Backend calls `AIService.resolveTeamRequirements` inline (< 1ms).
+2. Backend calls `TaxonomyService.resolveTeamRequirements` inline (< 1ms).
 3. Backend atomically creates `Team`, `TeamTaxonomy` (with pre-resolved `requirementNodeIds`), and assigns creator as `Leader`.
-4. When a team updates requirements via `PATCH /api/teams/:id`, the backend automatically calls `AIService.resolveTeamRequirements` and updates `TeamTaxonomy` in real-time.
+4. When a team updates requirements via `PATCH /api/teams/:id`, the backend automatically calls `TaxonomyService.resolveTeamRequirements` and updates `TeamTaxonomy` in real-time.
 
 ### 5. Team Application & Eligibility Guard Flow
 
@@ -82,7 +80,7 @@ $$\text{TTL} = \max(300, (\text{eventDate} + 3\text{ days}) - \text{now})$$
 
 1. Client sends `POST /api/teams/recommendations` with optional filters (`eventId`, `sameUniversityOnly`, `topK`).
 2. Express API applies hard event eligibility filtering at the database layer (scoping to global events or matching universities).
-3. Candidate teams are passed to Python AI microservice:
+3. Candidate teams are scored via in-process `TaxonomyService.getRecommendations`:
    - Precomputes User Pre-Scoring Vector ($O(K \times N)$ in < 2ms).
    - Scores candidates via $O(1)$ lookups (< 10ms for 10,000 teams).
    - Keeps pure `taxonomyScore` ($0.0 - 1.0$).

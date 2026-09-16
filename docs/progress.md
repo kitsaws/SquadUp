@@ -13,13 +13,16 @@ The immediate next priority is implementing the **First-Time User Onboarding Flo
 
 ## Completed
 
+- **Backend Consolidation & Pure Node.js Architecture (Completed):**
+  - Consolidated all AI & Resume processing from `Prototyping/ResumeToProfile` directly into `apps/api/src/services/resume.parser.ts` using `pdfjs-dist` and direct Groq LLM API integration.
+  - Fully ported the 143-node Deterministic Knowledge Graph Taxonomy & V2 Recommendation System from Python to TypeScript under `apps/api/src/taxonomy/`.
+  - Achieved 100% test parity with the Python baseline across all 7 test suites, with sub-25ms recommendation latency over 10,000 teams.
+  - Decommissioned and completely removed `apps/ai-service`, eliminating multi-language maintenance overhead and cross-process HTTP hops.
 - **Dynamic Clerk Webhook & Svix Ingestion:**
   - Decoupled external webhook receiver URL via `CLERK_WEBHOOK_URL` environment variable.
   - Full Svix cryptographic verification with detailed real-time terminal event logging (`Svix verified [organizationMembership.created]...`).
   - Auto-synchronization between Clerk organizations and database `Organization`, `OrganizationMembership`, and `Profile.university`.
-- **Hybrid Monorepo Infrastructure:** Turborepo configuration successfully runs `web`, `api`, and `ai-service` concurrently.
-- **AI Resume Ingestion & Unified Schema Overhaul:**
-  - **Unified Monorepo Schema**: Canonical schema defined in `packages/shared/schemas/profile.schema.json` and mirrored in `packages/shared/src/types/user.types.ts`. Loaded dynamically by the Python AI microservice, eliminating schema drift.
+- **Streamlined Monorepo Infrastructure:** Turborepo configuration now runs `web` and `api` cleanly in pure TypeScript.
   - **Experience & Achievements Separation**: Formal corporate employment and internships are stored under `experience`, while hackathons (e.g. JPMorgan Code for Good, Israeli-Indian Hackathon), coding competitions, and awards are stored under `Profile.achievements`.
   - **PDF Hyperlink Extraction**: `pdfplumber` now extracts embedded PDF hyperlink annotations (`page.hyperlinks`), ensuring candidates' GitHub and LinkedIn profile links are captured accurately.
   - **University Immutability**: `Profile.university` is protected as an immutable institutional anchor governed strictly by Clerk Organizations and cannot be altered by resume text.

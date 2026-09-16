@@ -65,30 +65,22 @@ SquadUp is managed as a **pnpm Turborepo**:
 ```text
 .
 ├── apps
-│   ├── api                  # Node.js Express Core API + Prisma + BullMQ
+│   ├── api                  # Node.js Express Core API + Prisma + BullMQ + Taxonomy Engine
 │   │   ├── prisma/          # Prisma schema (source of truth for DB)
 │   │   └── src/
 │   │       ├── controllers/ # Team, Event, Profile, Webhook controllers
-│   │       ├── queues/      # BullMQ workers (ai.queue.ts)
+│   │       ├── queues/      # BullMQ worker (ai.queue.ts for asynchronous resume processing)
 │   │       ├── routes/      # Express API route declarations
-│   │       ├── services/    # HTTP client for Python AI microservice
+│   │       ├── services/    # ResumeParser (pdfjs-dist + Groq LLM), CacheService
+│   │       ├── taxonomy/    # 143-node taxonomy hierarchy, resolver, extractor, & recsys
 │   │       └── utils/       # Auth mapping utilities (Clerk to cuid)
-│   ├── ai-service           # Python FastAPI AI & Recommendation Microservice
-│   │   ├── data/            # 143-node canonical taxonomy_tree.json
-│   │   ├── src/
-│   │   │   ├── taxonomy/    # Loader, Models, Resolver, V2 Extractor
-│   │   │   ├── graph/       # InMemoryTreeStore (LCA, depths, distances)
-│   │   │   ├── matching/    # Structural features, pair scorer, coverage
-│   │   │   └── ranking/     # V2 Recommendation Engine & LCA explanations
-│   │   ├── main.py          # FastAPI server & route handlers
-│   │   └── resume_parser.py # pdfplumber + Groq LLM structured extraction
 │   └── web                  # React (Vite) Frontend UI
 ├── packages
-│   └── shared               # Shared TypeScript types & DTOs across the monorepo
+│   └── shared               # Shared TypeScript types, schemas & DTOs across the monorepo
 ├── docs                     # Comprehensive architectural documentation
 │   ├── endpoints.md         # Complete REST API specification for frontend devs
 │   ├── recommendation_system.md # Full math & engine specification
-│   ├── architecture.md      # Microservice workflows, queues, & Redis caching
+│   ├── architecture.md      # Workflows, queues, & Redis caching
 │   ├── database.md          # PostgreSQL schemas & decoupled taxonomy
 │   ├── decisions.md         # Architecture Decision Log (ADRs)
 │   └── progress.md          # Project roadmap & state
@@ -104,7 +96,6 @@ SquadUp is managed as a **pnpm Turborepo**:
 ### 1. Prerequisites
 - [Docker & Docker Compose](https://www.docker.com/) (For PostgreSQL and Redis)
 - [Node.js](https://nodejs.org/) (v18+) & [pnpm](https://pnpm.io/) (v9+)
-- Python 3.10+ (For the AI microservice)
 
 ### 2. Infrastructure Setup
 Start the local PostgreSQL and Redis containers:
@@ -142,22 +133,11 @@ pnpm run db:generate
 cd ../../
 ```
 
-### 5. Setup Python Virtual Environment
-Initialize the virtual environment for the AI service:
-```bash
-cd apps/ai-service
-python -m venv venv
-.\venv\Scripts\activate    # On Windows
-# source venv/bin/activate  # On macOS/Linux
-pip install -r requirements.txt
-cd ../../
-```
-
 ---
 
 ## 💻 Running the Application
 
-Start all services (React frontend, Express API, and Python microservice) concurrently from the root directory:
+Start all services (React frontend and Express API) concurrently from the root directory:
 
 ```bash
 pnpm run dev
@@ -165,7 +145,6 @@ pnpm run dev
 
 - **Frontend UI:** http://localhost:5173
 - **Node.js Express API:** http://localhost:3000
-- **Python FastAPI Service:** http://localhost:8000 (Swagger docs at `/docs`)
 
 ---
 
@@ -177,11 +156,10 @@ Validate TypeScript types across all workspaces:
 pnpm turbo run typecheck
 ```
 
-### Python Recommendation Engine Benchmark
+### Taxonomy & Recommendation Engine Benchmark
 Run the automated test suite and 10,000-team latency benchmark:
 ```bash
-cd apps/ai-service
-python test_taxonomy_recsys.py
+pnpm --filter @squadup/api exec tsx src/taxonomy/__tests__/taxonomy.test.ts
 ```
 
 ---

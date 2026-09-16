@@ -21,20 +21,20 @@ Accepted
 
 ---
 
-## [Hybrid Microservice Architecture (Node + Python)]
+## [Consolidated Node.js Backend Architecture]
 
 ### Decision
-The application is split into two backend services: a Node.js Express API and a Python FastAPI service. They communicate asynchronously via a Redis/BullMQ job queue.
+The backend is consolidated entirely into a single Node.js TypeScript codebase (`apps/api`), removing the previous standalone Python `apps/ai-service`. Asynchronous background processing is preserved using Redis and BullMQ.
 
 ### Context
-Parsing PDFs (`pdfplumber`) and running complex data science/LLM tasks is significantly easier and more robust in the Python ecosystem. However, Node.js and TypeScript are superior for building fast, type-safe web APIs and managing standard database CRUD.
+Python was originally introduced for embedding/ML-heavy workloads (`pgvector`, sentence transformers) and PDF parsing (`pdfplumber`). However, the recommendation system evolved into a deterministic single-parent knowledge graph hierarchy that runs entirely in-memory with sub-millisecond tree traversals. The remaining AI task—synthesizing candidate profiles from resumes—is handled via direct Groq LLM API calls with structured JSON output and in-memory `pdfjs-dist` text extraction. Maintaining a separate Python microservice runtime introduced unnecessary infrastructure complexity, network hop latency, and multi-language maintenance overhead.
 
 ### Consequences
-- **Positive:** The Node event loop is never blocked by heavy CPU-bound tasks like text extraction. The Python service remains stateless and scalable.
-- **Negative:** Increased infrastructural complexity. Requires running Redis and maintaining two separate codebases/deployment pipelines.
+- **Positive:** Greatly simplified infrastructure; eliminated cross-service HTTP failure modes; reduced local development and deployment footprint; taxonomy resolution and recommendations execute in-process in <2ms; full type safety across backend and shared packages.
+- **Negative:** None for the current feature set. If heavy local ML/computational vision models are genuinely required in future versions, a dedicated ML worker service can be reintroduced at that time.
 
 ### Status
-Accepted
+Accepted (Supersedes prior Hybrid Microservice Architecture)
 
 ---
 

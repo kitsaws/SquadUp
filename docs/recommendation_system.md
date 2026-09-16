@@ -50,13 +50,13 @@ flowchart TD
 
 ## 3. The 143-Node Knowledge Hierarchy
 
-The canonical knowledge hierarchy is located at [`apps/ai-service/data/taxonomy_tree.json`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/ai-service/data/taxonomy_tree.json).
+The canonical knowledge hierarchy is located at [`apps/api/src/taxonomy/data/taxonomy_tree.json`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/api/src/taxonomy/data/taxonomy_tree.json).
 
 ### Architectural Properties:
 - **Single-Parent Rooted Tree:** Rooted at `computer_science` (depth 0). Every other node has exactly one parent.
 - **Deterministic Tree Distance:** The distance between any two nodes $A$ and $B$ with Lowest Common Ancestor (LCA) $L$ is uniquely given by:
   $$\text{dist}(A, B) = (\text{depth}(A) - \text{depth}(L)) + (\text{depth}(B) - \text{depth}(L))$$
-- **Precomputed Depths & Ancestry:** Preloaded in [`InMemoryTreeStore`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/ai-service/src/graph/tree_store.py) at service startup for microsecond graph traversal.
+- **Precomputed Depths & Ancestry:** Preloaded in [`InMemoryTreeStore`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/api/src/taxonomy/tree.store.ts) at service startup for microsecond graph traversal.
 
 ```text
 computer_science (depth 0)
@@ -87,7 +87,7 @@ computer_science (depth 0)
 
 ## 4. Deterministic 3-Layer Entity Resolution
 
-Implemented in [`src/taxonomy/resolver.py`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/ai-service/src/taxonomy/resolver.py). Converts chaotic natural strings into canonical node IDs without LLM latency or cost:
+Implemented in [`src/taxonomy/taxonomy.resolver.ts`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/api/src/taxonomy/taxonomy.resolver.ts). Converts chaotic natural strings into canonical node IDs without LLM latency or cost:
 
 1. **Layer 1 — Case-Sensitive Collision Matching:**
    Resolves identical-casing terms that mean different things (e.g. `React` UI library $\to$ `react` vs `ReAct` reasoning pattern $\to$ `react_agent_pattern`).
@@ -102,7 +102,7 @@ Implemented in [`src/taxonomy/resolver.py`](file:///e:/Programming/Projects%2020
 
 ## 5. V2 Multi-Source Evidence Extraction & Provenance
 
-Implemented in [`src/taxonomy/extractor.py`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/ai-service/src/taxonomy/extractor.py).
+Implemented in [`src/taxonomy/taxonomy.extractor.ts`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/api/src/taxonomy/taxonomy.extractor.ts).
 
 Instead of treating a self-reported skill as proof of mastery, V2 extracts capabilities across three evidence tiers:
 
@@ -135,7 +135,7 @@ $$\text{Aggregated Strength} = \min\left(1.0,\ \max(\text{strengths}) + 0.10 \ti
 
 ## 6. Directional Structural Matching Rules ($U \to R$)
 
-Implemented in [`src/matching/pair_scorer.py`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/ai-service/src/matching/pair_scorer.py).
+Implemented in [`src/taxonomy/pair.scorer.ts`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/api/src/taxonomy/pair.scorer.ts).
 
 Comparing candidate skill $U$ against team requirement $R$ is directional:
 

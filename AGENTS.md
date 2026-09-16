@@ -26,7 +26,7 @@ To avoid breaking existing functionality, you must read the following architectu
 ## ⚠️ Critical Constraints & Conventions
 
 1. **Do NOT mutate `id` logic:** Our internal database uses `cuid()` for primary keys, but uses `clerkId` to identify users mapped from Clerk. Never assume `req.auth.userId` matches a Postgres `id`. Always use the helper `getOrCreateUserByClerkId()` in `apps/api/src/utils/auth.utils.ts`.
-2. **Never block the event loop with AI tasks:** Resume parsing and AI generation must always be offloaded to BullMQ (`ai.queue.ts`) which forwards it to the Python `ai-service`.
+2. **Never block the event loop with AI tasks:** Resume parsing and AI profile synthesis must always be offloaded to BullMQ (`ai.queue.ts`) which runs asynchronously in the background.
 3. **Monorepo Boundaries:** Code shared between frontend and backend MUST go into `@squadup/shared`. Do not duplicate types.
 4. **Clerk Organizations:** `Event` and `Team` models are scoped using `orgId` (which maps to a university). Respect the `isGlobal` boolean flag when fetching global vs. organization-scoped data.
 

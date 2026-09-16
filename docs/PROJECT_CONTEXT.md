@@ -44,11 +44,12 @@ SquadUp is structured as a pnpm Turborepo.
 
 | File/Directory | Purpose | When an agent should inspect it |
 | -------------- | ------- | ------------------------------- |
-| `apps/api/` | The core Node.js backend. | When modifying API routes, controllers, or BullMQ jobs. |
+| `apps/api/` | The core Node.js backend & in-process taxonomy/recsys. | When modifying API routes, controllers, taxonomy, or BullMQ jobs. |
 | `apps/api/prisma/schema.prisma` | The absolute source of truth for the database. | ALWAYS inspect this before interacting with database logic. |
 | `apps/api/src/services/cache.service.ts` | Redis query caching & dynamic TTL calculator. | When debugging cache behavior or invalidation. |
+| `apps/api/src/services/resume.parser.ts` | Node.js PDF text extraction (`pdfjs-dist`) & Groq LLM parser. | When altering how resumes are parsed or structured. |
+| `apps/api/src/taxonomy/` | 143-node taxonomy hierarchy, resolver, extractor, & recsys. | When altering skill resolution, matchmaking, or scoring logic. |
 | `apps/api/src/utils/auth.utils.ts` | Contains critical Auth mappings (Clerk to DB). | When dealing with user auth or mapping user IDs. |
-| `apps/ai-service/` | The Python microservice for AI tasks. | When altering how resumes are parsed or text is embedded. |
 | `apps/web/` | The React frontend UI. | When building user-facing features. |
 | `packages/shared/` | Shared TypeScript interfaces and types. | When changing API payloads to ensure frontend/backend remain in sync. |
 | `docs/endpoints.md` | Complete REST API specification for frontend developers. | When building UI components that interact with backend endpoints. |
@@ -56,9 +57,9 @@ SquadUp is structured as a pnpm Turborepo.
 
 ## System Overview
 
-SquadUp utilizes a **Hybrid Microservice Architecture**.
-The core Express API (`apps/api`) handles fast CRUD operations (creating teams, events, users, applications, and organizers). 
-Heavy, slow, or resource-intensive tasks (like parsing a PDF resume with AI) are offloaded. The Express API pushes a job to a Redis queue (BullMQ), which is processed asynchronously. The Node worker then makes an HTTP call to the isolated Python `ai-service`, allowing Python to handle the heavy machine learning/LLM lifting without blocking the Node event loop.
+SquadUp utilizes a **Consolidated Node.js Backend Architecture**.
+The core Express API (`apps/api`) handles fast CRUD operations (creating teams, events, users, applications, and organizers) as well as sub-millisecond in-process deterministic taxonomy resolution and team matchmaking.
+Heavy or asynchronous tasks (like parsing a PDF resume with AI) are offloaded to BullMQ (`ai-tasks`) backed by Redis. The Node BullMQ worker processes jobs asynchronously, extracting PDF text with `pdfjs-dist` and calling Groq LLM without blocking API response times.
 
 ## Data Flow
 
@@ -80,12 +81,12 @@ Heavy, slow, or resource-intensive tasks (like parsing a PDF resume with AI) are
    - **Build via Resume (Highlighted / Primary Recommendation):**
      - Emphasized as the fast, frictionless "smart" path.
      - User uploads their PDF resume (`POST /api/resume/upload`).
-     - Offloaded to BullMQ (`ai-tasks`) and the Python AI service (`pdfplumber` + Groq LLM) to automatically extract skills, projects, and work experience, resolving canonical nodes into `UserTaxonomy`.
+     - Offloaded to BullMQ (`ai-tasks`) where the Node worker (`pdfjs-dist` + Groq LLM) automatically extracts skills, projects, and work experience, resolving canonical nodes into `UserTaxonomy`.
      - Non-blocking UI: the user sees a clear status ("Your profile is being built in the background") and can immediately proceed into the platform without waiting on a blocking spinner.
    - **Build Manually (Secondary / Fallback Path):**
      - For users without a resume handy or who prefer manual curation.
      - Structured input form for headline, degree, graduation year, bio, social/code links, and skill tags.
-     - Submits via `PATCH /api/profile` and immediately triggers deterministic `AIService.resolveUserTaxonomy`.
+     - Submits via `PATCH /api/profile` and immediately triggers deterministic `TaxonomyService.resolveUserTaxonomy`.
 4. **Completion:** User is redirected to the main SquadUp dashboard (`/teams` or `/events`) with full institutional context and personalized compatibility scoring active.
 
 ### Document Ingestion & Resume Flow
@@ -93,8 +94,8 @@ Heavy, slow, or resource-intensive tasks (like parsing a PDF resume with AI) are
 2. Controller verifies the 24-hour rate limit (bypassed for dev testing).
 3. PDF buffer is saved to disk (`uploads/resumes/:userId.pdf`) and metadata is stored in `Profile`.
 4. Controller enqueues the file buffer in BullMQ (`ai-tasks`) and returns a `jobId` (HTTP 202).
-5. Python AI service extracts text via `pdfplumber` and prompts Groq LLM to return typed structured JSON.
-6. The Node worker upserts `Profile` and calls `AIService.resolveUserTaxonomy` to update `UserTaxonomy`.
+5. Node worker extracts text via `pdfjs-dist` and prompts Groq LLM to return typed structured JSON.
+6. The Node worker upserts `Profile` and calls `TaxonomyService.resolveUserTaxonomy` to update `UserTaxonomy`.
 7. Frontend can render the PDF anytime via `GET /api/resume/view` in an embedded iframe.
 
 ## External Services
