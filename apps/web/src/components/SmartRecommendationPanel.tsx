@@ -281,7 +281,7 @@ export function SmartRecommendationPanel({
             {recommendation.breakdown.map((item, idx) => (
               <div
                 key={idx}
-                className="p-3 rounded-lg border border-slate-100 bg-slate-50/50 space-y-1.5"
+                className="p-3 rounded-lg border border-slate-200/80 bg-white space-y-1.5 shadow-2xs"
               >
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
@@ -321,7 +321,7 @@ export function SmartRecommendationPanel({
                 return (
                   <div
                     key={idx}
-                    className="p-3 rounded-lg border border-slate-200/80 bg-slate-50/40 flex items-center justify-between text-xs"
+                    className="p-3 rounded-lg border border-slate-200/80 bg-white flex items-center justify-between text-xs shadow-2xs"
                   >
                     <div className="flex items-center gap-2.5">
                       {isMet ? (
@@ -390,7 +390,7 @@ export function SmartRecommendationPanel({
 
             <button
               onClick={onMessage}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
               title={`Message ${recommendation.teamLeadName}`}
             >
               <MessageSquare className="w-3.5 h-3.5 text-slate-400" />

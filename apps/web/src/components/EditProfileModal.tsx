@@ -411,7 +411,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
         onClick={(e) => e.stopPropagation()}
       >
         {/* ================= MODAL HEADER ================= */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-2.5">
             {activeView !== "choose" && (
               <button
@@ -556,7 +556,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
               </div>
 
               {/* BOTTOM SECTION: MANUAL EDIT */}
-              <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/40 space-y-3">
+              <div className="p-5 rounded-2xl border border-slate-200 bg-white space-y-3 shadow-2xs">
                 <div className="flex items-center gap-2.5">
                   <span className="p-1.5 rounded-lg bg-slate-800 text-white shadow-2xs">
                     <Pencil className="w-4 h-4" />
@@ -705,7 +705,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                 </div>
 
                 {skills.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-white rounded-xl border border-slate-200">
                     {skills.map((skill, index) => (
                       <span
                         key={index}
@@ -948,7 +948,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
 
                   <div
                     onClick={() => bannerImageInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-200 hover:border-slate-400 rounded-xl p-6 text-center cursor-pointer transition-colors bg-slate-50/50"
+                    className="border-2 border-dashed border-slate-200 hover:border-slate-400 rounded-xl p-6 text-center cursor-pointer transition-colors bg-white"
                   >
                     <ImageIcon className="w-8 h-8 text-slate-400 mx-auto mb-1.5" />
                     <p className="text-xs font-semibold text-slate-700">
@@ -960,7 +960,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                   </div>
 
                   {bannerImageDataUrl && (
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 text-xs">
                       <span className="text-slate-600 font-medium truncate max-w-xs">
                         Custom Image Loaded
                       </span>
@@ -977,7 +977,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
               )}
 
               {/* DYNAMIC THEME COLOR SYNC TOGGLE */}
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1">
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-1 shadow-2xs">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"

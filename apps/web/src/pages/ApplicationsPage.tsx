@@ -211,7 +211,7 @@ export function ApplicationsPage() {
 
         {/* Telemetry Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+          <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
             <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
               <span>Incoming Candidates</span>
               <Users className="w-4 h-4 text-primary-action" />
@@ -224,7 +224,7 @@ export function ApplicationsPage() {
             </p>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+          <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
             <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
               <span>Pending Review</span>
               <Clock className="w-4 h-4 text-amber-500" />
@@ -237,7 +237,7 @@ export function ApplicationsPage() {
             </p>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+          <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
             <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
               <span>My Sent Requests</span>
               <Sparkles className="w-4 h-4 text-emerald-500" />

@@ -393,7 +393,7 @@ export function TeamDetailPage() {
 
             {/* Telemetry Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
                 <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
                   <span>Squad Roster</span>
                   <Users className="w-4 h-4 text-primary-action" />
@@ -408,7 +408,7 @@ export function TeamDetailPage() {
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
                 <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
                   <span>Candidate Applications</span>
                   <Clock className="w-4 h-4 text-amber-500" />
@@ -421,7 +421,7 @@ export function TeamDetailPage() {
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
                 <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
                   <span>Primary Role Vacancy</span>
                   <Sparkles className="w-4 h-4 text-emerald-500" />
@@ -514,7 +514,7 @@ export function TeamDetailPage() {
               {team.members.map((member) => (
                 <div
                   key={member.id}
-                  className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between gap-3"
+                  className="p-3.5 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-3 shadow-2xs"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-action to-cross-campus text-white font-bold flex items-center justify-center text-sm shrink-0">
@@ -669,7 +669,7 @@ export function TeamDetailPage() {
                 {team.members.map((member) => (
                   <div
                     key={member.id}
-                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center gap-3"
+                    className="p-3.5 rounded-xl border border-slate-200 bg-white flex items-center gap-3 shadow-2xs"
                   >
                     <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-action to-cross-campus text-white font-bold flex items-center justify-center text-sm shrink-0">
                       {(member.name || "U")

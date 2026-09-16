@@ -254,7 +254,7 @@ export function EventsPage() {
                     navigator.clipboard?.writeText(window.location.href);
                     alert("Event link copied to clipboard!");
                   }}
-                  className="px-5 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+                  className="px-5 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
                 >
                   Share Event Link
                 </button>
@@ -263,28 +263,28 @@ export function EventsPage() {
 
             {/* Live Metrics Telemetry Strip */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-slate-100">
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
                 <span className="text-xs text-slate-500 block">Recruiting Squads</span>
                 <span className="text-xl font-bold text-slate-900 font-heading">
                   {eventTeams.length} Active
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
                 <span className="text-xs text-slate-500 block">Event Track</span>
                 <span className="text-xl font-bold text-slate-900 font-heading truncate block">
                   {selectedEvent.tracks?.[0] || "General Track"}
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
                 <span className="text-xs text-slate-500 block">Days to Kickoff</span>
                 <span className="text-xl font-bold text-slate-900 font-heading">
                   {selectedEvent.daysRemaining} Days
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
                 <span className="text-xs text-slate-500 block">Access Scope</span>
                 <span className="text-xl font-bold text-slate-900 font-heading">
                   {selectedEvent.isGlobal ? "Global Open" : "Campus Locked"}

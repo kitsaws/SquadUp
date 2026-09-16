@@ -167,7 +167,7 @@ export function TeamCard({
               </div>
             ))}
             {!isFull && (
-              <div className="w-7 h-7 rounded-full bg-slate-50 border-2 border-dashed border-slate-300 flex items-center justify-center text-[10px] text-slate-400">
+              <div className="w-7 h-7 rounded-full bg-white border-2 border-dashed border-slate-300 flex items-center justify-center text-[10px] text-slate-400">
                 +1
               </div>
             )}

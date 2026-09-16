@@ -369,7 +369,7 @@ export function Profile() {
               }
               className="h-32 w-full relative transition-all duration-300 overflow-hidden group"
             >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.25),transparent_50%)]" />
+              {/* <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.25),transparent_50%)]" /> */}
               {!isCandidateView && (
                 <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
                   <button
@@ -537,7 +537,7 @@ export function Profile() {
                     <button
                       type="button"
                       onClick={() => setShowPreferencesModal(true)}
-                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors cursor-pointer"
                     >
                       <Sliders className="w-3.5 h-3.5 text-primary-action" />
                       <span>Preferences & Settings</span>
@@ -624,7 +624,7 @@ export function Profile() {
                   className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3 ${
                     squad.role === "Leader"
                       ? "bg-primary-light/30 border-primary-border hover:border-primary-action/40"
-                      : "bg-slate-50/50 border-slate-200 hover:border-slate-300"
+                      : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -763,7 +763,7 @@ export function Profile() {
                     ))}
                   </div>
                 ) : (
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-center space-y-1">
+                  <div className="p-4 rounded-xl bg-white border border-slate-200/80 text-center space-y-1">
                     <p className="text-xs text-slate-600 font-medium">No verified skills detected yet</p>
                     <p className="text-[11px] text-slate-400">Upload your PDF resume or add skills manually to build your profile.</p>
                   </div>
@@ -790,7 +790,7 @@ export function Profile() {
                   return (
                     <div
                       key={i}
-                      className="rounded-xl border border-slate-200/80 hover:border-slate-300 bg-slate-50/40 overflow-hidden transition-all"
+                      className="rounded-xl border border-slate-200/80 hover:border-slate-300 bg-white overflow-hidden transition-all shadow-2xs"
                     >
                       {/* Card Header: visible by default (Title + Duration + Chevron) */}
                       <button
@@ -868,7 +868,7 @@ export function Profile() {
                   return (
                     <div
                       key={i}
-                      className="rounded-xl border border-slate-200/80 hover:border-slate-300 bg-slate-50/40 overflow-hidden transition-all"
+                      className="rounded-xl border border-slate-200/80 hover:border-slate-300 bg-white overflow-hidden transition-all shadow-2xs"
                     >
                       {/* Card Header: visible by default (Title + Subheading + Chevron) */}
                       <button

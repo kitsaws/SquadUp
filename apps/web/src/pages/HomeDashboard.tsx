@@ -215,7 +215,7 @@ export function HomeDashboard() {
             ))}
           </div>
         ) : (
-          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 text-center space-y-2">
+          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-white shadow-2xs text-center space-y-2">
             <p className="text-sm font-semibold text-slate-700">No squads available right now.</p>
             <p className="text-xs text-slate-500">
               Check back soon or explore upcoming events to be the first to create a team.
@@ -262,7 +262,7 @@ export function HomeDashboard() {
             ))}
           </div>
         ) : (
-          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 text-center">
+          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-white shadow-2xs text-center">
             <p className="text-sm text-slate-600">No upcoming events listed at this time.</p>
           </div>
         )}
@@ -346,7 +346,7 @@ export function HomeDashboard() {
             ))}
           </div>
         ) : (
-          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 text-center space-y-3">
+          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-white shadow-2xs text-center space-y-3">
             <Users className="w-8 h-8 text-slate-400 mx-auto" />
             <div className="space-y-1">
               <p className="text-sm font-semibold text-slate-800">No active squad memberships yet</p>

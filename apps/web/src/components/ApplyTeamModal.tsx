@@ -81,7 +81,7 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Applicant Snapshot */}
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-3">
+          <div className="p-3.5 rounded-xl bg-white border border-slate-200 flex items-center gap-3 shadow-2xs">
             <div className="w-10 h-10 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-sm font-heading shrink-0 overflow-hidden">
               {user?.imageUrl ? (
                 <img src={user.imageUrl} alt={candidateName} className="w-full h-full object-cover" />

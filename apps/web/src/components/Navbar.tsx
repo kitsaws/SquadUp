@@ -185,7 +185,7 @@ export function Navbar() {
             {/* Quick Search Button (Triggers Command Palette Modal) */}
             <button
               onClick={() => setIsSearchOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50/80 text-slate-500 hover:bg-slate-100 hover:border-slate-300 transition-all text-xs font-medium cursor-pointer shadow-2xs"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-all text-xs font-medium cursor-pointer shadow-2xs"
               title="Search squads, hackathons, and skills (⌘K)"
             >
               <Search className="w-3.5 h-3.5 text-slate-400" />
