@@ -246,6 +246,7 @@ export const getProfileById = async (req: Request, res: Response) => {
       id: profile?.id || null,
       userId: user.id,
       name: user.name,
+      email: user.email,
       university: profile?.university || null,
       title: profile?.title || null,
       summary: profile?.summary || null,

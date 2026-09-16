@@ -8,7 +8,6 @@ import { EventsPage } from "./pages/EventsPage";
 import { TeamsPage } from "./pages/TeamsPage";
 import { ApplicationsPage } from "./pages/ApplicationsPage";
 import { Profile } from "./pages/Profile";
-import { ProfileSplit } from "./pages/ProfileSplit";
 import { TeamDetailPage } from "./pages/TeamDetailPage";
 import { PlaygroundPage } from "./pages/PlaygroundPage";
 import { Home as LegacyResumeUpload } from "./pages/Home";
@@ -55,27 +54,11 @@ export function App() {
               path="/profile"
               element={
                 <ProtectedRoute>
-                  <ProfileSplit />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile-classic"
-              element={
-                <ProtectedRoute>
                   <Profile />
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/profile-split"
-              element={
-                <ProtectedRoute>
-                  <ProfileSplit />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/profile/:candidateId" element={<ProfileSplit />} />
+            <Route path="/profile/:candidateId" element={<Profile />} />
             <Route path="/playground" element={<PlaygroundPage />} />
             <Route path="/resume-upload" element={<LegacyResumeUpload />} />
           </Routes>
