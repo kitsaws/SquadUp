@@ -75,7 +75,7 @@ export class AIService {
           user_id: userId,
           skills: profileData.skills || [],
           projects: profileData.projects || [],
-          experience: profileData.experience || [],
+          experience: [...(profileData.experience || []), ...(profileData.achievements || [])],
         }),
       });
 

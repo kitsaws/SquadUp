@@ -172,6 +172,14 @@ export interface UserProfileResponse {
     bullet_points?: string[];
     technologies?: string[];
   }>;
+  achievements?: Array<{
+    title: string;
+    organization: string;
+    award_tier?: string;
+    year?: string;
+    description?: string;
+    technologies?: string[];
+  }>;
   projects?: Array<{
     name: string;
     description: string;

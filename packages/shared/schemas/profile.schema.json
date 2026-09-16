@@ -1,0 +1,44 @@
+{
+  "name": "string",
+  "title": "string",
+  "summary": "string",
+  "skills": ["string"],
+  "education": [
+    {
+      "degree": "string",
+      "college": "string",
+      "year": "string"
+    }
+  ],
+  "experience": [
+    {
+      "company": "string",
+      "role": "string",
+      "duration": "string",
+      "bullet_points": ["string"],
+      "technologies": ["string"]
+    }
+  ],
+  "achievements": [
+    {
+      "title": "string",
+      "organization": "string",
+      "award_tier": "string",
+      "year": "string",
+      "description": "string",
+      "technologies": ["string"]
+    }
+  ],
+  "projects": [
+    {
+      "name": "string",
+      "description": "string",
+      "bullet_points": ["string"],
+      "technologies": ["string"]
+    }
+  ],
+  "links": {
+    "github": "string",
+    "linkedin": "string"
+  }
+}

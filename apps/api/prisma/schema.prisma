@@ -37,6 +37,7 @@ model Profile {
   skills               String[]
   education            Json?
   experience           Json?
+  achievements         Json?
   projects             Json?
   githubUrl            String?
   linkedinUrl          String?

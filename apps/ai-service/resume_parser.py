@@ -11,39 +11,27 @@ GROQ_API_URL = os.environ.get("GROQ_API_URL", "https://api.groq.com/openai/v1/ch
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "mixtral-8x7b-32768")
 
-PROFILE_SCHEMA = {
-    "name": "string",
-    "title": "string",
-    "summary": "string",
-    "skills": ["string"],
-    "education": [
-        {
-            "degree": "string",
-            "college": "string",
-        }
-    ],
-    "experience": [
-        {
-            "company": "string",
-            "role": "string",
-            "duration": "string",
-            "bullet_points": ["string"],
-            "technologies": ["string"],
-        }
-    ],
-    "projects": [
-        {
-            "name": "string",
-            "description": "string",
-            "bullet_points": ["string"],
-            "technologies": ["string"],
-        }
-    ],
-    "links": {
-        "github": "string",
-        "linkedin": "string",
+# Resolve path to canonical schema in @squadup/shared
+SCHEMA_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "packages", "shared", "schemas", "profile.schema.json")
+)
+
+try:
+    with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+        PROFILE_SCHEMA = json.load(f)
+except Exception as err:
+    print(f"[resume_parser] Warning: Could not load schema from {SCHEMA_PATH}: {err}. Using default.")
+    PROFILE_SCHEMA = {
+        "name": "string",
+        "title": "string",
+        "summary": "string",
+        "skills": ["string"],
+        "education": [{"degree": "string", "college": "string", "year": "string"}],
+        "experience": [{"company": "string", "role": "string", "duration": "string", "bullet_points": ["string"], "technologies": ["string"]}],
+        "achievements": [{"title": "string", "organization": "string", "award_tier": "string", "year": "string", "description": "string", "technologies": ["string"]}],
+        "projects": [{"name": "string", "description": "string", "bullet_points": ["string"], "technologies": ["string"]}],
+        "links": {"github": "string", "linkedin": "string"}
     }
-}
 
 def extract_text_from_pdf(file_path: str):
     text = ""
@@ -86,9 +74,10 @@ def generate_profile_data(resume_text: str, hyperlinks: list = None) -> dict:
         "3. 'summary': Write a concise, compelling 2 to 3 sentence professional bio highlighting their core technical competencies, top projects, and engineering achievements. NEVER leave summary empty or blank.\n"
         "4. 'skills': Extract all technical skills (languages, frameworks, libraries, databases, cloud, dev tools) into clean string items.\n"
         "5. 'education': Extract all degrees, universities or colleges, graduation dates or ranges, and GPA/marks if mentioned.\n"
-        "6. 'projects': Extract ALL software projects, apps, platforms, or tools mentioned. NEVER skip any project. For each project, extract clean 'name', 1-2 sentence 'description', specific 'bullet_points', and list of 'technologies' used.\n"
-        "7. 'experience': Extract all work experiences, internships, fellowships, hackathons/engineering competitions, client work, or student leadership roles. For each, extract 'company' (or hackathon/organization name), 'role', 'duration', concise 'bullet_points', and 'technologies'. If there is an 'ACHIEVEMENTS' or 'AWARDS' or 'HACKATHONS' section with notable technical work, include them as entries in experience or projects so the candidate's achievements are represented.\n"
-        "8. 'links': Extract their GitHub URL and LinkedIn URL. Use the detected hyperlinks provided below if available.\n\n"
+        "6. 'experience': Strictly extract formal employment, corporate internships, company roles, or paid research fellowships. Do NOT put hackathon wins, student club leadership, or awards into 'experience'. If the candidate has no formal corporate employment, leave 'experience' as an empty array [].\n"
+        "7. 'achievements': Extract all hackathons (e.g., JPMorgan Code for Good, Israeli-Indian Hackathon), coding competitions, academic honors, scholarships, fellowship wins, and open source awards. For each achievement, provide 'title', 'organization', 'award_tier' (e.g., '1st Place Winner', '3rd Place', 'Finalist', 'Top 5', 'Participant'), 'year', concise 'description', and 'technologies' used.\n"
+        "8. 'projects': Extract ALL software projects, apps, platforms, or tools mentioned. NEVER skip any project. For each project, extract clean 'name', 1-2 sentence 'description', specific 'bullet_points', and list of 'technologies' used.\n"
+        "9. 'links': Extract their GitHub URL and LinkedIn URL. Use the detected hyperlinks provided below if available.\n\n"
         f"Resume text:\n"
         f"{resume_text}"
         f"{links_section}"

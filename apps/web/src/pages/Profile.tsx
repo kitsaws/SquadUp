@@ -30,6 +30,7 @@ import {
   Copy,
   Check,
   Sliders,
+  Trophy,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { SkillTag } from "../components/Badges";
@@ -103,6 +104,7 @@ export function Profile() {
   const [editModalInitialView, setEditModalInitialView] = useState<"choose" | "manual" | "banner">("choose");
   const [isSkillsExpanded, setIsSkillsExpanded] = useState<boolean>(false);
   const [expandedExp, setExpandedExp] = useState<Record<number, boolean>>({});
+  const [expandedAchievements, setExpandedAchievements] = useState<Record<number, boolean>>({});
   const [expandedProjects, setExpandedProjects] = useState<Record<number, boolean>>({});
   const [bannerConfig, setBannerConfig] = useState<BannerConfig | null>(null);
 
@@ -316,6 +318,7 @@ export function Profile() {
   const skillsList = profile.skills && profile.skills.length > 0 ? profile.skills : [];
   const educationList = profile.education || [];
   const experienceList = profile.experience || [];
+  const achievementsList = profile.achievements || [];
   const projectsList = profile.projects || [];
   const userTeams = profile.teams || [];
 
@@ -848,6 +851,88 @@ export function Profile() {
               </div>
             ) : (
               <p className="text-xs text-slate-400 italic">No formal engineering experience listed yet.</p>
+            )}
+          </div>
+
+          {/* Section: Achievements & Hackathons (Collapsible Cards) */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900 font-heading uppercase tracking-wider flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-amber-500" /> Achievements & Hackathons
+              </h3>
+              <span className="text-xs text-slate-400 font-medium">
+                {achievementsList.length} Honors
+              </span>
+            </div>
+
+            {achievementsList.length > 0 ? (
+              <div className="space-y-3">
+                {achievementsList.map((ach: any, i: number) => {
+                  const isExpanded = Boolean(expandedAchievements[i]);
+                  return (
+                    <div
+                      key={i}
+                      className="rounded-xl border border-slate-200/80 hover:border-slate-300 bg-white overflow-hidden transition-all shadow-2xs"
+                    >
+                      {/* Card Header: visible by default */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedAchievements((prev) => ({ ...prev, [i]: !prev[i] }))
+                        }
+                        className="w-full p-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-slate-100/50 transition-colors"
+                      >
+                        <div className="space-y-1 truncate">
+                          <div className="flex items-center gap-2">
+                            {ach.award_tier && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
+                                <Trophy className="w-2.5 h-2.5 text-amber-600" />
+                                {ach.award_tier}
+                              </span>
+                            )}
+                            <h4 className="text-sm font-bold text-slate-900 truncate">
+                              {ach.title}
+                            </h4>
+                          </div>
+                          <p className="text-xs text-slate-500 font-medium">
+                            {ach.organization} {ach.year && `• ${ach.year}`}
+                          </p>
+                        </div>
+                        <ChevronDown
+                          className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                            isExpanded ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+
+                      {/* Collapsible Content */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 pt-1 border-t border-slate-200/60 space-y-2.5 bg-white animate-in fade-in duration-150">
+                          {ach.description && (
+                            <p className="text-xs text-slate-600 leading-relaxed">
+                              {ach.description}
+                            </p>
+                          )}
+                          {ach.technologies && ach.technologies.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {ach.technologies.map((tech: string, k: number) => (
+                                <span
+                                  key={k}
+                                  className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200"
+                                >
+                                  {tech}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic">No hackathons or honors listed yet.</p>
             )}
           </div>
 

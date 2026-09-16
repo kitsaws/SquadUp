@@ -62,6 +62,7 @@ export const getProfile = async (req: Request, res: Response) => {
       skills: profile?.skills || [],
       education: profile?.education || [],
       experience: profile?.experience || [],
+      achievements: profile?.achievements || [],
       projects: profile?.projects || [],
       githubUrl: profile?.githubUrl || null,
       linkedinUrl: profile?.linkedinUrl || null,
@@ -110,6 +111,7 @@ export const updateProfile = async (
     skills,
     education,
     experience,
+    achievements,
     projects,
     githubUrl,
     linkedinUrl,
@@ -134,6 +136,7 @@ export const updateProfile = async (
         ...(skills !== undefined && { skills }),
         ...(education !== undefined && { education: education as any }),
         ...(experience !== undefined && { experience: experience as any }),
+        ...(achievements !== undefined && { achievements: achievements as any }),
         ...(projects !== undefined && { projects: projects as any }),
         ...(githubUrl !== undefined && { githubUrl }),
         ...(linkedinUrl !== undefined && { linkedinUrl }),
@@ -146,6 +149,7 @@ export const updateProfile = async (
         skills: skills || [],
         education: (education as any) || [],
         experience: (experience as any) || [],
+        achievements: (achievements as any) || [],
         projects: (projects as any) || [],
         githubUrl: githubUrl || null,
         linkedinUrl: linkedinUrl || null,
@@ -154,12 +158,13 @@ export const updateProfile = async (
 
     // 3. Real-time Taxonomy Sync if capability fields were touched
     let updatedTaxonomyNodeIds: string[] = [];
-    if (skills !== undefined || projects !== undefined || experience !== undefined) {
+    if (skills !== undefined || projects !== undefined || experience !== undefined || achievements !== undefined) {
       try {
         const taxResult = await AIService.resolveUserTaxonomy(userInDb.id, {
           skills: updatedProfile.skills,
           projects: updatedProfile.projects as any,
           experience: updatedProfile.experience as any,
+          achievements: updatedProfile.achievements as any,
         });
 
         const taxRecord = await prisma.userTaxonomy.upsert({
@@ -201,6 +206,7 @@ export const updateProfile = async (
         skills: updatedProfile.skills,
         education: updatedProfile.education,
         experience: updatedProfile.experience,
+        achievements: updatedProfile.achievements,
         projects: updatedProfile.projects,
         githubUrl: updatedProfile.githubUrl,
         linkedinUrl: updatedProfile.linkedinUrl,
@@ -256,6 +262,7 @@ export const getProfileById = async (req: Request, res: Response) => {
       skills: profile?.skills || [],
       education: profile?.education || [],
       experience: profile?.experience || [],
+      achievements: profile?.achievements || [],
       projects: profile?.projects || [],
       githubUrl: profile?.githubUrl || null,
       linkedinUrl: profile?.linkedinUrl || null,

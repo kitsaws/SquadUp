@@ -51,23 +51,12 @@ export const aiWorker = new Worker(
         }
       }
 
-      // Detect university from education if available
-      let detectedUniversity: string | null = null;
-      if (Array.isArray(profileData.education) && profileData.education.length > 0) {
-        const topEdu = profileData.education[0];
-        if (topEdu && (topEdu.college || topEdu.university)) {
-          const rawUni = String(topEdu.college || topEdu.university).trim();
-          const cleanUni = rawUni.split(/\s*[\(,]\s*/)[0].trim();
-          detectedUniversity = cleanUni.length > 2 ? cleanUni : rawUni;
-        }
-      }
-
       const githubUrl = profileData.links?.github ? String(profileData.links.github).trim() : null;
       const linkedinUrl = profileData.links?.linkedin ? String(profileData.links.linkedin).trim() : null;
       const title = profileData.title ? String(profileData.title).trim() : null;
       const summary = profileData.summary ? String(profileData.summary).trim() : null;
 
-      // Save the result to the database
+      // Save the result to the database (university is NOT touched as it links user to an organization)
       const profile = await prisma.profile.upsert({
         where: { userId: userInDb.id },
         update: {
@@ -76,10 +65,10 @@ export const aiWorker = new Worker(
           skills: profileData.skills || [],
           education: profileData.education || [],
           experience: profileData.experience || [],
+          achievements: profileData.achievements || [],
           projects: profileData.projects || [],
           ...(githubUrl ? { githubUrl } : {}),
           ...(linkedinUrl ? { linkedinUrl } : {}),
-          ...(detectedUniversity ? { university: detectedUniversity } : {}),
           ...(filename ? { resumeOriginalName: filename } : {}),
           lastResumeUploadedAt: new Date(),
         },
@@ -90,10 +79,10 @@ export const aiWorker = new Worker(
           skills: profileData.skills || [],
           education: profileData.education || [],
           experience: profileData.experience || [],
+          achievements: profileData.achievements || [],
           projects: profileData.projects || [],
           githubUrl: githubUrl || "",
           linkedinUrl: linkedinUrl || "",
-          university: detectedUniversity || null,
           resumeOriginalName: filename || null,
           lastResumeUploadedAt: new Date(),
         }
