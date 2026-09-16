@@ -93,6 +93,19 @@ The immediate next priority is implementing the **First-Time User Onboarding Flo
   - Direct links for GitHub and LinkedIn profiles, and click-to-copy email with toast notification.
 - **Mobile Development Host Script:**
   - Added dedicated `pnpm dev:host` (`npm run dev:host`) script to bind Vite to `0.0.0.0` on demand for testing on mobile devices over local Wi-Fi, while keeping `npm run dev` private to `localhost` by default.
+- **Academic Email Domain Verification & Interactive Tooltip Badge (`Profile.tsx` & `Badges.tsx`):**
+  - **Backend Verification Engine:** Evaluates candidate email against the verified academic domain of their primary `Organization` (`profile.controller.ts`), returning `isVerifiedStudent`, `verificationReason`, `organizationDomain`, and `organizationName`.
+  - **Interactive Hover / Click Tooltip Component:** New reusable `VerificationBadge` component displays 🟢 Verified Student (`bg-emerald-50`), 🟡 Unverified Student (`bg-amber-50`), or ⚪ Unaffiliated (`bg-slate-100`) with an interactive card popup detailing email match status, required domain, and institutional context.
+- **Pitch-Ready Multi-Campus Database Seeding (`apps/api/prisma/seed.ts`):**
+  - **4 Live Clerk Organizations:** Thapar Institute of Engineering and Technology, Patiala (`org_3IHwqmkzEfISGzP4JQGimqIz8WM`), BITS Pilani (`org_3JQVBHND2wFmpI3bj5UDt1RN1Ox`), VIT Vellore (`org_3JQUvvNw3HUuVOdvT0Degv4aUg4`), and IIT Delhi (`org_3JQUuDymGDy0LSpF4pXCbxV6rii`).
+  - **14 Sub-Organizers (Clubs & Societies):** ACM TIET, MLSC TIET, OWASP TIET, GDSC TIET, CCS TIET, IEEE BITS, Coding Club BITS, APOGEE Committee, ACM VIT, CSI VIT, IEEE-CS VIT, DevClub IITD, ACM IITD, Tryst Committee.
+  - **24 Simulated Students with In-Process Taxonomy Resolution:** Zero LLM cost; canonical taxonomy nodes and provenance evidence are generated in-process via `TaxonomyService.resolveUserTaxonomy`.
+  - **20 Hackathons & Tech Events:** 14 campus-scoped events + 6 global inter-university hackathons (ICHL 2026, Global AI Agents Championship, TreeHacks, Cal Hacks, FinTech Frontier, Open Source Founders Weekend).
+  - **66 Teams with Deterministic Requirement Taxonomies:** Requirements resolved into canonical graph nodes via `TaxonomyService.resolveTeamRequirements`, activating `BEST`, `GOOD_DIFFERENT_UNIVERSITY`, and `SAME_UNIVERSITY_LOWER_SCORE` recommendation badges.
+  - **Interactive Demo State for Presenter (Swastik Nagpal):** Assigned as Lead of *NeuralSync AI Agents* with 2 pending applications (Aarav Sharma & Riya Patel) to review and accept/reject during product pitch.
+- **Webhook Organization Cascade Updates (`webhook.controller.ts` & `auth.utils.ts`):**
+  - Cascades organization name/metadata updates directly to member `Profile.university` and `Team.university` records upon `organization.updated` and `organization.deleted` events.
+  - JIT dynamic profile alignment ensures `Profile.university` remains synchronised with the user's primary organization during API requests.
 - **Decoupled Relational Database:**
   - `UserTaxonomy` (1:1 with `User`), `TeamTaxonomy` (1:1 with `Team`), and `UserPreferences` (1:1 with `User`).
   - `Organization`, `OrganizationMembership`, `Organizer`, `OrganizerMember`, and `TeamApplication` models.

@@ -343,8 +343,55 @@ Maintaining duplicate, hardcoded schema shapes in Python and TypeScript led to s
 - **Positive:** Single source of truth. Any schema change in `@squadup/shared` immediately shapes the LLM prompt in Python and the typechecker in TypeScript.
 - **Negative:** The Python service requires file path access to `packages/shared/schemas` in local monorepo development.
 
+## [Academic Email Domain Verification & Hover Reasoning Popup]
+
+### Decision
+A candidate student is designated as **Verified Student** (`isVerifiedStudent: true`) if and only if their active account email address shares the verified domain registered with their primary academic `Organization` (e.g. `aarav.sharma@thapar.edu` $\leftrightarrow$ `@thapar.edu` for TIET). The frontend displays an interactive `VerificationBadge` that renders a hover/click card explaining the verification reasoning, required academic domain, and institutional context.
+
+### Context
+Merely selecting a university or belonging to an organization in Clerk does not guarantee that a candidate is an active, enrolled student unless their email domain matches the institution's official registrar domain. Recruiter trust and campus-isolated hackathon integrity require clear visibility into whether a student's institutional affiliation is verified or unverified.
+
+### Consequences
+- **Positive:** Transparent trust signals for recruiters and hackathon organizers. Students clearly understand why their status is verified or unverified with actionable guidance.
+- **Negative:** Students with personal email addresses (e.g. `@gmail.com`) attached to university accounts will show as "Unverified Student" until they link their `.edu` email.
+
 ### Status
 Accepted
+
+---
+
+## [Cascade Propagation of Clerk Organization Updates to Profiles and Teams]
+
+### Decision
+When an `organization.updated` or `organization.deleted` webhook event is processed (or during JIT authentication reconciliation in `auth.utils.ts`), changes to the organization's name or metadata automatically cascade to all associated member records in `Profile.university` and `Team.university`.
+
+### Context
+Renaming a university in Clerk previously left member candidate profiles and university-scoped teams holding stale institution strings, causing mismatched filtering and scoring anomalies across the platform.
+
+### Consequences
+- **Positive:** Complete data consistency across `Organization`, `Profile`, and `Team` tables whenever institutional metadata changes in Clerk.
+- **Negative:** Requires bulk database updates and instant Redis cache purges on organization mutation events.
+
+### Status
+Accepted
+
+---
+
+## [Pitch-Ready Multi-Campus Database Seeding with In-Process Taxonomy Resolution]
+
+### Decision
+The database seeder (`prisma/seed.ts`) generates simulated students, clubs, events, and teams across 4 verified Clerk organizations (TIET, BITS Pilani, VIT Vellore, IIT Delhi) using our deterministic `TaxonomyService` in-process rather than dispatching LLM API calls.
+
+### Context
+Populating a pitch-ready demonstration dataset with 66 teams and 24 student profiles using external LLM calls would be slow, costly, and subject to rate limits. Because SquadUp features an in-process deterministic 143-node taxonomy resolver, all canonical node IDs and provenance evidence can be generated instantaneously with 100% reproducible graph integrity.
+
+### Consequences
+- **Positive:** Sub-second database seeding with zero external API dependencies or costs. Complete data richness supporting live multi-campus product demonstrations.
+- **Negative:** None.
+
+### Status
+Accepted
+
 
 
 

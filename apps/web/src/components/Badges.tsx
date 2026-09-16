@@ -144,3 +144,155 @@ export function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
+export interface VerificationBadgeProps {
+  isVerified?: boolean;
+  reason?: string;
+  email?: string;
+  university?: string | null;
+  domain?: string | null;
+  className?: string;
+}
+
+export function VerificationBadge({
+  isVerified = false,
+  reason,
+  email,
+  university,
+  domain,
+  className = "",
+}: VerificationBadgeProps) {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  // Compute fallback reason if none provided
+  const derivedReason =
+    reason ||
+    (isVerified
+      ? `Verified student at ${university || "University"}. Student email matches official academic domain (@${domain || "thapar.edu"}).`
+      : university
+      ? `Unverified email domain. Account email (${email || "user email"}) does not match the official domain (@${domain || "thapar.edu"}) for ${university}.`
+      : "No institutional affiliation found. User is not currently part of a registered university organization.");
+
+  return (
+    <div
+      className="relative inline-block"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full border transition-all cursor-help select-none ${
+          isVerified
+            ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300"
+            : university
+            ? "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 hover:border-amber-300"
+            : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+        } ${className}`}
+        aria-label="Student verification status"
+      >
+        {isVerified ? (
+          <>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>Verified Student</span>
+          </>
+        ) : university ? (
+          <>
+            <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            <span>Unverified Student</span>
+          </>
+        ) : (
+          <>
+            <AlertCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>Unaffiliated</span>
+          </>
+        )}
+      </button>
+
+      {/* Hover / Click Popup Card */}
+      {isOpen && (
+        <div
+          className="absolute top-full right-0 mt-2 z-50 w-72 sm:w-80 p-3.5 bg-white rounded-xl shadow-xl border border-slate-200 text-left text-xs animate-in fade-in zoom-in-95 duration-150"
+          role="tooltip"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+            <div className="flex items-center gap-1.5 font-bold text-slate-900">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isVerified ? "bg-emerald-500" : university ? "bg-amber-500" : "bg-slate-400"
+                }`}
+              />
+              <span>Institutional Verification</span>
+            </div>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                isVerified
+                  ? "bg-emerald-100 text-emerald-800"
+                  : university
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              {isVerified ? "Verified" : university ? "Unverified" : "Independent"}
+            </span>
+          </div>
+
+          {/* Explanation Message */}
+          <p className="text-slate-600 leading-relaxed mb-3">
+            {derivedReason}
+          </p>
+
+          {/* Domain & Email Details Box */}
+          <div className="bg-slate-50 rounded-lg p-2.5 space-y-1.5 border border-slate-100 font-mono text-[11px]">
+            {email && (
+              <div className="flex items-center justify-between text-slate-600">
+                <span className="text-slate-400 font-sans">Account Email:</span>
+                <span className="font-semibold text-slate-800 truncate max-w-[150px]">{email}</span>
+              </div>
+            )}
+            {university && (
+              <div className="flex items-center justify-between text-slate-600">
+                <span className="text-slate-400 font-sans">Institution:</span>
+                <span className="font-semibold text-slate-800 truncate max-w-[150px]">{university}</span>
+              </div>
+            )}
+            {domain && (
+              <div className="flex items-center justify-between text-slate-600">
+                <span className="text-slate-400 font-sans">Required Domain:</span>
+                <span className="font-semibold text-indigo-700">@{domain}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 font-sans">
+              <span className="text-slate-400">Match Status:</span>
+              <span
+                className={`font-bold inline-flex items-center gap-1 ${
+                  isVerified ? "text-emerald-600" : "text-amber-600"
+                }`}
+              >
+                {isVerified ? (
+                  <>
+                    <CheckCircle2 className="w-3 h-3" />
+                    Domain Verified
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-3 h-3" />
+                    Domain Mismatch
+                  </>
+                )}
+              </span>
+            </div>
+          </div>
+
+          {/* Footer Guide Note */}
+          <div className="mt-2.5 pt-2 border-t border-slate-100 text-[10px] text-slate-500 font-sans leading-tight">
+            {isVerified
+              ? "✨ Verified members receive campus-only event eligibility and priority matchmaking."
+              : "💡 To get verified, connect or sign in with your official university email (@thapar.edu, @stanford.edu)."}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

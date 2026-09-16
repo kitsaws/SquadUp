@@ -33,7 +33,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { SkillTag } from "../components/Badges";
+import { SkillTag, VerificationBadge } from "../components/Badges";
 import { EditProfileModal, BannerConfig } from "../components/EditProfileModal";
 import { UserPreferencesModal } from "../components/UserPreferencesModal";
 import { usePalette } from "../contexts/PaletteContext";
@@ -419,10 +419,14 @@ export function Profile() {
                   )}
                 </div>
 
-                <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 mb-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  Verified Student
-                </span>
+                <VerificationBadge
+                  isVerified={profile.isVerifiedStudent}
+                  reason={profile.verificationReason}
+                  email={displayEmail}
+                  university={profile.organizationName || displayUniversity}
+                  domain={profile.organizationDomain}
+                  className="mb-1"
+                />
               </div>
 
               {/* Name & Headline */}

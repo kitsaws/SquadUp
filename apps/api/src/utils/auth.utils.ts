@@ -134,6 +134,18 @@ export async function getOrCreateUserByClerkId(clerkId: string) {
   // query Clerk API to sync memberships automatically
   if (userInDb.organizationMemberships.length === 0 || !userInDb.profile?.university) {
     await syncUserOrganizationsFromClerk(userInDb.id, clerkId);
+  } else {
+    // If organization name was updated, ensure Profile.university is kept in sync
+    const primaryOrgName = userInDb.organizationMemberships[0]?.organization?.name;
+    if (primaryOrgName && userInDb.profile?.university !== primaryOrgName) {
+      await prisma.profile.update({
+        where: { userId: userInDb.id },
+        data: { university: primaryOrgName },
+      });
+      if (userInDb.profile) {
+        userInDb.profile.university = primaryOrgName;
+      }
+    }
   }
 
   return userInDb;

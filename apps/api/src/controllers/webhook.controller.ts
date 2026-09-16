@@ -130,7 +130,7 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
         const location = public_metadata?.location || null;
         const resolvedSlug = slug || clerkOrgId;
 
-        await prisma.organization.upsert({
+        const org = await prisma.organization.upsert({
           where: { clerkOrgId },
           update: {
             name: name || "University Organization",
@@ -149,6 +149,39 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
           },
         });
 
+        // Cascade updated organization name to all affiliated member Profiles
+        const orgMemberships = await prisma.organizationMembership.findMany({
+          where: { organizationId: org.id },
+          select: { userId: true },
+        });
+        const memberUserIds = orgMemberships.map((m) => m.userId);
+
+        if (memberUserIds.length > 0) {
+          const profileUpdates = await prisma.profile.updateMany({
+            where: { userId: { in: memberUserIds } },
+            data: { university: org.name },
+          });
+          console.log(
+            `[Clerk Webhook] Propagated university name "${org.name}" to ${profileUpdates.count} member profile(s).`
+          );
+        }
+
+        // Also cascade organization name to teams associated with this organization
+        const teamUpdates = await prisma.team.updateMany({
+          where: {
+            OR: [
+              { organizationId: org.id },
+              { orgId: clerkOrgId },
+            ],
+          },
+          data: { university: org.name },
+        });
+        if (teamUpdates.count > 0) {
+          console.log(
+            `[Clerk Webhook] Propagated university name "${org.name}" to ${teamUpdates.count} team(s).`
+          );
+        }
+
         await CacheService.invalidatePattern("events:*");
         await CacheService.invalidatePattern("teams:*");
         console.log(`[Clerk Webhook] Synced organization ${clerkOrgId} (${name}).`);
@@ -157,9 +190,32 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
 
       case "organization.deleted": {
         const { id: clerkOrgId } = data;
-        await prisma.organization.deleteMany({
+        const org = await prisma.organization.findUnique({
           where: { clerkOrgId },
+          include: {
+            members: { select: { userId: true } },
+          },
         });
+
+        if (org) {
+          const memberUserIds = org.members.map((m) => m.userId);
+          if (memberUserIds.length > 0) {
+            await prisma.profile.updateMany({
+              where: {
+                userId: { in: memberUserIds },
+                university: org.name,
+              },
+              data: { university: null },
+            });
+            console.log(
+              `[Clerk Webhook] Cleared Profile.university for ${memberUserIds.length} member(s) of deleted organization "${org.name}".`
+            );
+          }
+
+          await prisma.organization.delete({
+            where: { id: org.id },
+          });
+        }
 
         await CacheService.invalidatePattern("events:*");
         await CacheService.invalidatePattern("teams:*");

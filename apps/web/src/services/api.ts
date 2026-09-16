@@ -199,6 +199,10 @@ export interface UserProfileResponse {
     joinedAt: string;
   }>;
   bannerConfig?: BannerConfig | null;
+  isVerifiedStudent?: boolean;
+  verificationReason?: string;
+  organizationDomain?: string | null;
+  organizationName?: string | null;
 }
 
 export interface RecommendationBreakdownItem {

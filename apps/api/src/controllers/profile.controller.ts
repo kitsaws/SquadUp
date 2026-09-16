@@ -29,6 +29,11 @@ export const getProfile = async (req: Request, res: Response) => {
         profile: true,
         taxonomy: true,
         preferences: true,
+        organizationMemberships: {
+          include: {
+            organization: true,
+          },
+        },
         teams: {
           include: {
             team: {
@@ -49,6 +54,31 @@ export const getProfile = async (req: Request, res: Response) => {
     }
 
     const profile = userWithProfile.profile;
+    const primaryMembership = userWithProfile.organizationMemberships?.[0];
+    const primaryOrg = primaryMembership?.organization;
+    const userEmail = (userWithProfile.email || "").toLowerCase().trim();
+    const orgDomain = (primaryOrg?.domain || "").toLowerCase().trim();
+    const orgName = primaryOrg?.name || profile?.university || null;
+
+    let isVerifiedStudent = false;
+    let verificationReason = "No university organization affiliation found.";
+
+    if (primaryOrg) {
+      if (!orgDomain) {
+        isVerifiedStudent = false;
+        verificationReason = `Affiliated with ${primaryOrg.name}, but no official university domain is registered for email verification.`;
+      } else {
+        const cleanEmailDomain = userEmail.includes("@") ? userEmail.split("@")[1] : "";
+        const matches = cleanEmailDomain === orgDomain || cleanEmailDomain.endsWith(`.${orgDomain}`);
+        if (matches) {
+          isVerifiedStudent = true;
+          verificationReason = `Verified student at ${primaryOrg.name}. Email (${userWithProfile.email}) matches official university domain (@${orgDomain}).`;
+        } else {
+          isVerifiedStudent = false;
+          verificationReason = `Unverified institutional email. Account email (${userWithProfile.email}) does not match the official domain (@${orgDomain}) for ${primaryOrg.name}.`;
+        }
+      }
+    }
 
     return res.json({
       id: profile?.id || null,
@@ -70,6 +100,10 @@ export const getProfile = async (req: Request, res: Response) => {
       lastResumeUploadedAt: profile?.lastResumeUploadedAt?.toISOString() || null,
       taxonomyNodeIds: userWithProfile.taxonomy?.taxonomyNodeIds || [],
       evidence: userWithProfile.taxonomy?.evidence || [],
+      isVerifiedStudent,
+      verificationReason,
+      organizationDomain: orgDomain || null,
+      organizationName: orgName,
       teams: userWithProfile.teams.map((tm) => ({
         teamId: tm.team.id,
         teamName: tm.team.name,
@@ -242,6 +276,11 @@ export const getProfileById = async (req: Request, res: Response) => {
         profile: true,
         taxonomy: true,
         preferences: true,
+        organizationMemberships: {
+          include: {
+            organization: true,
+          },
+        },
       },
     });
 
@@ -250,6 +289,31 @@ export const getProfileById = async (req: Request, res: Response) => {
     }
 
     const profile = user.profile;
+    const primaryMembership = user.organizationMemberships?.[0];
+    const primaryOrg = primaryMembership?.organization;
+    const userEmail = (user.email || "").toLowerCase().trim();
+    const orgDomain = (primaryOrg?.domain || "").toLowerCase().trim();
+    const orgName = primaryOrg?.name || profile?.university || null;
+
+    let isVerifiedStudent = false;
+    let verificationReason = "No university organization affiliation found.";
+
+    if (primaryOrg) {
+      if (!orgDomain) {
+        isVerifiedStudent = false;
+        verificationReason = `Affiliated with ${primaryOrg.name}, but no official university domain is registered for email verification.`;
+      } else {
+        const cleanEmailDomain = userEmail.includes("@") ? userEmail.split("@")[1] : "";
+        const matches = cleanEmailDomain === orgDomain || cleanEmailDomain.endsWith(`.${orgDomain}`);
+        if (matches) {
+          isVerifiedStudent = true;
+          verificationReason = `Verified student at ${primaryOrg.name}. Email (${user.email}) matches official university domain (@${orgDomain}).`;
+        } else {
+          isVerifiedStudent = false;
+          verificationReason = `Unverified institutional email. Account email (${user.email}) does not match the official domain (@${orgDomain}) for ${primaryOrg.name}.`;
+        }
+      }
+    }
 
     return res.json({
       id: profile?.id || null,
@@ -269,6 +333,10 @@ export const getProfileById = async (req: Request, res: Response) => {
       hasResume: Boolean(profile?.resumePdfPath),
       resumeViewUrl: profile?.resumePdfPath ? `/api/resume/view/${user.id}` : null,
       taxonomyNodeIds: user.taxonomy?.taxonomyNodeIds || [],
+      isVerifiedStudent,
+      verificationReason,
+      organizationDomain: orgDomain || null,
+      organizationName: orgName,
       bannerConfig: user.preferences?.bannerConfig || null,
     });
   } catch (error) {
