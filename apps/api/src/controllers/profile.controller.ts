@@ -164,7 +164,7 @@ export const updateProfile = async (
     const updatedProfile = await prisma.profile.upsert({
       where: { userId: userInDb.id },
       update: {
-        ...(university !== undefined && { university }),
+        ...(university !== undefined && { university: university || null }),
         ...(title !== undefined && { title }),
         ...(summary !== undefined && { summary }),
         ...(skills !== undefined && { skills }),
@@ -189,6 +189,33 @@ export const updateProfile = async (
         linkedinUrl: linkedinUrl || null,
       },
     });
+
+    // 2b. If university name provided, link OrganizationMembership if found
+    if (university && university.trim()) {
+      try {
+        const matchingOrg = await prisma.organization.findFirst({
+          where: { name: { equals: university.trim(), mode: "insensitive" } },
+        });
+        if (matchingOrg) {
+          await prisma.organizationMembership.upsert({
+            where: {
+              organizationId_userId: {
+                organizationId: matchingOrg.id,
+                userId: userInDb.id,
+              },
+            },
+            update: { role: "org:member" },
+            create: {
+              organizationId: matchingOrg.id,
+              userId: userInDb.id,
+              role: "org:member",
+            },
+          });
+        }
+      } catch (orgLinkErr) {
+        console.warn("[Profile API] Warning: Failed to link organization membership:", orgLinkErr);
+      }
+    }
 
     // 3. Real-time Taxonomy Sync if capability fields were touched
     let updatedTaxonomyNodeIds: string[] = [];

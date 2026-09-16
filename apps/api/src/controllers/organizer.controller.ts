@@ -118,6 +118,77 @@ export const getOrganizationByClerkId = async (req: Request<{ clerkOrgId: string
   }
 };
 
+export const selectUniversity = async (req: Request, res: Response) => {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const { clerkOrgId, organizationId } = req.body;
+  if (!clerkOrgId && !organizationId) {
+    return res.status(400).json({ error: "clerkOrgId or organizationId is required." });
+  }
+
+  try {
+    const userInDb = await getOrCreateUserByClerkId(userId);
+
+    const org = await prisma.organization.findFirst({
+      where: {
+        OR: [
+          ...(clerkOrgId ? [{ clerkOrgId }] : []),
+          ...(organizationId ? [{ id: organizationId }] : []),
+        ],
+      },
+    });
+
+    if (!org) {
+      return res.status(404).json({ error: "University organization not found." });
+    }
+
+    // Upsert membership
+    const membership = await prisma.organizationMembership.upsert({
+      where: {
+        organizationId_userId: {
+          organizationId: org.id,
+          userId: userInDb.id,
+        },
+      },
+      update: {
+        role: "org:member",
+      },
+      create: {
+        organizationId: org.id,
+        userId: userInDb.id,
+        role: "org:member",
+      },
+    });
+
+    // Update Profile.university
+    const profile = await prisma.profile.upsert({
+      where: { userId: userInDb.id },
+      update: {
+        university: org.name,
+      },
+      create: {
+        userId: userInDb.id,
+        university: org.name,
+        skills: [],
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: `Successfully affiliated with ${org.name}.`,
+      organization: org,
+      membership,
+      profile,
+    });
+  } catch (error) {
+    console.error("[Organizer API] Error selecting university:", error);
+    return res.status(500).json({ error: "Failed to select university organization." });
+  }
+};
+
 // ==========================================
 // 2. University Sub-Organizers (Clubs/Societies)
 // ==========================================

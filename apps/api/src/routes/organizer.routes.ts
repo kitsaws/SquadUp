@@ -3,6 +3,7 @@ import {
   createOrganization,
   listOrganizations,
   getOrganizationByClerkId,
+  selectUniversity,
   createOrganizer,
   listOrganizers,
   getOrganizerById,
@@ -16,6 +17,7 @@ const router: Router = Router();
 // University Organization endpoints
 router.get("/universities", listOrganizations);
 router.post("/universities", createOrganization);
+router.post("/universities/select", selectUniversity);
 router.get("/universities/:clerkOrgId", getOrganizationByClerkId);
 
 // Sub-Organizer (Clubs / Societies) endpoints

@@ -565,13 +565,34 @@ export const invitesApi = {
    ORGANIZERS API (/api/organizers)
    ========================================================================= */
 
+export interface OrganizationItem {
+  id: string;
+  clerkOrgId: string;
+  name: string;
+  slug: string;
+  domain?: string | null;
+  logoUrl?: string | null;
+  location?: string | null;
+  subOrganizersCount?: number;
+  eventsCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export const organizersApi = {
-  getUniversities: (): Promise<any[]> => {
-    return request<any[]>("/organizers/universities");
+  getUniversities: (): Promise<OrganizationItem[]> => {
+    return request<OrganizationItem[]>("/organizers/universities");
   },
 
-  getUniversity: (clerkOrgId: string): Promise<any> => {
-    return request<any>(`/organizers/universities/${clerkOrgId}`);
+  getUniversity: (clerkOrgId: string): Promise<OrganizationItem> => {
+    return request<OrganizationItem>(`/organizers/universities/${clerkOrgId}`);
+  },
+
+  selectUniversity: (clerkOrgId: string): Promise<{ success: boolean; organization: OrganizationItem; profile: UserProfileResponse }> => {
+    return request<{ success: boolean; organization: OrganizationItem; profile: UserProfileResponse }>("/organizers/universities/select", {
+      method: "POST",
+      body: JSON.stringify({ clerkOrgId }),
+    });
   },
 
   getOrganizers: (params?: { orgId?: string; search?: string }): Promise<any[]> => {

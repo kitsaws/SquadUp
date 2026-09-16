@@ -145,6 +145,13 @@ export function PlaygroundPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <a
+              href="/onboarding"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold text-primary-action bg-primary-light border border-primary-border hover:bg-primary-light/80 transition-colors shadow-2xs"
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Launch Onboarding Flow →
+            </a>
+
             <button
               onClick={resetPalette}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"

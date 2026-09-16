@@ -139,45 +139,142 @@ export function Navbar() {
               </span>
             </Link>
 
-            {/* Nav Links with sliding indicator bar */}
-            <nav ref={navContainerRef} className="hidden md:flex items-center gap-1 relative h-16">
-              {navLinks.map((link, idx) => {
-                const isActive =
-                  link.path === "/"
-                    ? location.pathname === "/"
-                    : location.pathname.startsWith(link.path);
+            {/* Conditional: Standard Nav Links OR Onboarding Step Progression */}
+            {location.pathname.startsWith("/onboarding") ? (
+              <div className="flex items-center gap-2 sm:gap-6 py-2">
+                {/* Step 1 Indicator */}
+                {(() => {
+                  const currentStep = parseInt(
+                    new URLSearchParams(location.search).get("step") || "1",
+                    10
+                  );
 
-                return (
-                  <Link
-                    key={link.path}
-                    ref={(el) => {
-                      linksRef.current[idx] = el;
-                    }}
-                    to={link.path}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors relative flex items-center gap-1.5 ${
-                      isActive
-                        ? "text-primary-action font-bold"
-                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                    }`}
-                  >
-                    {link.isSpecial && (
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-                    )}
-                    {link.label}
-                  </Link>
-                );
-              })}
+                  return (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                            currentStep > 1
+                              ? "bg-emerald-500 text-white shadow-2xs"
+                              : currentStep === 1
+                              ? "bg-primary-action text-white ring-4 ring-primary-light shadow-2xs"
+                              : "bg-slate-100 text-slate-400"
+                          }`}
+                        >
+                          {currentStep > 1 ? (
+                            <Check className="w-3.5 h-3.5" />
+                          ) : (
+                            <span>1</span>
+                          )}
+                        </div>
+                        <span
+                          className={`text-xs font-semibold hidden sm:inline ${
+                            currentStep === 1
+                              ? "text-slate-900 font-bold"
+                              : currentStep > 1
+                              ? "text-slate-700"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          Select Campus
+                        </span>
+                      </div>
 
-              {/* Sliding Bottom Active Indicator Bar */}
-              <span
-                className="absolute bottom-0 h-[3px] bg-primary-action rounded-t-full transition-all duration-300 ease-out pointer-events-none"
-                style={{
-                  left: `${indicatorStyle.left}px`,
-                  width: `${indicatorStyle.width}px`,
-                  opacity: indicatorStyle.opacity,
-                }}
-              />
-            </nav>
+                      {/* Connecting Progress Track */}
+                      <div className="w-8 sm:w-12 h-0.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full bg-primary-action transition-all duration-300 ${
+                            currentStep > 1 ? "w-full" : "w-0"
+                          }`}
+                        />
+                      </div>
+
+                      {/* Step 2 Indicator */}
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                            currentStep >= 3
+                              ? "bg-emerald-500 text-white shadow-2xs"
+                              : currentStep === 2
+                              ? "bg-primary-action text-white ring-4 ring-primary-light shadow-2xs"
+                              : "bg-slate-100 text-slate-400 border border-slate-200"
+                          }`}
+                        >
+                          {currentStep >= 3 ? (
+                            <Check className="w-3.5 h-3.5" />
+                          ) : (
+                            <span>2</span>
+                          )}
+                        </div>
+                        <span
+                          className={`text-xs font-semibold hidden sm:inline ${
+                            currentStep === 2
+                              ? "text-slate-900 font-bold"
+                              : currentStep >= 3
+                              ? "text-slate-700"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          Build Profile
+                        </span>
+                      </div>
+
+                      {/* Progress percentage pill */}
+                      <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold border border-slate-200 ml-2">
+                        {currentStep === 1
+                          ? "50% Complete"
+                          : currentStep === 2
+                          ? "Step 2 of 2"
+                          : "Ready"}
+                      </span>
+                    </>
+                  );
+                })()}
+              </div>
+            ) : (
+              /* Nav Links with sliding indicator bar */
+              <nav
+                ref={navContainerRef}
+                className="hidden md:flex items-center gap-1 relative h-16"
+              >
+                {navLinks.map((link, idx) => {
+                  const isActive =
+                    link.path === "/"
+                      ? location.pathname === "/"
+                      : location.pathname.startsWith(link.path);
+
+                  return (
+                    <Link
+                      key={link.path}
+                      ref={(el) => {
+                        linksRef.current[idx] = el;
+                      }}
+                      to={link.path}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors relative flex items-center gap-1.5 ${
+                        isActive
+                          ? "text-primary-action font-bold"
+                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                      }`}
+                    >
+                      {link.isSpecial && (
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                      )}
+                      {link.label}
+                    </Link>
+                  );
+                })}
+
+                {/* Sliding Bottom Active Indicator Bar */}
+                <span
+                  className="absolute bottom-0 h-[3px] bg-primary-action rounded-t-full transition-all duration-300 ease-out pointer-events-none"
+                  style={{
+                    left: `${indicatorStyle.left}px`,
+                    width: `${indicatorStyle.width}px`,
+                    opacity: indicatorStyle.opacity,
+                  }}
+                />
+              </nav>
+            )}
           </div>
 
           {/* Right: Search trigger, Notification Menu, Profile */}

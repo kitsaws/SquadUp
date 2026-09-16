@@ -8,6 +8,7 @@ export interface UserContextType {
   user: ReturnType<typeof useUser>["user"] | null;
   profile: UserProfileResponse | null;
   isLoadingProfile: boolean;
+  hasInitialProfileLoaded: boolean;
   profileError: string | null;
   refreshProfile: () => Promise<void>;
   userVerifiedSkills: string[];
@@ -22,6 +23,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const { getToken } = useAuth();
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(false);
+  const [hasInitialProfileLoaded, setHasInitialProfileLoaded] = useState<boolean>(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
   // Sync token getter with api service
@@ -33,6 +35,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!isSignedIn) {
       setProfile(null);
       setProfileError(null);
+      setHasInitialProfileLoaded(true);
       return;
     }
 
@@ -46,6 +49,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setProfileError(err?.message || "Failed to load profile");
     } finally {
       setIsLoadingProfile(false);
+      setHasInitialProfileLoaded(true);
     }
   }, [isSignedIn]);
 
@@ -55,6 +59,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     } else {
       setProfile(null);
       setIsLoadingProfile(false);
+      setHasInitialProfileLoaded(true);
     }
   }, [isSignedIn, refreshProfile]);
 
@@ -70,6 +75,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         user: user || null,
         profile,
         isLoadingProfile,
+        hasInitialProfileLoaded,
         profileError,
         refreshProfile,
         userVerifiedSkills,
