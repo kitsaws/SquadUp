@@ -17,6 +17,7 @@ model User {
   updatedAt            DateTime          @updatedAt
   profile              Profile?
   taxonomy             UserTaxonomy?
+  preferences          UserPreferences?
   teams                TeamMember[]
   ownedEvents          Event[]
   sentInvites          TeamInvite[]      @relation("SentInvites")
@@ -205,3 +206,30 @@ model TeamApplication {
 
   @@unique([teamId, userId])
 }
+
+model UserPreferences {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 1. Theme & Appearance
+  themeMode               String   @default("system") // "light" | "dark" | "system"
+  palettePreset           String   @default("default") // "default" | "midnight" | "emerald" | "slate" | "custom"
+  primaryColor            String?  // Custom primary hex override (e.g. "#2563eb", "#ec4899")
+  bannerConfig            Json?    // { type: "gradient" | "image" | "default", gradient?: { color1, color2, angle }, imageUrl?: string, syncTheme: boolean }
+
+  // 2. Notification Settings
+  emailNotifications      Boolean  @default(true)
+  teamInvitesNotification Boolean  @default(true)
+  applicationUpdates      Boolean  @default(true)
+  marketingEmails         Boolean  @default(false)
+
+  // 3. Default Options & Matching Preferences
+  defaultCampusOnly       Boolean  @default(false) // Filter squads/events by user's campus by default
+  openToCollaboration     Boolean  @default(true)  // Availability indicator for squad recruiters
+  preferredRoles          String[] @default([])    // Default role preferences (e.g., ["Frontend", "AI Engineer"])
+
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+

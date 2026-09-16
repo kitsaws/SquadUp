@@ -115,6 +115,14 @@ export async function getOrCreateUserByClerkId(clerkId: string) {
         },
       });
 
+      await prisma.userPreferences.upsert({
+        where: { userId: userInDb.id },
+        update: {},
+        create: {
+          userId: userInDb.id,
+        },
+      });
+
       console.log(`[Auth Utils] Successfully synced user ${clerkId} to DB.`);
     } catch (clerkError) {
       console.error("[Auth Utils] Error fetching user from Clerk API:", clerkError);

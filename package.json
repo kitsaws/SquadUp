@@ -5,6 +5,7 @@
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "turbo dev",
+    "dev:host": "turbo dev:host",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "clean": "turbo clean"

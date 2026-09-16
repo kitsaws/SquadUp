@@ -51,18 +51,18 @@ export function TeamCard({
   const [isHovered, setIsHovered] = React.useState(false);
 
   // Accent color for category (only active when signed in)
-  let accentColor = "#94a3b8";
-  let topHighlightColor = "#cbd5e1";
+  let accentColor = "var(--sq-border, #e2e8f0)";
+  let topHighlightClass = "bg-slate-300";
 
   if (isSignedIn && team.category === "BEST") {
-    accentColor = "#68DBA9";
-    topHighlightColor = "var(--sq-best-fit, #68DBA9)";
+    accentColor = "var(--sq-best-fit, #68DBA9)";
+    topHighlightClass = "bg-best-fit";
   } else if (isSignedIn && team.category === "GOOD_DIFFERENT_UNIVERSITY") {
-    accentColor = "#6366F1";
-    topHighlightColor = "var(--sq-cross-campus, #6366F1)";
+    accentColor = "var(--sq-cross-campus, #6366F1)";
+    topHighlightClass = "bg-cross-campus";
   } else if (isSignedIn && team.category === "SAME_UNIVERSITY_LOWER_SCORE") {
-    accentColor = "#ffc761";
-    topHighlightColor = "var(--sq-campus-explorer, #ffc761)";
+    accentColor = "var(--sq-campus-explorer, #ffc761)";
+    topHighlightClass = "bg-campus-explorer";
   }
 
   return (
@@ -72,35 +72,30 @@ export function TeamCard({
       onMouseLeave={() => setIsHovered(false)}
       className={`rounded-xl border-2 p-5 sm:p-6 transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden group h-full w-full min-w-[320px] max-w-[420px] ${
         isFull
-          ? "opacity-60 bg-slate-50/70 border-slate-200"
+          ? "opacity-60 bg-slate-50/70 border-surface-border"
           : isSelected
-          ? "bg-white ring-2 ring-blue-500/20 shadow-md"
+          ? "bg-white ring-2 ring-primary-action/20 shadow-md"
           : "bg-white shadow-xs hover:shadow-md"
       }`}
       style={{
         borderColor: isFull
-          ? "#e2e8f0"
-          : isSelected
+          ? "var(--sq-border, #e2e8f0)"
+          : isSelected || isHovered
           ? accentColor
-          : isHovered
-          ? accentColor
-          : "#e2e8f0",
+          : "var(--sq-border, #e2e8f0)",
       }}
     >
       {/* Top Content: header, name, description */}
       <div className="flex flex-col">
         {/* Top Highlight indicator (only when logged in and tier is active) */}
         {isSignedIn && team.category && !isFull && (
-          <div
-            className="absolute top-0 left-0 right-0 h-1 z-10"
-            style={{ backgroundColor: topHighlightColor }}
-          />
+          <div className={`absolute top-0 left-0 right-0 h-1 z-10 ${topHighlightClass}`} />
         )}
 
         {/* Top Meta Bar */}
         <div className="flex items-start justify-between gap-2 mb-1.5 pt-0.5">
           <div className="min-w-0 flex-1">
-            <span className="text-xs font-semibold text-blue-600 truncate block">
+            <span className="text-xs font-semibold text-primary-action truncate block">
               {team.eventTitle}
             </span>
             <h3
@@ -199,7 +194,7 @@ export function TeamCard({
                 e.stopPropagation();
                 onInspect ? onInspect(team) : onApply?.(team);
               }}
-              className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary-action hover:text-primary-hover transition-colors cursor-pointer"
             >
               View Team <ArrowRight className="w-3.5 h-3.5" />
             </button>

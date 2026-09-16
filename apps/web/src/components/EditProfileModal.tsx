@@ -20,7 +20,7 @@ import {
 import { toast } from "react-toastify";
 import { useJobContext } from "../contexts/JobContext";
 import { usePalette } from "../contexts/PaletteContext";
-import { resumeApi, profileApi, UserProfileResponse } from "../services/api";
+import { resumeApi, profileApi, preferencesApi, UserProfileResponse } from "../services/api";
 
 export interface BannerConfig {
   type: "gradient" | "image" | "default";
@@ -124,6 +124,7 @@ export function EditProfileModal({
   const [syncThemeWithBanner, setSyncThemeWithBanner] = useState<boolean>(
     currentBanner?.syncTheme || false
   );
+  const [isSavingBanner, setIsSavingBanner] = useState<boolean>(false);
   const bannerImageInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form when opened or profile changes
@@ -269,31 +270,68 @@ export function EditProfileModal({
      BANNER CUSTOMIZATION HANDLERS
      ========================================================================= */
 
-  const handleBannerImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(reader.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+  const handleBannerImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      // Size check: limit to 2MB to prevent browser lock-in or localStorage exhaustion
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("Banner image must be smaller than 2MB.");
-        return;
-      }
       if (!file.type.startsWith("image/")) {
         toast.error("Please select an image file (PNG, JPG, WebP).");
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          setBannerImageDataUrl(reader.result);
-          setBannerType("image");
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, 1400, 0.85);
+        setBannerImageDataUrl(compressed);
+        setBannerType("image");
+      } catch (err) {
+        console.warn("[EditProfileModal] Image compression fallback:", err);
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            setBannerImageDataUrl(reader.result);
+            setBannerType("image");
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
-  const handleSaveBanner = () => {
+  const handleSaveBanner = async () => {
+    setIsSavingBanner(true);
     const config: BannerConfig = {
       type: bannerType,
       gradient:
@@ -308,17 +346,32 @@ export function EditProfileModal({
       syncTheme: syncThemeWithBanner,
     };
 
-    // Store in localStorage for client persistence per user
+    // Store in localStorage for client instant caching
     try {
       localStorage.setItem(`squadup_banner_${profile.userId}`, JSON.stringify(config));
     } catch (err) {
       console.warn("[EditProfileModal] Could not store banner in localStorage:", err);
     }
 
+    const activeColor =
+      bannerType === "gradient" ? gradientColor2 || gradientColor1 : "#ec4899";
+
+    // Store in PostgreSQL via preferencesApi
+    try {
+      await preferencesApi.updatePreferences({
+        bannerConfig: config,
+        ...(syncThemeWithBanner && activeColor ? { primaryColor: activeColor } : {}),
+      });
+      console.log("[EditProfileModal] Successfully saved banner to database!");
+    } catch (err) {
+      console.error("[EditProfileModal] Failed to store banner in preferencesApi:", err);
+      toast.warning("Banner saved locally, but could not sync to server.", { position: "bottom-right" });
+    } finally {
+      setIsSavingBanner(false);
+    }
+
     // If theme sync is enabled, adapt the website's primary action color
     if (syncThemeWithBanner) {
-      const activeColor =
-        bannerType === "gradient" ? gradientColor2 || gradientColor1 : "#ec4899";
       updateToken("primaryAction", activeColor);
       toast.info(`Website theme synchronized with your banner color!`, {
         position: "bottom-right",
@@ -399,22 +452,22 @@ export function EditProfileModal({
           {activeView === "choose" && (
             <div className="space-y-6">
               {/* TOP SECTION: RESUME UPLOAD */}
-              <div className="p-5 rounded-2xl border border-blue-200 bg-blue-50/30 space-y-3.5 relative overflow-hidden">
+              <div className="p-5 rounded-2xl border border-primary-border bg-primary-light/30 space-y-3.5 relative overflow-hidden">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-blue-600 text-white shadow-2xs">
+                    <span className="p-1.5 rounded-lg bg-primary-action text-white shadow-2xs">
                       <Sparkles className="w-4 h-4" />
                     </span>
                     <div>
                       <h4 className="text-sm font-bold text-slate-900 font-heading">
                         Upload New Resume
                       </h4>
-                      <p className="text-[11px] text-blue-900/80">
+                      <p className="text-[11px] text-text-main/80">
                         AI automatically parses latest skills, projects, and roles into your profile.
                       </p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-light text-primary-action border border-primary-border">
                     Recommended
                   </span>
                 </div>
@@ -439,21 +492,21 @@ export function EditProfileModal({
                     onClick={() => resumeInputRef.current?.click()}
                     className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
                       isDragOver
-                        ? "border-blue-500 bg-blue-100/50 scale-[0.99]"
-                        : "border-blue-200 hover:border-blue-400 bg-white"
+                        ? "border-primary-action bg-primary-light/50 scale-[0.99]"
+                        : "border-primary-border hover:border-primary-action bg-white"
                     }`}
                   >
-                    <Upload className="w-6 h-6 text-blue-500 mx-auto mb-1.5" />
+                    <Upload className="w-6 h-6 text-primary-action mx-auto mb-1.5" />
                     <p className="text-xs font-semibold text-slate-700">
                       Drag and drop your PDF resume here, or{" "}
-                      <span className="text-blue-600 underline">browse</span>
+                      <span className="text-primary-action underline">browse</span>
                     </p>
                     <p className="text-[10px] text-slate-400 mt-0.5">Maximum size: 10MB • Format: .pdf</p>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-xl p-3.5 border border-blue-200 flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="bg-white rounded-xl p-3.5 border border-primary-border flex items-center justify-between gap-3 shadow-2xs">
                     <div className="flex items-center gap-2.5 overflow-hidden">
-                      <FileText className="w-5 h-5 text-blue-600 shrink-0" />
+                      <FileText className="w-5 h-5 text-primary-action shrink-0" />
                       <div className="truncate text-left">
                         <p className="text-xs font-bold text-slate-900 truncate">
                           {resumeFile.name}
@@ -477,7 +530,7 @@ export function EditProfileModal({
                         type="button"
                         onClick={handleUploadResume}
                         disabled={isSubmittingResume || isUploading}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary-action hover:bg-primary-hover disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
                       >
                         {isSubmittingResume ? (
                           <>
@@ -564,7 +617,7 @@ export function EditProfileModal({
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="e.g. Jane Doe"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                 />
               </div>
 
@@ -578,7 +631,7 @@ export function EditProfileModal({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Full Stack Engineer | Systems & AI"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                 />
               </div>
 
@@ -613,7 +666,7 @@ export function EditProfileModal({
                   value={summary}
                   onChange={(e) => setSummary(e.target.value)}
                   placeholder="Brief summary of your interests, hackathon goals, and technical focus..."
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium resize-none"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium resize-none"
                 />
               </div>
 
@@ -621,9 +674,9 @@ export function EditProfileModal({
               <div className="space-y-2 pt-1 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Technical Skills
+                    <Sparkles className="w-3.5 h-3.5 text-primary-action" /> Technical Skills
                   </label>
-                  <span className="text-[11px] text-blue-600 font-bold">
+                  <span className="text-[11px] text-primary-action font-bold">
                     {skills.length} added
                   </span>
                 </div>
@@ -640,12 +693,12 @@ export function EditProfileModal({
                       }
                     }}
                     placeholder="Add a technology (e.g. React, Docker, FastAPI)..."
-                    className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium"
+                    className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                   />
                   <button
                     type="button"
                     onClick={handleAddSkill}
-                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl border border-blue-200 transition-colors flex items-center gap-1 cursor-pointer"
+                    className="px-3 py-1.5 bg-primary-light hover:bg-primary-light/80 text-primary-action text-xs font-bold rounded-xl border border-primary-border transition-colors flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add
                   </button>
@@ -685,7 +738,7 @@ export function EditProfileModal({
                     value={githubUrl}
                     onChange={(e) => setGithubUrl(e.target.value)}
                     placeholder="https://github.com/... or username"
-                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium"
+                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                   />
                 </div>
 
@@ -698,7 +751,7 @@ export function EditProfileModal({
                     value={linkedinUrl}
                     onChange={(e) => setLinkedinUrl(e.target.value)}
                     placeholder="https://linkedin.com/in/... or handle"
-                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium"
+                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                   />
                 </div>
               </div>
@@ -713,7 +766,7 @@ export function EditProfileModal({
                   value={degree}
                   onChange={(e) => setDegree(e.target.value)}
                   placeholder="e.g. B.S. Computer Science"
-                  className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium"
+                  className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                 />
               </div>
 
@@ -729,7 +782,7 @@ export function EditProfileModal({
                 <button
                   type="submit"
                   disabled={isSavingManual}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors shadow-xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-primary-action hover:bg-primary-hover disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors shadow-xs cursor-pointer"
                 >
                   {isSavingManual ? (
                     <>
@@ -876,7 +929,7 @@ export function EditProfileModal({
                       max={360}
                       value={gradientAngle}
                       onChange={(e) => setGradientAngle(Number(e.target.value))}
-                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary-action"
                     />
                   </div>
                 </div>
@@ -930,7 +983,7 @@ export function EditProfileModal({
                     type="checkbox"
                     checked={syncThemeWithBanner}
                     onChange={(e) => setSyncThemeWithBanner(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer"
+                    className="mt-0.5 w-4 h-4 rounded text-primary-action border-slate-300 focus:ring-primary-action cursor-pointer"
                   />
                   <div>
                     <span className="text-xs font-bold text-slate-900 block">
@@ -955,9 +1008,20 @@ export function EditProfileModal({
                 <button
                   type="button"
                   onClick={handleSaveBanner}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-xs cursor-pointer"
+                  disabled={isSavingBanner}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-primary-action hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
                 >
-                  <Check className="w-3.5 h-3.5" /> Apply Banner
+                  {isSavingBanner ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Apply Banner</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

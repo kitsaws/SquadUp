@@ -120,7 +120,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
         <div className="max-h-80 overflow-y-auto p-2 space-y-1">
           {loading ? (
             <div className="p-8 text-center text-slate-400 text-sm flex items-center justify-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+              <Loader2 className="w-4 h-4 animate-spin text-primary-action" />
               <span>Searching squads & hackathons...</span>
             </div>
           ) : results.length === 0 ? (
@@ -138,13 +138,13 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-50 transition-colors group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-primary-light group-hover:text-primary-action transition-colors shrink-0">
                     {item.type === "event" && <Calendar className="w-4 h-4" />}
                     {item.type === "team" && <Users className="w-4 h-4" />}
                     {item.type === "skill" && <Sparkles className="w-4 h-4" />}
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                    <div className="text-sm font-semibold text-slate-900 group-hover:text-primary-action transition-colors">
                       {item.title}
                     </div>
                     <div className="text-xs text-slate-500">{item.subtitle}</div>
@@ -152,7 +152,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 </div>
 
                 {item.badge && (
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors shrink-0">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 group-hover:bg-primary-light group-hover:text-primary-action transition-colors shrink-0">
                     {item.badge}
                   </span>
                 )}

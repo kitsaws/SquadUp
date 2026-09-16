@@ -107,20 +107,20 @@ export function SmartRecommendationPanel({
 
   if (isActivelyRecommended && category === "BEST") {
     heroTheme = {
-      bg: "bg-emerald-50/70",
-      border: "border-emerald-200/90",
+      bg: "bg-best-fit-light",
+      border: "border-best-fit",
       ringColor: "var(--sq-best-fit, #68DBA9)",
       badge: <RecommendationBadge category="BEST" score={recommendation.taxonomyScore} />,
       campusPill: (
-        <span className="text-xs font-semibold text-emerald-800 flex items-center gap-1.5 px-2.5 py-0.5 w-fit border border-emerald-300 bg-emerald-100/70 rounded-full">
-          <Building className="w-3.5 h-3.5 text-emerald-700" /> Same Campus (Stanford)
+        <span className="text-xs font-semibold text-best-fit-dark flex items-center gap-1.5 px-2.5 py-0.5 w-fit border border-best-fit bg-white/70 rounded-full">
+          <Building className="w-3.5 h-3.5 text-best-fit-dark" /> Same Campus (Stanford)
         </span>
       ),
     };
   } else if (isActivelyRecommended && category === "GOOD_DIFFERENT_UNIVERSITY") {
     heroTheme = {
-      bg: "bg-indigo-50/70",
-      border: "border-indigo-200/90",
+      bg: "bg-cross-campus-light",
+      border: "border-cross-campus",
       ringColor: "var(--sq-cross-campus, #6366F1)",
       badge: (
         <RecommendationBadge
@@ -129,16 +129,16 @@ export function SmartRecommendationPanel({
         />
       ),
       campusPill: (
-        <span className="text-xs font-semibold text-indigo-800 flex items-center gap-1.5 px-2.5 py-0.5 w-fit border border-indigo-300 bg-indigo-100/70 rounded-full">
-          <Globe className="w-3.5 h-3.5 text-indigo-700" /> Cross-Campus Eligible (
+        <span className="text-xs font-semibold text-cross-campus-dark flex items-center gap-1.5 px-2.5 py-0.5 w-fit border border-cross-campus bg-white/70 rounded-full">
+          <Globe className="w-3.5 h-3.5 text-cross-campus-dark" /> Cross-Campus Eligible (
           {recommendation.teamLeadUniversity || "Global"})
         </span>
       ),
     };
   } else if (isActivelyRecommended && category === "SAME_UNIVERSITY_LOWER_SCORE") {
     heroTheme = {
-      bg: "bg-amber-50/70",
-      border: "border-amber-200/90",
+      bg: "bg-campus-explorer-light",
+      border: "border-campus-explorer",
       ringColor: "var(--sq-campus-explorer, #ffc761)",
       badge: (
         <RecommendationBadge
@@ -147,8 +147,8 @@ export function SmartRecommendationPanel({
         />
       ),
       campusPill: (
-        <span className="text-xs font-semibold text-amber-900 flex items-center gap-1.5 px-2.5 py-0.5 w-fit border border-amber-300 bg-amber-100/70 rounded-full">
-          <Building className="w-3.5 h-3.5 text-amber-700" /> Same Campus (Stanford)
+        <span className="text-xs font-semibold text-campus-explorer-dark flex items-center gap-1.5 px-2.5 py-0.5 w-fit border border-campus-explorer bg-white/70 rounded-full">
+          <Building className="w-3.5 h-3.5 text-campus-explorer-dark" /> Same Campus (Stanford)
         </span>
       ),
     };
@@ -169,7 +169,7 @@ export function SmartRecommendationPanel({
       <div className="flex items-center justify-between border-b border-slate-100 pb-4">
         <div>
           {isActivelyRecommended ? (
-            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-primary-action flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5" /> Smart Recommendation
             </span>
           ) : (
@@ -235,7 +235,7 @@ export function SmartRecommendationPanel({
                       </>
                     ) : (
                       <>
-                        <Cpu className="w-3.5 h-3.5 text-blue-400" />
+                        <Cpu className="w-3.5 h-3.5 text-primary-action" />
                         <span>Calculate Compatibility Score</span>
                       </>
                     )}
@@ -383,7 +383,7 @@ export function SmartRecommendationPanel({
           <>
             <button
               onClick={onApply}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors shadow-xs cursor-pointer"
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary-action hover:bg-primary-hover text-white font-semibold text-xs transition-colors shadow-xs cursor-pointer"
             >
               Apply to Join Team <ArrowRight className="w-3.5 h-3.5" />
             </button>

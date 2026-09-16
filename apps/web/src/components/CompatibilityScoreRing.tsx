@@ -55,7 +55,7 @@ export function CompatibilityScoreRing({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="#e2e8f0"
+          stroke="var(--sq-border, #e2e8f0)"
           strokeWidth={strokeWidth}
           fill="transparent"
         />

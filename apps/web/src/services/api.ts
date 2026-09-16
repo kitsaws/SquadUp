@@ -190,6 +190,7 @@ export interface UserProfileResponse {
     role: string;
     joinedAt: string;
   }>;
+  bannerConfig?: BannerConfig | null;
 }
 
 export interface RecommendationBreakdownItem {
@@ -571,5 +572,30 @@ export const organizersApi = {
 
   getOrganizer: (id: string): Promise<any> => {
     return request<any>(`/organizers/${id}`);
+  },
+};
+
+/* =========================================================================
+   USER PREFERENCES API (/api/preferences)
+   ========================================================================= */
+
+import type {
+  UserPreferences,
+  BannerConfig,
+  UpdateUserPreferencesRequest,
+} from "@squadup/shared";
+
+export type { UserPreferences, BannerConfig, UpdateUserPreferencesRequest };
+
+export const preferencesApi = {
+  getPreferences: (): Promise<UserPreferences> => {
+    return request<UserPreferences>("/preferences");
+  },
+
+  updatePreferences: (data: UpdateUserPreferencesRequest): Promise<UserPreferences> => {
+    return request<UserPreferences>("/preferences", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
   },
 };

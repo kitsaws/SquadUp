@@ -15,14 +15,9 @@ export function RecommendationBadge({ category, score, className = "" }: Recomme
   if (category === "BEST") {
     return (
       <span
-        style={{
-          backgroundColor: "rgba(104, 219, 169, 0.15)",
-          color: "#065f46",
-          borderColor: "var(--sq-best-fit, #68DBA9)",
-        }}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${className}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border border-best-fit bg-best-fit-light text-best-fit-dark ${className}`}
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-best-fit-dark" />
         {percentText}
       </span>
     );
@@ -31,14 +26,9 @@ export function RecommendationBadge({ category, score, className = "" }: Recomme
   if (category === "GOOD_DIFFERENT_UNIVERSITY") {
     return (
       <span
-        style={{
-          backgroundColor: "rgba(99, 102, 241, 0.12)",
-          color: "#3730a3",
-          borderColor: "var(--sq-cross-campus, #6366F1)",
-        }}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${className}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border border-cross-campus bg-cross-campus-light text-cross-campus-dark ${className}`}
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-[#6366F1]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-cross-campus" />
         {percentText}
       </span>
     );
@@ -46,14 +36,9 @@ export function RecommendationBadge({ category, score, className = "" }: Recomme
 
   return (
     <span
-      style={{
-        backgroundColor: "rgba(255, 199, 97, 0.18)",
-        color: "#92400e",
-        borderColor: "var(--sq-campus-explorer, #ffc761)",
-      }}
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border border-campus-explorer bg-campus-explorer-light text-campus-explorer-dark ${className}`}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-[#d97706]" />
+      <span className="w-1.5 h-1.5 rounded-full bg-campus-explorer-dark" />
       {percentText}
     </span>
   );

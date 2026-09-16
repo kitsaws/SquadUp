@@ -11,6 +11,7 @@ import teamRoutes from "./routes/team.routes.js";
 import eventRoutes from "./routes/event.routes.js";
 import organizerRoutes from "./routes/organizer.routes.js";
 import applicationRoutes from "./routes/application.routes.js";
+import preferencesRoutes from "./routes/preferences.routes.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
@@ -24,11 +25,13 @@ app.use(clerkMiddleware());
 // Webhook routes MUST come before express.json() so they can parse raw bodies
 app.use(["/api/webhooks", "/api/webhook"], webhookRoutes);
 
-app.use(express.json());
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 
 // API Routes
 app.use("/api/resume", resumeRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/preferences", preferencesRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/organizers", organizerRoutes);

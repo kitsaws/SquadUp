@@ -261,7 +261,7 @@ export function TeamsPage() {
               placeholder="Search by team name or required skills (e.g. React, Docker)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+              className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action focus:bg-white transition-all"
             />
           </div>
 
@@ -273,14 +273,14 @@ export function TeamsPage() {
                 setIsSortOpen(false);
               }}
               className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${activeFilterCount > 0
-                  ? "bg-blue-50 text-blue-700 border-blue-300"
+                  ? "bg-primary-light text-primary-action border-primary-border"
                   : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                 }`}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
               <span>Filter</span>
               {activeFilterCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
+                <span className="w-4 h-4 rounded-full bg-primary-action text-white text-[10px] flex items-center justify-center font-bold">
                   {activeFilterCount}
                 </span>
               )}
@@ -299,7 +299,7 @@ export function TeamsPage() {
                         setFilterCampus("ALL");
                         setFilterOpenSpotsOnly(false);
                       }}
-                      className="text-[11px] text-blue-600 hover:underline font-semibold cursor-pointer"
+                      className="text-[11px] text-primary-action hover:underline font-semibold cursor-pointer"
                     >
                       Reset
                     </button>
@@ -317,7 +317,7 @@ export function TeamsPage() {
                         type="button"
                         onClick={() => setFilterTier("ALL")}
                         className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "ALL"
-                            ? "bg-blue-50 text-blue-700 font-bold"
+                            ? "bg-primary-light text-primary-action font-bold"
                             : "text-slate-700 hover:bg-slate-100"
                           }`}
                       >
@@ -327,8 +327,8 @@ export function TeamsPage() {
                         type="button"
                         onClick={() => setFilterTier("BEST")}
                         className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "BEST"
-                            ? "bg-emerald-600 text-white"
-                            : "text-[#059669] hover:bg-[#10b981] hover:text-white"
+                            ? "bg-best-fit text-best-fit-dark font-bold"
+                            : "text-best-fit-dark hover:bg-best-fit-light"
                           }`}
                       >
                         Best Fit
@@ -337,8 +337,8 @@ export function TeamsPage() {
                         type="button"
                         onClick={() => setFilterTier("CROSS_CAMPUS")}
                         className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "CROSS_CAMPUS"
-                            ? "bg-indigo-600 text-white"
-                            : "text-[#4f46e5] hover:bg-[#6366F1] hover:text-white"
+                            ? "bg-cross-campus text-white font-bold"
+                            : "text-cross-campus-dark hover:bg-cross-campus-light"
                           }`}
                       >
                         Cross-Campus
@@ -347,8 +347,8 @@ export function TeamsPage() {
                         type="button"
                         onClick={() => setFilterTier("CAMPUS_EXPLORER")}
                         className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "CAMPUS_EXPLORER"
-                            ? "bg-amber-500 text-white"
-                            : "text-[#d97706] hover:bg-[#d97706] hover:text-white"
+                            ? "bg-campus-explorer text-white font-bold"
+                            : "text-campus-explorer-dark hover:bg-campus-explorer-light"
                           }`}
                       >
                         Same Campus
@@ -374,7 +374,7 @@ export function TeamsPage() {
                         type="button"
                         onClick={() => setFilterCampus(opt.id)}
                         className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${filterCampus === opt.id
-                            ? "bg-blue-50 text-blue-700 font-bold"
+                            ? "bg-primary-light text-primary-action font-bold"
                             : "text-slate-700 hover:bg-slate-100"
                           }`}
                       >
@@ -391,7 +391,7 @@ export function TeamsPage() {
                     type="checkbox"
                     checked={filterOpenSpotsOnly}
                     onChange={(e) => setFilterOpenSpotsOnly(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    className="w-4 h-4 rounded text-primary-action focus:ring-primary-action cursor-pointer"
                   />
                 </div>
               </div>
@@ -433,12 +433,12 @@ export function TeamsPage() {
                       setIsSortOpen(false);
                     }}
                     className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${sortBy === opt.id
-                        ? "bg-blue-50 text-blue-700 font-bold"
+                        ? "bg-primary-light text-primary-action font-bold"
                         : "text-slate-700 hover:bg-slate-50"
                       }`}
                   >
                     <span>{opt.label}</span>
-                    {sortBy === opt.id && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                    {sortBy === opt.id && <Check className="w-3.5 h-3.5 text-primary-action" />}
                   </button>
                 ))}
               </div>
@@ -466,7 +466,7 @@ export function TeamsPage() {
               <span>Select a squad to inspect:</span>
               <button
                 onClick={() => setInspectedTeam(null)}
-                className="text-blue-600 font-bold hover:underline cursor-pointer"
+                className="text-primary-action font-bold hover:underline cursor-pointer"
               >
                 Close Preview
               </button>
@@ -475,7 +475,7 @@ export function TeamsPage() {
 
           {isLoading ? (
             <div className="py-20 flex flex-col items-center justify-center space-y-3">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+              <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
               <p className="text-xs font-semibold text-slate-500">Loading squads & teams...</p>
             </div>
           ) : (
@@ -549,7 +549,7 @@ export function TeamsPage() {
                       General Squad
                     </span>
                   )}
-                  <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-semibold text-primary-action bg-primary-light border border-primary-border px-2 py-0.5 rounded-full">
                     {inspectedTeam.eventTitle}
                   </span>
                 </div>
@@ -559,7 +559,7 @@ export function TeamsPage() {
                 </h2>
 
                 <p className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
-                  <Shield className="w-3.5 h-3.5 text-blue-600" />
+                  <Shield className="w-3.5 h-3.5 text-primary-action" />
                   {inspectedTeam.university}
                 </p>
               </div>
@@ -587,19 +587,19 @@ export function TeamsPage() {
             {isSignedIn ? (
               <div
                 className={`p-3.5 rounded-xl border space-y-3 ${inspectedTeam.category === "BEST"
-                    ? "bg-emerald-50/60 border-emerald-200/90"
+                    ? "bg-best-fit-light border-best-fit"
                     : inspectedTeam.category === "GOOD_DIFFERENT_UNIVERSITY"
-                      ? "bg-indigo-50/60 border-indigo-200/90"
+                      ? "bg-cross-campus-light border-cross-campus"
                       : inspectedTeam.category === "SAME_UNIVERSITY_LOWER_SCORE"
-                        ? "bg-amber-50/60 border-amber-200/90"
-                        : "bg-slate-50 border-slate-200/80"
+                        ? "bg-campus-explorer-light border-campus-explorer"
+                        : "bg-surface-dim border-surface-border"
                   }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                     {inspectedTeam.category ? (
                       <>
-                        <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Skill Compatibility Fit
+                        <Sparkles className="w-3.5 h-3.5 text-primary-action" /> Skill Compatibility Fit
                       </>
                     ) : (
                       <>
@@ -734,7 +734,7 @@ export function TeamsPage() {
               ) : inspectedTeam.isUserLeader ? (
                 <Link
                   to={`/team/${inspectedTeam.id}`}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
                 >
                   <Crown className="w-4 h-4" /> Manage Applications & Roster →
                 </Link>
@@ -745,7 +745,7 @@ export function TeamsPage() {
               ) : !isSignedIn ? (
                 <>
                   <SignInButton mode="modal">
-                    <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer">
+                    <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer">
                       Sign In to Apply <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </SignInButton>
@@ -761,7 +761,7 @@ export function TeamsPage() {
                 <>
                   <button
                     onClick={() => setIsApplyModalOpen(true)}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
                   >
                     Request to Join Squad <ArrowRight className="w-3.5 h-3.5" />
                   </button>
@@ -793,7 +793,7 @@ export function TeamsPage() {
               setFilterCampus("ALL");
               setFilterOpenSpotsOnly(false);
             }}
-            className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+            className="text-xs font-bold text-primary-action hover:underline cursor-pointer"
           >
             Clear all filters
           </button>

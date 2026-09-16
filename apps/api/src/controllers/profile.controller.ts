@@ -28,6 +28,7 @@ export const getProfile = async (req: Request, res: Response) => {
       include: {
         profile: true,
         taxonomy: true,
+        preferences: true,
         teams: {
           include: {
             team: {
@@ -75,6 +76,7 @@ export const getProfile = async (req: Request, res: Response) => {
         role: tm.role,
         joinedAt: tm.joinedAt.toISOString(),
       })),
+      bannerConfig: userWithProfile.preferences?.bannerConfig || null,
       createdAt: userWithProfile.createdAt.toISOString(),
       updatedAt: userWithProfile.updatedAt.toISOString(),
     });
@@ -233,6 +235,7 @@ export const getProfileById = async (req: Request, res: Response) => {
       include: {
         profile: true,
         taxonomy: true,
+        preferences: true,
       },
     });
 
@@ -259,6 +262,7 @@ export const getProfileById = async (req: Request, res: Response) => {
       hasResume: Boolean(profile?.resumePdfPath),
       resumeViewUrl: profile?.resumePdfPath ? `/api/resume/view/${user.id}` : null,
       taxonomyNodeIds: user.taxonomy?.taxonomyNodeIds || [],
+      bannerConfig: user.preferences?.bannerConfig || null,
     });
   } catch (error) {
     console.error("[Profile API] Error fetching public profile:", error);

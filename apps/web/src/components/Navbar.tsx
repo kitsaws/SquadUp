@@ -131,11 +131,11 @@ export function Navbar() {
           {/* Left: Brand & Navigation */}
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-xs group-hover:bg-blue-700 transition-colors font-heading">
+              <div className="w-8 h-8 rounded-lg bg-primary-action text-white flex items-center justify-center font-bold text-lg shadow-xs group-hover:bg-primary-hover transition-colors font-heading">
                 S
               </div>
               <span className="text-xl font-bold tracking-tight text-slate-900 font-heading">
-                Squad<span className="text-blue-600">Up</span>
+                Squad<span className="text-primary-action">Up</span>
               </span>
             </Link>
 
@@ -156,7 +156,7 @@ export function Navbar() {
                     to={link.path}
                     className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors relative flex items-center gap-1.5 ${
                       isActive
-                        ? "text-blue-600 font-bold"
+                        ? "text-primary-action font-bold"
                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                     }`}
                   >
@@ -170,7 +170,7 @@ export function Navbar() {
 
               {/* Sliding Bottom Active Indicator Bar */}
               <span
-                className="absolute bottom-0 h-[3px] bg-blue-600 rounded-t-full transition-all duration-300 ease-out pointer-events-none"
+                className="absolute bottom-0 h-[3px] bg-primary-action rounded-t-full transition-all duration-300 ease-out pointer-events-none"
                 style={{
                   left: `${indicatorStyle.left}px`,
                   width: `${indicatorStyle.width}px`,
@@ -206,7 +206,7 @@ export function Navbar() {
                   >
                     <Bell className="w-4 h-4" />
                     {unreadCount > 0 && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" />
+                       <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary-action ring-2 ring-white" />
                     )}
                   </button>
 
@@ -219,7 +219,7 @@ export function Navbar() {
                             Notifications
                           </h4>
                           {unreadCount > 0 && (
-                            <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold">
+                            <span className="px-1.5 py-0.2 rounded-full bg-primary-light text-primary-action text-[10px] font-bold">
                               {unreadCount} new
                             </span>
                           )}
@@ -227,7 +227,7 @@ export function Navbar() {
                         {unreadCount > 0 && (
                           <button
                             onClick={markAllAsRead}
-                            className="text-[11px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                            className="text-[11px] font-semibold text-primary-action hover:underline cursor-pointer"
                           >
                             Mark all as read
                           </button>
@@ -246,11 +246,11 @@ export function Navbar() {
                             }}
                             className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
                               item.unread
-                                ? "bg-blue-50/40 border-blue-100 hover:bg-blue-50/70"
+                                ? "bg-primary-light/40 border-primary-border/70 hover:bg-primary-light/70"
                                 : "bg-slate-50/50 border-slate-200/70 hover:bg-slate-100"
                             }`}
                           >
-                            <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-blue-600 shrink-0 mt-0.5 shadow-2xs">
+                            <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-primary-action shrink-0 mt-0.5 shadow-2xs">
                               {item.type === "application" ? (
                                 <Users className="w-3.5 h-3.5" />
                               ) : (
@@ -279,7 +279,7 @@ export function Navbar() {
                         <Link
                           to="/teams?id=t-neurovision"
                           onClick={() => setIsNotificationsOpen(false)}
-                          className="text-xs font-bold text-blue-600 hover:underline"
+                          className="text-xs font-bold text-primary-action hover:underline"
                         >
                           Manage Squad Applications →
                         </Link>
@@ -291,7 +291,7 @@ export function Navbar() {
                 {/* User Profile Avatar (Navigates directly to /profile) */}
                 <button
                   onClick={() => navigate("/profile")}
-                  className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-blue-500/30 transition-all cursor-pointer group"
+                  className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-primary-action/30 transition-all cursor-pointer group"
                   title="View your SquadUp Profile"
                 >
                   {user?.imageUrl ? (
@@ -301,7 +301,7 @@ export function Navbar() {
                       className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-2xs"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold font-heading shadow-2xs group-hover:bg-blue-600 transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold font-heading shadow-2xs group-hover:bg-primary-action transition-colors">
                       {user?.firstName ? user.firstName[0] : "S"}
                     </div>
                   )}
@@ -315,7 +315,7 @@ export function Navbar() {
                   </button>
                 </SignInButton>
                 <SignUpButton mode="modal">
-                  <button className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-xs cursor-pointer">
+                  <button className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-primary-action hover:bg-primary-hover transition-colors shadow-xs cursor-pointer">
                     Sign Up
                   </button>
                 </SignUpButton>

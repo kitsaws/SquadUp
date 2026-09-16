@@ -60,7 +60,7 @@ export function EventCard({ event, onSelect, isSelected = false }: EventCardProp
       onClick={() => onSelect?.(event)}
       className={`bg-white rounded-xl border p-6 transition-all duration-200 cursor-pointer flex flex-col justify-between ${
         isSelected
-          ? "border-blue-600 ring-2 ring-blue-600/20 shadow-md"
+          ? "border-primary-action ring-2 ring-primary-action/20 shadow-md"
           : "border-slate-200 hover:border-slate-300 hover:shadow-md"
       }`}
     >
@@ -68,7 +68,7 @@ export function EventCard({ event, onSelect, isSelected = false }: EventCardProp
         {/* Top Meta Bar */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-xs font-heading">
+            <div className="w-6 h-6 rounded-md bg-primary-light text-primary-action flex items-center justify-center font-bold text-xs font-heading">
               {event.organizerLogo ? (
                 <img src={event.organizerLogo} alt="" className="w-full h-full rounded-md object-cover" />
               ) : (
@@ -90,7 +90,7 @@ export function EventCard({ event, onSelect, isSelected = false }: EventCardProp
         </div>
 
         {/* Title */}
-        <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors mb-1.5 font-heading">
+        <h3 className="text-lg font-bold text-slate-900 group-hover:text-primary-action transition-colors mb-1.5 font-heading">
           {event.title}
         </h3>
 
@@ -137,7 +137,7 @@ export function EventCard({ event, onSelect, isSelected = false }: EventCardProp
           <span>{event.participantsCount} hackers</span>
         </div>
 
-        <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors">
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-action hover:text-primary-hover transition-colors">
           View Event <ArrowRight className="w-3 h-3" />
         </span>
       </div>

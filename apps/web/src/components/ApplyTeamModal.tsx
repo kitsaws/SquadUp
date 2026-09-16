@@ -60,7 +60,7 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
         {/* Modal Header */}
         <div className="p-6 border-b border-slate-100 flex items-start justify-between">
           <div>
-            <span className="text-xs font-bold text-blue-600 uppercase tracking-wider block">
+            <span className="text-xs font-bold text-primary-action uppercase tracking-wider block">
               Join Request
             </span>
             <h3 className="text-xl font-bold text-slate-900 font-heading">
@@ -115,7 +115,7 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
                   onClick={() => setSelectedRole(role)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                     selectedRole === role
-                      ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                      ? "bg-primary-action text-white border-primary-action shadow-xs"
                       : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                   }`}
                 >
@@ -141,7 +141,7 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Introduce yourself, explain what you want to build, and highlight relevant projects..."
-              className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-3 outline-hidden focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 font-sans leading-relaxed"
+              className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-3 outline-hidden focus:border-primary-action focus:ring-2 focus:ring-primary-action/10 font-sans leading-relaxed"
             />
           </div>
 
@@ -158,7 +158,7 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-xs font-bold text-white bg-primary-action hover:bg-primary-hover transition-colors shadow-xs cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? (
                 <span>Submitting...</span>

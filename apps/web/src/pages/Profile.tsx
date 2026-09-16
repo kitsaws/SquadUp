@@ -29,13 +29,16 @@ import {
   Mail,
   Copy,
   Check,
+  Sliders,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { SkillTag } from "../components/Badges";
 import { EditProfileModal, BannerConfig } from "../components/EditProfileModal";
+import { UserPreferencesModal } from "../components/UserPreferencesModal";
 import { usePalette } from "../contexts/PaletteContext";
 import {
   profileApi,
+  preferencesApi,
   applicationsApi,
   UserProfileResponse,
   CandidateApplicationItem,
@@ -93,17 +96,29 @@ export function Profile() {
   const [error, setError] = useState<string | null>(null);
   const [copiedEmail, setCopiedEmail] = useState<boolean>(false);
 
-  // Edit Profile & Collapsible States
+  // Edit Profile, Preferences & Collapsible States
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [showPreferencesModal, setShowPreferencesModal] = useState<boolean>(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
   const [editModalInitialView, setEditModalInitialView] = useState<"choose" | "manual" | "banner">("choose");
-  const [isSkillsExpanded, setIsSkillsExpanded] = useState<boolean>(true);
+  const [isSkillsExpanded, setIsSkillsExpanded] = useState<boolean>(false);
   const [expandedExp, setExpandedExp] = useState<Record<number, boolean>>({});
   const [expandedProjects, setExpandedProjects] = useState<Record<number, boolean>>({});
   const [bannerConfig, setBannerConfig] = useState<BannerConfig | null>(null);
 
-  // Load custom banner preference from localStorage
+  // Load custom banner preference from profile object, database preferences, or local storage
   useEffect(() => {
-    if (profile?.userId) {
+    if (profile?.bannerConfig) {
+      setBannerConfig(profile.bannerConfig);
+      if (profile.bannerConfig.syncTheme) {
+        const activeColor =
+          profile.bannerConfig.type === "gradient" && profile.bannerConfig.gradient
+            ? profile.bannerConfig.gradient.color2 || profile.bannerConfig.gradient.color1
+            : "#ec4899";
+        updateToken("primaryAction", activeColor);
+      }
+    } else if (profile?.userId) {
+      // 1. Instant optimistic load from localStorage
       try {
         const saved = localStorage.getItem(`squadup_banner_${profile.userId}`);
         if (saved) {
@@ -118,10 +133,29 @@ export function Profile() {
           }
         }
       } catch (err) {
-        console.warn("[Profile] Failed to load banner config:", err);
+        console.warn("[Profile] Failed to load banner config from localStorage:", err);
       }
+
+      // 2. Fetch latest preferences from PostgreSQL
+      preferencesApi
+        .getPreferences()
+        .then((prefs) => {
+          if (prefs?.bannerConfig) {
+            setBannerConfig(prefs.bannerConfig);
+            if (prefs.bannerConfig.syncTheme) {
+              const activeColor =
+                prefs.bannerConfig.type === "gradient" && prefs.bannerConfig.gradient
+                  ? prefs.bannerConfig.gradient.color2 || prefs.bannerConfig.gradient.color1
+                  : prefs.primaryColor || "#ec4899";
+              updateToken("primaryAction", activeColor);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("[Profile] Failed to load preferences from API:", err);
+        });
     }
-  }, [profile?.userId]);
+  }, [profile?.userId, profile?.bannerConfig]);
 
   // Auto-refresh profile when background resume parsing completes
   const prevUploadingRef = useRef(isUploading);
@@ -184,7 +218,7 @@ export function Profile() {
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center justify-center space-y-3">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
         <p className="text-sm font-semibold text-slate-600">Loading profile...</p>
       </div>
     );
@@ -193,7 +227,7 @@ export function Profile() {
   if (error || !profile) {
     return (
       <div className="max-w-md mx-auto my-20 bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-4 shadow-sm">
-        <AlertCircle className="w-12 h-12 text-blue-500 mx-auto" />
+        <AlertCircle className="w-12 h-12 text-primary-action mx-auto" />
         <h2 className="text-xl font-bold text-slate-900 font-heading">
           {candidateId ? "Profile Not Found" : "Authentication Required"}
         </h2>
@@ -205,7 +239,7 @@ export function Profile() {
         <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
           {!candidateId && (
             <SignInButton mode="modal">
-              <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer">
+              <button className="inline-flex items-center gap-2 px-4 py-2 bg-primary-action hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-colors cursor-pointer">
                 Sign In to View Profile
               </button>
             </SignInButton>
@@ -287,21 +321,21 @@ export function Profile() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-in fade-in duration-200">
       {/* Uploading Status Banner / Spinner */}
       {isUploading && (
-        <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border-2 border-blue-300 p-5 rounded-2xl flex items-center gap-4 shadow-sm animate-pulse">
+        <div className="bg-gradient-to-r from-primary-light via-slate-50 to-primary-light border-2 border-primary-border p-5 rounded-2xl flex items-center gap-4 shadow-sm animate-pulse">
           <div className="relative shrink-0">
-            <div className="w-10 h-10 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-            <Sparkles className="w-4 h-4 text-blue-600 absolute inset-0 m-auto" />
+            <div className="w-10 h-10 border-3 border-primary-border border-t-primary-action rounded-full animate-spin" />
+            <Sparkles className="w-4 h-4 text-primary-action absolute inset-0 m-auto" />
           </div>
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-600 text-white">
+              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary-action text-white">
                 AI Ingestion Active
               </span>
               <h3 className="text-sm font-bold text-slate-900 font-heading">
                 Building Your Profile...
               </h3>
             </div>
-            <p className="text-xs text-blue-900/80">
+            <p className="text-xs text-text-main/80">
               {status || "Extracting skills, projects, and work experience from your resume..."}
             </p>
             <p className="text-[11px] text-slate-500">
@@ -375,7 +409,7 @@ export function Profile() {
                       className="w-full h-full object-cover rounded-xl"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-tr from-blue-600 to-indigo-700 text-white flex items-center justify-center text-3xl font-black font-heading rounded-xl">
+                    <div className="w-full h-full bg-gradient-to-tr from-primary-action to-cross-campus text-white flex items-center justify-center text-3xl font-black font-heading rounded-xl">
                       {displayName[0]?.toUpperCase() || "U"}
                     </div>
                   )}
@@ -400,7 +434,7 @@ export function Profile() {
               {/* Affiliation & Resume links */}
               <div className="space-y-1.5 text-xs text-slate-500 pt-1 border-t border-slate-100">
                 <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
-                  <Building className="w-3.5 h-3.5 text-blue-600" />
+                  <Building className="w-3.5 h-3.5 text-primary-action" />
                   <span>{displayUniversity}</span>
                 </div>
                 {educationList[0] && (
@@ -417,7 +451,7 @@ export function Profile() {
                       className="inline-flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-colors group cursor-pointer text-left py-0.5 rounded"
                       title="Click to copy email address"
                     >
-                      <Mail className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 transition-colors shrink-0" />
+                      <Mail className="w-3.5 h-3.5 text-slate-400 group-hover:text-primary-action transition-colors shrink-0" />
                       <span className="group-hover:underline">{displayEmail}</span>
                       {copiedEmail ? (
                         <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 animate-in fade-in duration-150">
@@ -466,7 +500,7 @@ export function Profile() {
                       href={resumeUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-blue-600 font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
+                      className="text-primary-action font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
                     >
                       <FileText className="w-3.5 h-3.5" /> View Resume PDF <ArrowUpRight className="w-3 h-3" />
                     </a>
@@ -495,21 +529,29 @@ export function Profile() {
                         setEditModalInitialView("choose");
                         setShowEditModal(true);
                       }}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-primary-action hover:bg-primary-hover shadow-xs transition-colors cursor-pointer"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                       <span>Edit Profile</span>
                     </button>
-                  </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreferencesModal(true)}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-primary-action" />
+                      <span>Preferences & Settings</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => signOut({ redirectUrl: "/" })}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50/70 hover:bg-rose-100 hover:text-rose-800 border border-rose-200/60 transition-colors cursor-pointer"
-                  >
-                    <LogOut className="w-3.5 h-3.5 text-rose-600" />
-                    <span>Log Out</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowLogoutConfirm(true)}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50/70 hover:bg-rose-100 hover:text-rose-800 border border-rose-200/60 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Log Out</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -556,7 +598,7 @@ export function Profile() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-black text-slate-900 font-heading flex items-center gap-2">
-                  <Users className="w-5 h-5 text-blue-600" /> {isCandidateView ? "Active Squads" : "My Squads"}
+                  <Users className="w-5 h-5 text-primary-action" /> {isCandidateView ? "Active Squads" : "My Squads"}
                 </h2>
                 <p className="text-xs text-slate-500">
                   {isCandidateView
@@ -567,7 +609,7 @@ export function Profile() {
 
               <Link
                 to="/teams"
-                className="text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1"
+                className="text-xs font-bold text-primary-action hover:underline inline-flex items-center gap-1"
               >
                 Explore More Squads <ArrowRight className="w-3.5 h-3.5" />
               </Link>
@@ -581,7 +623,7 @@ export function Profile() {
                   key={squad.teamId}
                   className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3 ${
                     squad.role === "Leader"
-                      ? "bg-blue-50/30 border-blue-200 hover:border-blue-300"
+                      ? "bg-primary-light/30 border-primary-border hover:border-primary-action/40"
                       : "bg-slate-50/50 border-slate-200 hover:border-slate-300"
                   }`}
                 >
@@ -589,8 +631,8 @@ export function Profile() {
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         {squad.role === "Leader" ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 flex items-center gap-1">
-                            <Crown className="w-3 h-3 text-blue-600" /> Squad Leader
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-light text-primary-action flex items-center gap-1">
+                            <Crown className="w-3 h-3 text-primary-action" /> Squad Leader
                           </span>
                         ) : (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
@@ -624,7 +666,7 @@ export function Profile() {
                       to={`/team/${squad.teamId}`}
                       className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition-colors shadow-2xs cursor-pointer ${
                         squad.role === "Leader"
-                          ? "text-white bg-blue-600 hover:bg-blue-700"
+                          ? "text-white bg-primary-action hover:bg-primary-hover"
                           : "text-slate-700 bg-white hover:bg-slate-100 border border-slate-200"
                       }`}
                     >
@@ -681,7 +723,7 @@ export function Profile() {
                   <p className="text-[11px] text-slate-400">Join an existing squad for an upcoming hackathon or recruit teammates.</p>
                   <Link
                     to="/teams"
-                    className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline pt-1"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-primary-action hover:underline pt-1"
                   >
                     Find Squads to Join →
                   </Link>
@@ -697,8 +739,8 @@ export function Profile() {
               onClick={() => setIsSkillsExpanded(!isSkillsExpanded)}
               className="w-full flex items-center justify-between text-left cursor-pointer group"
             >
-              <h3 className="text-sm font-black text-slate-900 font-heading uppercase tracking-wider flex items-center gap-1.5 group-hover:text-blue-600 transition-colors">
-                <Sparkles className="w-4 h-4 text-blue-600" /> Skills
+              <h3 className="text-sm font-black text-slate-900 font-heading uppercase tracking-wider flex items-center gap-1.5 group-hover:text-primary-action transition-colors">
+                <Sparkles className="w-4 h-4 text-primary-action" /> Skills
               </h3>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-400 font-medium">
@@ -760,7 +802,7 @@ export function Profile() {
                       >
                         <div className="space-y-0.5 truncate">
                           <h4 className="text-sm font-bold text-slate-900 truncate">
-                            {exp.role} <span className="text-blue-600 font-semibold">@ {exp.company}</span>
+                            {exp.role} <span className="text-primary-action font-semibold">@ {exp.company}</span>
                           </h4>
                           <span className="text-xs text-slate-400 font-medium block">
                             {exp.duration}
@@ -875,7 +917,7 @@ export function Profile() {
                               {proj.technologies.map((tech: string, k: number) => (
                                 <span
                                   key={k}
-                                  className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200"
+                                  className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-primary-light text-primary-action border border-primary-border"
                                 >
                                   {tech}
                                 </span>
@@ -910,6 +952,62 @@ export function Profile() {
             setBannerConfig(newBanner);
           }}
         />
+      )}
+
+      {/* User Preferences Modal */}
+      {!isCandidateView && (
+        <UserPreferencesModal
+          isOpen={showPreferencesModal}
+          onClose={() => setShowPreferencesModal(false)}
+          onPreferencesUpdated={(updatedPrefs) => {
+            if (updatedPrefs.bannerConfig) {
+              setBannerConfig(updatedPrefs.bannerConfig);
+            }
+          }}
+        />
+      )}
+
+      {/* Sign Out Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 w-full max-w-sm space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+                <LogOut className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 font-heading">
+                  Confirm Sign Out
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Are you sure you want to log out?
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              You will need to sign back in with your university or Clerk account to manage your squads and applications.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => signOut({ redirectUrl: "/" })}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-xs transition-colors cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Yes, Log Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

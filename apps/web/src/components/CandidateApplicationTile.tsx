@@ -70,7 +70,7 @@ export function CandidateApplicationTile({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-0.5">
-              <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-0.2 rounded-md">
+              <span className="font-semibold text-primary-action bg-primary-light px-2 py-0.2 rounded-md">
                 {application.appliedRole}
               </span>
               <span>• Applied {application.appliedTimeAgo}</span>
@@ -80,14 +80,13 @@ export function CandidateApplicationTile({
 
         {/* Right: Badges & Expand Affordance */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Match Score Badge (uses #68DBA9 mint styling if high) */}
+          {/* Match Score Badge */}
           <span
-            style={{
-              backgroundColor: percentScore >= 80 ? "rgba(104, 219, 169, 0.15)" : "#f1f5f9",
-              color: percentScore >= 80 ? "#065f46" : "#475569",
-              borderColor: percentScore >= 80 ? "var(--sq-best-fit, #68DBA9)" : "#e2e8f0",
-            }}
-            className="text-xs font-bold px-2.5 py-0.5 rounded-full border"
+            className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+              percentScore >= 80
+                ? "bg-best-fit-light text-best-fit-dark border-best-fit"
+                : "bg-surface-dim text-text-muted border-surface-border"
+            }`}
           >
             {percentScore}% Match
           </span>
@@ -95,7 +94,7 @@ export function CandidateApplicationTile({
           {/* Campus Match Badge */}
           {application.isCampusMatch && (
             <span className="hidden md:inline-flex items-center gap-1 text-xs font-medium text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-              <Building className="w-3 h-3 text-emerald-600" /> Campus Match
+              <Building className="w-3.5 h-3.5 text-emerald-600" /> Campus Match
             </span>
           )}
 
@@ -129,7 +128,7 @@ export function CandidateApplicationTile({
               {/* Profile Link Button as requested */}
               <Link
                 to={`/profile/${application.candidateId}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-primary-action bg-primary-light border border-primary-border hover:bg-primary-light/80 transition-colors cursor-pointer"
               >
                 <span>View Full Profile</span>
                 <ExternalLink className="w-3 h-3" />

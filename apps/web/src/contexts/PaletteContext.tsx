@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { preferencesApi } from "../services/api";
 
 export interface PaletteTokens {
   primaryAction: string;
@@ -73,11 +74,26 @@ interface PaletteContextType {
 const PaletteContext = createContext<PaletteContextType | undefined>(undefined);
 
 export function PaletteProvider({ children }: { children: React.ReactNode }) {
-  const [palette, setPalette] = useState<PaletteTokens>(DEFAULT_PALETTE);
+  const [palette, setPalette] = useState<PaletteTokens>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("squadup_active_palette");
+        if (cached) {
+          return { ...DEFAULT_PALETTE, ...JSON.parse(cached) };
+        }
+      } catch {
+        // fallback to default
+      }
+    }
+    return DEFAULT_PALETTE;
+  });
 
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty("--sq-primary-action", palette.primaryAction);
+    root.style.setProperty("--sq-primary-hover", `color-mix(in srgb, ${palette.primaryAction} 85%, black)`);
+    root.style.setProperty("--sq-primary-light", `color-mix(in srgb, ${palette.primaryAction} 10%, transparent)`);
+    root.style.setProperty("--sq-primary-border", `color-mix(in srgb, ${palette.primaryAction} 30%, transparent)`);
     root.style.setProperty("--sq-best-fit", palette.bestFit);
     root.style.setProperty("--sq-cross-campus", palette.crossCampus);
     root.style.setProperty("--sq-campus-explorer", palette.campusExplorer);
@@ -86,7 +102,32 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty("--sq-text-primary", palette.textPrimary);
     root.style.setProperty("--sq-text-muted", palette.textMuted);
     root.style.setProperty("--sq-border", palette.border);
+
+    try {
+      localStorage.setItem("squadup_active_palette", JSON.stringify(palette));
+    } catch {
+      // ignore
+    }
   }, [palette]);
+
+  // Load preferences from API on startup if user is logged in
+  useEffect(() => {
+    preferencesApi
+      .getPreferences()
+      .then((prefs) => {
+        if (prefs) {
+          if (prefs.palettePreset && PALETTE_PRESETS[prefs.palettePreset]) {
+            setPalette((prev) => ({ ...prev, ...PALETTE_PRESETS[prefs.palettePreset] }));
+          }
+          if (prefs.primaryColor) {
+            setPalette((prev) => ({ ...prev, primaryAction: prefs.primaryColor! }));
+          }
+        }
+      })
+      .catch(() => {
+        // Not authenticated or guest; ignore silently
+      });
+  }, []);
 
   const updateToken = (key: keyof PaletteTokens, value: string) => {
     setPalette((prev) => ({ ...prev, [key]: value }));
@@ -95,6 +136,14 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
   const loadPreset = (name: string) => {
     if (PALETTE_PRESETS[name]) {
       setPalette(PALETTE_PRESETS[name]);
+      return;
+    }
+    const lower = name.toLowerCase();
+    const found = Object.keys(PALETTE_PRESETS).find(
+      (k) => k.toLowerCase().includes(lower) || lower.includes(k.toLowerCase())
+    );
+    if (found) {
+      setPalette(PALETTE_PRESETS[found]);
     }
   };
 

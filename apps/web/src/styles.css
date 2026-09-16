@@ -4,29 +4,58 @@
   --font-heading: "Plus Jakarta Sans", system-ui, sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
   
-  --color-canvas: #f8fafc;
-  --color-surface: #ffffff;
-  --color-surface-dim: #f1f5f9;
-  --color-surface-border: #e2e8f0;
-  --color-text-main: #0f172a;
-  --color-text-muted: #64748b;
+  /* Primary Action & Brand */
+  --color-primary-action: var(--sq-primary-action, #2563eb);
+  --color-primary-hover: var(--sq-primary-hover, #1d4ed8);
+  --color-primary-light: var(--sq-primary-light, #eff6ff);
+  --color-primary-border: var(--sq-primary-border, #bfdbfe);
   
-  --color-primary-action: #2563eb;
-  --color-primary-hover: #1d4ed8;
-
   /* Recommendation Tiers */
-  --color-best-fit: #68DBA9;
-  --color-cross-campus: #6366F1;
-  --color-campus-explorer: #ffc761;
+  --color-best-fit: var(--sq-best-fit, #68DBA9);
+  --color-best-fit-dark: var(--sq-best-fit-dark, #059669);
+  --color-best-fit-light: var(--sq-best-fit-light, rgba(104, 219, 169, 0.15));
+
+  --color-cross-campus: var(--sq-cross-campus, #6366F1);
+  --color-cross-campus-dark: var(--sq-cross-campus-dark, #4f46e5);
+  --color-cross-campus-light: var(--sq-cross-campus-light, rgba(99, 102, 241, 0.12));
+
+  --color-campus-explorer: var(--sq-campus-explorer, #ffc761);
+  --color-campus-explorer-dark: var(--sq-campus-explorer-dark, #d97706);
+  --color-campus-explorer-light: var(--sq-campus-explorer-light, rgba(255, 199, 97, 0.18));
+
+  /* UI Foundations */
+  --color-canvas: var(--sq-canvas, #f8fafc);
+  --color-surface: var(--sq-surface, #ffffff);
+  --color-surface-dim: var(--sq-surface-dim, #f1f5f9);
+  --color-surface-border: var(--sq-border, #e2e8f0);
+  --color-border-main: var(--sq-border, #e2e8f0);
+  
+  /* Typography */
+  --color-text-main: var(--sq-text-primary, #0f172a);
+  --color-text-muted: var(--sq-text-muted, #64748b);
 }
 
 :root {
   --sq-primary-action: #2563eb;
+  --sq-primary-hover: #1d4ed8;
+  --sq-primary-light: #eff6ff;
+  --sq-primary-border: #bfdbfe;
+
   --sq-best-fit: #68DBA9;
+  --sq-best-fit-dark: #059669;
+  --sq-best-fit-light: rgba(104, 219, 169, 0.15);
+
   --sq-cross-campus: #6366F1;
+  --sq-cross-campus-dark: #4f46e5;
+  --sq-cross-campus-light: rgba(99, 102, 241, 0.12);
+
   --sq-campus-explorer: #ffc761;
+  --sq-campus-explorer-dark: #d97706;
+  --sq-campus-explorer-light: rgba(255, 199, 97, 0.18);
+
   --sq-canvas: #f8fafc;
   --sq-surface: #ffffff;
+  --sq-surface-dim: #f1f5f9;
   --sq-text-primary: #0f172a;
   --sq-text-muted: #64748b;
   --sq-border: #e2e8f0;

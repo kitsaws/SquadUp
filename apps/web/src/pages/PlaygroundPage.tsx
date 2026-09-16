@@ -131,7 +131,7 @@ export function PlaygroundPage() {
       <div className="bg-white border-b border-slate-200 sticky top-[73px] z-20 px-4 sm:px-8 py-3.5 shadow-2xs">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+            <div className="w-8 h-8 rounded-lg bg-primary-light border border-primary-border flex items-center justify-center text-primary-action">
               <Sliders className="w-4 h-4" />
             </div>
             <div>
@@ -154,7 +154,7 @@ export function PlaygroundPage() {
 
             <button
               onClick={() => setIsExportModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-primary-action hover:bg-primary-hover shadow-xs transition-colors cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" /> Finalize & Export Palette
             </button>
@@ -168,7 +168,7 @@ export function PlaygroundPage() {
         <aside className="lg:col-span-1 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-6 lg:sticky lg:top-[140px]">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-              <Palette className="w-4 h-4 text-blue-600" /> Palette Customizer
+              <Palette className="w-4 h-4 text-primary-action" /> Palette Customizer
             </h2>
           </div>
 
@@ -182,7 +182,7 @@ export function PlaygroundPage() {
                 <button
                   key={presetKey}
                   onClick={() => loadPreset(presetKey)}
-                  className="text-left text-xs font-medium px-3 py-2 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-700 border border-slate-200/80 transition-colors cursor-pointer flex items-center justify-between"
+                  className="text-left text-xs font-medium px-3 py-2 rounded-xl bg-slate-50 hover:bg-primary-light hover:text-primary-action border border-slate-200/80 transition-colors cursor-pointer flex items-center justify-between"
                 >
                   <span>{presetKey}</span>
                   <div className="flex items-center gap-1">
@@ -332,7 +332,7 @@ export function PlaygroundPage() {
           <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="space-y-1 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-primary-light text-primary-action border border-primary-border">
                   Level 1 • Atoms
                 </span>
                 <h2 className="text-lg font-bold text-slate-900 font-heading">
@@ -396,7 +396,7 @@ export function PlaygroundPage() {
           <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="space-y-1 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-primary-light text-primary-action border border-primary-border">
                   Level 2 • Telemetry
                 </span>
                 <h2 className="text-lg font-bold text-slate-900 font-heading">
@@ -439,7 +439,7 @@ export function PlaygroundPage() {
           <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="space-y-1 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-primary-light text-primary-action border border-primary-border">
                   Level 3 • Core Tiles
                 </span>
                 <h2 className="text-lg font-bold text-slate-900 font-heading">
@@ -476,7 +476,7 @@ export function PlaygroundPage() {
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                   Candidate Application Tile (Collapsed by Default — Click to Expand)
                 </h3>
-                <span className="text-[11px] text-blue-600 font-semibold">
+                <span className="text-[11px] text-primary-action font-semibold">
                   Interactive Component
                 </span>
               </div>
@@ -504,7 +504,7 @@ export function PlaygroundPage() {
           <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="space-y-1 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-primary-light text-primary-action border border-primary-border">
                   Level 4 • Complex Composites
                 </span>
                 <h2 className="text-lg font-bold text-slate-900 font-heading">

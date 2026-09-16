@@ -17,7 +17,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isLoaded) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-primary-action border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -30,7 +30,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 export function App() {
   return (
     <PaletteProvider>
-      <div className="min-h-screen flex flex-col font-sans transition-colors duration-200" style={{ backgroundColor: "var(--sq-canvas)" }}>
+      <div className="min-h-screen flex flex-col font-sans transition-colors duration-200 bg-canvas text-text-main">
         {/* Clean, uncluttered global navigation bar */}
         <Navbar />
 

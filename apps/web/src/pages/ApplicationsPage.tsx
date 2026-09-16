@@ -165,7 +165,7 @@ export function ApplicationsPage() {
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center justify-center space-y-3">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
         <p className="text-sm font-semibold text-slate-600">Loading squad applications...</p>
       </div>
     );
@@ -186,7 +186,7 @@ export function ApplicationsPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary-light text-primary-action border border-primary-border">
                 Application Center
               </span>
               <span className="text-xs text-slate-400">• Real-Time Roster Management</span>
@@ -214,7 +214,7 @@ export function ApplicationsPage() {
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
             <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
               <span>Incoming Candidates</span>
-              <Users className="w-4 h-4 text-blue-600" />
+              <Users className="w-4 h-4 text-primary-action" />
             </div>
             <div className="text-xl font-black text-slate-900 font-heading">
               {incomingApplications.length} Submissions
@@ -258,7 +258,7 @@ export function ApplicationsPage() {
           onClick={() => setActiveTab("INCOMING")}
           className={`px-4 py-2 text-sm font-bold border-b-2 -mb-2 transition-all cursor-pointer flex items-center gap-2 ${
             activeTab === "INCOMING"
-              ? "border-blue-600 text-blue-600"
+              ? "border-primary-action text-primary-action"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
@@ -273,7 +273,7 @@ export function ApplicationsPage() {
           onClick={() => setActiveTab("SUBMITTED")}
           className={`px-4 py-2 text-sm font-bold border-b-2 -mb-2 transition-all cursor-pointer flex items-center gap-2 ${
             activeTab === "SUBMITTED"
-              ? "border-blue-600 text-blue-600"
+              ? "border-primary-action text-primary-action"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
@@ -371,7 +371,7 @@ export function ApplicationsPage() {
                 >
                   <div className="space-y-2 min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                      <span className="text-xs font-bold text-primary-action bg-primary-light px-2 py-0.5 rounded-md">
                         {app.eventTitle || "Hackathon"}
                       </span>
                       {app.status === "PENDING" && (
@@ -442,7 +442,7 @@ export function ApplicationsPage() {
               </p>
               <Link
                 to="/teams"
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-action text-white rounded-xl text-xs font-bold hover:bg-primary-hover transition-colors"
               >
                 Find Teams <ArrowRight className="w-3.5 h-3.5" />
               </Link>

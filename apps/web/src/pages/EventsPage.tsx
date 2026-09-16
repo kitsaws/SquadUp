@@ -214,7 +214,7 @@ export function EventsPage() {
             <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
               <div className="space-y-3 max-w-2xl">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200">
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-primary-light text-primary-action border border-primary-border">
                     Hosted by {selectedEvent.organizerName}
                   </span>
                   <ScopeBadge isGlobal={selectedEvent.isGlobal} location={selectedEvent.location} />
@@ -245,7 +245,7 @@ export function EventsPage() {
               <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
                 <Link
                   to={`/teams?eventId=${selectedEvent.id}`}
-                  className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors text-center cursor-pointer"
+                  className="px-5 py-2.5 rounded-lg bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors text-center cursor-pointer"
                 >
                   Explore Squads for this Event
                 </Link>
@@ -310,7 +310,7 @@ export function EventsPage() {
 
             {teamsLoading ? (
               <div className="py-12 flex flex-col items-center justify-center space-y-2">
-                <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                <Loader2 className="w-6 h-6 text-primary-action animate-spin" />
                 <p className="text-xs font-semibold text-slate-500">Loading participating squads...</p>
               </div>
             ) : eventTeams.length > 0 ? (
@@ -332,7 +332,7 @@ export function EventsPage() {
                 </p>
                 <Link
                   to="/teams"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-action text-white rounded-xl text-xs font-bold hover:bg-primary-hover transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" /> Start a Squad
                 </Link>
@@ -358,7 +358,7 @@ export function EventsPage() {
 
             <Link
               to="/teams"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors self-start md:self-auto cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors self-start md:self-auto cursor-pointer"
             >
               <Users className="w-3.5 h-3.5" /> Browse All Squads
             </Link>
@@ -374,7 +374,7 @@ export function EventsPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search events by name, location, or track..."
-                className="w-full text-xs text-slate-800 placeholder:text-slate-400 pl-9 pr-3 py-2 rounded-lg border border-slate-200 outline-hidden focus:border-blue-600 font-sans"
+                className="w-full text-xs text-slate-800 placeholder:text-slate-400 pl-9 pr-3 py-2 rounded-lg border border-slate-200 outline-hidden focus:border-primary-action font-sans"
               />
             </div>
 
@@ -427,7 +427,7 @@ export function EventsPage() {
           {/* Loading State */}
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center space-y-3">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+              <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
               <p className="text-xs font-semibold text-slate-500">Loading hackathons & competitions...</p>
             </div>
           ) : error ? (
@@ -483,7 +483,7 @@ export function EventsPage() {
                         onClick={() => setCurrentPage(pageNum)}
                         className={`px-3 py-1.5 rounded-md border transition-colors cursor-pointer ${
                           currentPage === pageNum
-                            ? "border-blue-600 bg-blue-600 text-white font-bold"
+                            ? "border-primary-action bg-primary-action text-white font-bold"
                             : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
                         }`}
                       >

@@ -45,7 +45,7 @@ export function Home() {
           </p>
           <div className="mt-8">
             <SignUpButton mode="modal">
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-all shadow-md hover:shadow-lg cursor-pointer">
+              <button className="bg-primary-action text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-hover transition-all shadow-md hover:shadow-lg cursor-pointer">
                 Get Started Now
               </button>
             </SignUpButton>
@@ -92,7 +92,7 @@ export function Home() {
               <button
                 onClick={handleUpload}
                 disabled={isUploading}
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition-all shadow-md cursor-pointer"
+                className="bg-primary-action text-white px-8 py-3 rounded-lg font-medium hover:bg-primary-hover transition-all shadow-md cursor-pointer"
               >
                 Upload & Extract AI Profile
               </button>
