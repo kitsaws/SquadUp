@@ -295,6 +295,55 @@ Developers need to preview the application on physical mobile devices connected 
 - **Negative:** Requires running a different npm script when testing on a phone.
 
 ### Status
+---
+
+## [Separation of Work Experience from Hackathons & Achievements]
+
+### Decision
+Model formal corporate/startup employment and internships under `experience`, while segregating hackathon victories, coding competitions, awards, and honors under a distinct `achievements` array in both the database schema (`Profile.achievements`) and shared TypeScript contracts (`AchievementItem`).
+
+### Context
+College student candidates frequently list hackathon wins (e.g. JPMorgan Code for Good, Israeli-Indian Hackathon) under awards or project headings. Early parsing heuristics placed these achievements into `experience`, misrepresenting hackathons as corporate employment and corrupting candidate work profiles.
+
+### Consequences
+- **Positive:** Accurate candidate profiling where recruiters and teammates see clear separation between professional employment and hackathon victories. Hackathon achievements have customized metadata (`award_tier`, `organization`, `year`). Both categories feed into the taxonomy engine for skills evidence.
+- **Negative:** Requires an extra UI card on the profile page and an additional database field.
+
+### Status
+Accepted
+
+---
+
+## [Immutability of University Affiliation in Resume Ingestion]
+
+### Decision
+`Profile.university` must **never** be overwritten, updated, or inferred from resume text during PDF parsing. It is strictly determined and governed by Clerk Organization memberships and educational institution verification.
+
+### Context
+Resume parsing initially attempted to infer the candidate's college name from the first entry of `education`. However, in SquadUp, `university` establishes an institutional trust anchor that scopes campus-only squad filtering, event eligibility, and organization memberships. Allowing unstructured LLM resume text to overwrite this field could break university scoping or misclassify institutional affiliation.
+
+### Consequences
+- **Positive:** University affiliation remains secure, immutable, and consistent across organization-scoped events and teams.
+- **Negative:** Candidates attending unverified or non-Clerk colleges cannot set their university simply by typing it in a resume.
+
+### Status
+Accepted
+
+---
+
+## [Unified Monorepo Schema for Python & TypeScript Resume Ingestion]
+
+### Decision
+The Python AI microservice (`apps/ai-service/resume_parser.py`) loads its extraction JSON schema dynamically from the shared monorepo package `@squadup/shared` (`packages/shared/schemas/profile.schema.json`), which mirrors `@squadup/shared/src/types/user.types.ts`.
+
+### Context
+Maintaining duplicate, hardcoded schema shapes in Python and TypeScript led to schema drift where new fields (such as `achievements` or hyperlinks) existed in one service but were dropped in the other.
+
+### Consequences
+- **Positive:** Single source of truth. Any schema change in `@squadup/shared` immediately shapes the LLM prompt in Python and the typechecker in TypeScript.
+- **Negative:** The Python service requires file path access to `packages/shared/schemas` in local monorepo development.
+
+### Status
 Accepted
 
 

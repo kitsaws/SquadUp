@@ -66,6 +66,16 @@ Retrieves the logged-in user's profile, active teams, resume status, and AI-reso
         "technologies": ["FastAPI", "Redis"]
       }
     ],
+    "achievements": [
+      {
+        "title": "Winner - JPMorgan Chase Code for Good",
+        "organization": "JPMorgan Chase",
+        "award_tier": "Winner",
+        "year": "2025",
+        "description": "Developed a scalable technology prototype with JPMorgan engineers.",
+        "technologies": ["React", "Node.js"]
+      }
+    ],
     "projects": [
       {
         "name": "SquadUp Platform",
@@ -107,7 +117,7 @@ Retrieves the logged-in user's profile, active teams, resume status, and AI-reso
   ```
 
 ### 2.2 Update Profile
-Updates user profile fields and **automatically re-indexes `UserTaxonomy` in real-time** if `skills`, `projects`, or `experience` are modified.
+Updates user profile fields and **automatically re-indexes `UserTaxonomy` in real-time** if `skills`, `projects`, `experience`, or `achievements` are modified.
 
 - **Method:** `PATCH`
 - **Path:** `/api/profile`
@@ -120,6 +130,15 @@ Updates user profile fields and **automatically re-indexes `UserTaxonomy` in rea
     "title": "Senior AI Systems Developer",
     "summary": "Updated summary statement...",
     "skills": ["React", "TypeScript", "FastAPI", "PyTorch"],
+    "achievements": [
+      {
+        "title": "Winner - JPMorgan Chase Code for Good",
+        "organization": "JPMorgan Chase",
+        "award_tier": "Winner",
+        "year": "2025",
+        "description": "Developed a scalable technology prototype."
+      }
+    ],
     "githubUrl": "https://github.com/janedoe",
     "linkedinUrl": "https://linkedin.com/in/janedoe"
   }
@@ -133,7 +152,7 @@ Updates user profile fields and **automatically re-indexes `UserTaxonomy` in rea
   ```
 
 ### 2.3 Get Public Candidate Profile
-Fetches a candidate's profile for teammates or leaders evaluating applicants.
+Fetches a candidate's profile for teammates or leaders evaluating applicants, including skills, projects, experience, and achievements.
 
 - **Method:** `GET`
 - **Path:** `/api/profile/:targetUserId`

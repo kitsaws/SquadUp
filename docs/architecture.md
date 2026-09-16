@@ -18,16 +18,27 @@ The system is designed to provide ultra-fast standard web API responses while se
 
 ## Request/Data Flows
 
-### 1. Document Parsing & Resume Persistence Flow
+### 1. Document Parsing, Unified Schema & Resume Persistence Flow
 
 1. **User** uploads a PDF via the Frontend to `POST /api/resume/upload`.
 2. **Backend API (`resume.controller.ts`)** enforces the 24-hour upload cooldown (bypassed for approved test emails and dev mode).
 3. Backend writes the PDF buffer directly to disk under `uploads/resumes/:userId.pdf` and records the path in `Profile.resumePdfPath`.
 4. Backend pushes a `parse-resume` job with the base64 string to the **Redis Queue** and immediately returns HTTP 202 Accepted with a `jobId`.
 5. **Node Worker (`ai.queue.ts`)** pops the job and sends a blocking HTTP POST request to the **Python AI Service**.
-6. **AI Service (`resume_parser.py`)** extracts raw text with `pdfplumber` and prompts **Groq API** to format text into structured JSON.
-7. Node Worker receives the JSON, upserts the PostgreSQL `Profile` table, and triggers `AIService.resolveUserTaxonomy` to persist canonical node IDs and provenance evidence in `UserTaxonomy`.
-8. Frontend can render the resume PDF anytime via `GET /api/resume/view` in an embedded iframe.
+6. **AI Service (`resume_parser.py`)**:
+   - Dynamically loads the single-source-of-truth JSON schema from `@squadup/shared` (`packages/shared/schemas/profile.schema.json`).
+   - Extracts raw text and PDF hyperlink annotations (`page.hyperlinks`) with `pdfplumber`.
+   - Prompts **Groq API** to extract structured candidate profile data with strict guidelines:
+     - **`experience`**: Strictly formal corporate employment, company internships, and research fellowships. If the candidate has no formal corporate employment, returns `[]`.
+     - **`achievements`**: Hackathon victories (e.g. JPMorgan Code for Good, Israeli-Indian Hackathon), coding competitions, academic honors, scholarships, and open source awards (`title`, `organization`, `award_tier`, `year`, `description`, `technologies`).
+     - **`projects`**: Technical software projects with full bullet points and technology tags.
+     - **`links`**: Extracts GitHub and LinkedIn URLs from hyperlink annotations and text.
+7. **Node Worker (`ai.queue.ts`)**:
+   - Upserts PostgreSQL `Profile` table with `title`, `summary`, `skills`, `education`, `experience`, `achievements`, `projects`, and links.
+   - **Guarantees `Profile.university` is never overwritten or altered**, preserving institutional affiliation.
+   - Feeds both `experience` and `achievements` into `AIService.resolveUserTaxonomy` to persist canonical node IDs and provenance evidence in `UserTaxonomy`.
+8. Frontend polling receives `{ state: "completed" }` and reactive hooks instantly refresh `/api/profile`, rendering separate **Work Experience** and **Achievements & Hackathons** cards.
+9. Frontend can stream the original resume PDF anytime via `GET /api/resume/view` in an embedded iframe.
 
 ### 2. Query Caching & Server-Side Pagination Flow
 

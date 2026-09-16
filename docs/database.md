@@ -17,10 +17,12 @@ The absolute source of truth for the database is `apps/api/prisma/schema.prisma`
 - **Relationships:** Has one `Profile`, has one `UserTaxonomy`, has one `UserPreferences`, owns many `Event`s, belongs to many `Team`s, sends many `TeamInvite`s, owns `Organizer` profiles, holds `OrganizerMember` and `OrganizationMembership` memberships, and submits `TeamApplication`s.
 
 ### `Profile`
-- **Purpose:** Stores the AI-parsed resume profile data for a user.
+- **Purpose:** Stores the candidate profile data for a user.
 - **Important Fields:**
-  - `skills`, `education`, `experience`, `projects`: Rich JSON/Array data extracted from resumes.
-  - `university`: Name of the user's university (auto-synchronized via Clerk webhooks).
+  - `skills`, `education`, `projects`: Rich JSON/Array data extracted from resumes or manually inputted.
+  - `experience`: Formal corporate employment, internships, and company roles. Strictly separated from competitions.
+  - `achievements`: Rich JSON array of hackathon victories, coding competitions, awards, honors, and scholarships (`title`, `organization`, `award_tier`, `year`, `description`, `technologies`).
+  - `university`: Name of the user's university (auto-synchronized via Clerk organizations/memberships). **Never altered or overwritten by resume parsing** to preserve verified institutional affiliation.
   - `resumePdfPath`: Path to the stored PDF file on disk.
   - `resumeOriginalName`: Original filename of the uploaded resume.
   - `lastResumeUploadedAt`: Timestamp of the most recent resume upload (for 24h cooldown).

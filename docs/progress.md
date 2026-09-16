@@ -18,9 +18,12 @@ The immediate next priority is implementing the **First-Time User Onboarding Flo
   - Full Svix cryptographic verification with detailed real-time terminal event logging (`Svix verified [organizationMembership.created]...`).
   - Auto-synchronization between Clerk organizations and database `Organization`, `OrganizationMembership`, and `Profile.university`.
 - **Hybrid Monorepo Infrastructure:** Turborepo configuration successfully runs `web`, `api`, and `ai-service` concurrently.
-- **Background Jobs:** Redis and BullMQ are fully operational, gracefully passing large buffers between Node and Python.
-- **AI Resume Parsing:** The Python microservice uses `pdfplumber` to extract text and the Groq LLM API to return structured candidate JSON with extracted technologies per project and experience item.
-- **Deterministic Knowledge Hierarchy Engine:**
+- **AI Resume Ingestion & Unified Schema Overhaul:**
+  - **Unified Monorepo Schema**: Canonical schema defined in `packages/shared/schemas/profile.schema.json` and mirrored in `packages/shared/src/types/user.types.ts`. Loaded dynamically by the Python AI microservice, eliminating schema drift.
+  - **Experience & Achievements Separation**: Formal corporate employment and internships are stored under `experience`, while hackathons (e.g. JPMorgan Code for Good, Israeli-Indian Hackathon), coding competitions, and awards are stored under `Profile.achievements`.
+  - **PDF Hyperlink Extraction**: `pdfplumber` now extracts embedded PDF hyperlink annotations (`page.hyperlinks`), ensuring candidates' GitHub and LinkedIn profile links are captured accurately.
+  - **University Immutability**: `Profile.university` is protected as an immutable institutional anchor governed strictly by Clerk Organizations and cannot be altered by resume text.
+  - **Frontend UI & Reactive Refresh**: Dedicated Achievements & Hackathons card with trophy badges, and instant profile re-fetching via `JobContext` upon BullMQ completion.
   - 143-node canonical tree rooted at `computer_science`.
   - 3-layer deterministic resolver (case-sensitive exact, normalized aliases, whole-token phrase matching).
   - V2 Multi-source Evidence Extractor (skills: 0.65, projects: 0.85, experience: 1.00) with concrete provenance snippets.
