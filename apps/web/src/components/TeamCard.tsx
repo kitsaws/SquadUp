@@ -52,7 +52,7 @@ export function TeamCard({
 
   // Accent color for category (only active when signed in)
   let accentColor = "var(--sq-border, #e2e8f0)";
-  let topHighlightClass = "bg-slate-300";
+  let topHighlightClass = "bg-border-main";
 
   if (isSignedIn && team.category === "BEST") {
     accentColor = "var(--sq-best-fit, #68DBA9)";
@@ -72,10 +72,10 @@ export function TeamCard({
       onMouseLeave={() => setIsHovered(false)}
       className={`rounded-xl border-2 p-5 sm:p-6 transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden group h-full w-full min-w-[320px] max-w-[420px] ${
         isFull
-          ? "opacity-60 bg-slate-50/70 border-surface-border"
+          ? "opacity-60 bg-surface-dim/70 border-border-main"
           : isSelected
-          ? "bg-white ring-2 ring-primary-action/20 shadow-md"
-          : "bg-white shadow-xs hover:shadow-md"
+          ? "bg-surface ring-2 ring-primary-action/20 shadow-md"
+          : "bg-surface shadow-xs hover:shadow-md"
       }`}
       style={{
         borderColor: isFull
@@ -99,7 +99,7 @@ export function TeamCard({
               {team.eventTitle}
             </span>
             <h3
-              className="text-base sm:text-lg font-bold text-slate-900 font-heading leading-tight mt-0.5 truncate"
+              className="text-base sm:text-lg font-bold text-text-main font-heading leading-tight mt-0.5 truncate"
               title={team.name}
             >
               {team.name}
@@ -112,13 +112,13 @@ export function TeamCard({
         </div>
 
         {/* University context */}
-        <div className="text-xs text-slate-500 mb-2 truncate h-4">
+        <div className="text-xs text-text-muted mb-2 truncate h-4">
           {team.university || ""}
         </div>
 
         {/* Description snippet */}
         <p
-          className="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-2"
+          className="text-xs text-text-muted line-clamp-2 leading-relaxed mb-2"
           title={team.description}
         >
           {team.description || ""}
@@ -127,7 +127,7 @@ export function TeamCard({
 
       {/* Stack Requirements Pills: mt-auto anchors to bottom and expands upward */}
       <div className="mt-auto pt-3 mb-4">
-        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+        <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1.5">
           Needs/Requirements:
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -149,14 +149,14 @@ export function TeamCard({
       </div>
 
       {/* Footer Capacity & Actions */}
-      <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between">
+      <div className="pt-3.5 border-t border-border-main flex items-center justify-between">
         {/* Member Avatars & Spots */}
         <div className="flex items-center gap-2">
           <div className="flex -space-x-1.5">
             {team.members.map((m, idx) => (
               <div
                 key={m.id || idx}
-                className="w-7 h-7 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-700 overflow-hidden shadow-2xs"
+                className="w-7 h-7 rounded-full bg-surface-dim border-2 border-surface flex items-center justify-center text-[10px] font-bold text-text-main overflow-hidden shadow-2xs"
                 title={m.name}
               >
                 {m.avatarUrl ? (
@@ -167,25 +167,25 @@ export function TeamCard({
               </div>
             ))}
             {!isFull && (
-              <div className="w-7 h-7 rounded-full bg-white border-2 border-dashed border-slate-300 flex items-center justify-center text-[10px] text-slate-400">
+              <div className="w-7 h-7 rounded-full bg-surface border-2 border-dashed border-border-main flex items-center justify-center text-[10px] text-text-muted">
                 +1
               </div>
             )}
           </div>
 
-          <span className="text-xs text-slate-500 font-medium">
-            <strong className="text-slate-800">{currentCount}</strong>/{maxCapacity} spots
+          <span className="text-xs text-text-muted font-medium">
+            <strong className="text-text-main">{currentCount}</strong>/{maxCapacity} spots
           </span>
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-2">
           {hasApplied ? (
-            <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
+            <span className="text-xs font-semibold text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
               Pending
             </span>
           ) : isFull ? (
-            <span className="text-xs font-semibold text-slate-400 bg-slate-100/80 px-2.5 py-1 rounded-md border border-slate-200">
+            <span className="text-xs font-semibold text-text-muted bg-surface-dim/80 px-2.5 py-1 rounded-md border border-border-main">
               Squad Full
             </span>
           ) : (

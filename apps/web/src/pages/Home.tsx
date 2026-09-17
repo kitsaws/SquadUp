@@ -38,14 +38,14 @@ export function Home() {
   return (
     <div className="max-w-5xl mx-auto px-8 py-12">
       <Show when="signed-out">
-        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center flex flex-col items-center justify-center min-h-[40vh]">
-          <h1 className="text-3xl font-semibold mb-4 text-slate-800">Welcome to SquadUp</h1>
-          <p className="text-slate-500 max-w-md text-lg">
+        <section className="bg-surface rounded-2xl shadow-xs border border-border-main p-8 text-center flex flex-col items-center justify-center min-h-[40vh]">
+          <h1 className="text-3xl font-bold mb-4 text-text-main">Welcome to SquadUp</h1>
+          <p className="text-text-muted max-w-md text-lg">
             Join the platform built for universities and tech events. Sign in to start building your professional profile and scouting for teammates.
           </p>
           <div className="mt-8">
             <SignUpButton mode="modal">
-              <button className="bg-primary-action text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-hover transition-all shadow-md hover:shadow-lg cursor-pointer">
+              <button className="bg-primary-action text-white px-6 py-3 rounded-xl font-bold hover:bg-primary-hover transition-all shadow-xs hover:shadow-md cursor-pointer">
                 Get Started Now
               </button>
             </SignUpButton>
@@ -54,16 +54,16 @@ export function Home() {
       </Show>
 
       <Show when="signed-in">
-        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center flex flex-col items-center justify-center min-h-[40vh]">
-          <div className="bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-lg flex items-center gap-3 mb-8">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <section className="bg-surface rounded-2xl shadow-xs border border-border-main p-8 text-center flex flex-col items-center justify-center min-h-[40vh]">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 px-6 py-4 rounded-xl flex items-center gap-3 mb-8">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="font-medium text-lg">You are successfully authenticated!</p>
+            <p className="font-semibold text-lg">You are successfully authenticated!</p>
           </div>
 
-          <h1 className="text-2xl font-bold mb-2">Build Your AI Profile</h1>
-          <p className="text-slate-500 mb-8 max-w-md">
+          <h1 className="text-2xl font-bold mb-2 text-text-main">Build Your AI Profile</h1>
+          <p className="text-text-muted mb-8 max-w-md">
             Upload your resume and our AI will automatically extract your skills, experience, and projects to match you with the perfect team.
           </p>
 
@@ -73,10 +73,10 @@ export function Home() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className={`px-8 py-3 rounded-lg font-medium shadow-md flex items-center gap-2 ${
+              className={`px-8 py-3 rounded-xl font-bold shadow-xs flex items-center gap-2 ${
                 isUploading
-                  ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                  : "bg-slate-900 text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  ? "bg-surface-dim text-text-muted border border-border-main cursor-not-allowed"
+                  : "bg-primary-action text-white hover:bg-primary-hover transition-all cursor-pointer"
               }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -86,13 +86,13 @@ export function Home() {
             </button>
           ) : (
             <div className="flex flex-col items-center gap-4">
-              <p className="text-sm font-medium bg-slate-100 px-4 py-2 rounded border border-slate-200">
+              <p className="text-sm font-medium bg-surface-dim text-text-main px-4 py-2 rounded-xl border border-border-main">
                 Selected: {file.name}
               </p>
               <button
                 onClick={handleUpload}
                 disabled={isUploading}
-                className="bg-primary-action text-white px-8 py-3 rounded-lg font-medium hover:bg-primary-hover transition-all shadow-md cursor-pointer"
+                className="bg-primary-action text-white px-8 py-3 rounded-xl font-bold hover:bg-primary-hover transition-all shadow-xs cursor-pointer"
               >
                 Upload & Extract AI Profile
               </button>

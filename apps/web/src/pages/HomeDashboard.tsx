@@ -158,15 +158,15 @@ export function HomeDashboard() {
   const displayName = user?.firstName || userProfile?.name?.split(" ")[0] || "there";
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12 bg-canvas text-text-main">
       {/* Hero Greeting Section */}
       <section className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight font-heading">
+            <h1 className="text-3xl sm:text-4xl font-black text-text-main tracking-tight font-heading">
               {isSignedIn ? `Good morning, ${displayName}.` : "Welcome to SquadUp."}
             </h1>
-            <p className="text-base text-slate-500 font-medium mt-1">
+            <p className="text-base text-text-muted font-medium mt-1">
               {isSignedIn ? "Find your next squad." : "Find your next collegiate hackathon and project squad."}
             </p>
           </div>
@@ -177,11 +177,11 @@ export function HomeDashboard() {
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-slate-900 font-heading flex items-center gap-2">
+            <h2 className="text-xl font-bold text-text-main font-heading flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary-action" />{" "}
               {isSignedIn ? "Recommended for you" : "Featured Squads"}
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-text-muted mt-0.5">
               {isSignedIn
                 ? "Smart recommendations matched against your verified skills & campus affiliation."
                 : "Discover active collegiate squads currently recruiting builders and collaborators."}
@@ -197,9 +197,9 @@ export function HomeDashboard() {
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
-                className="h-64 rounded-xl border border-slate-200 bg-slate-50 animate-pulse flex items-center justify-center text-slate-400"
+                className="h-64 rounded-xl border border-border-main bg-surface-dim animate-pulse flex items-center justify-center text-text-muted"
               >
-                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                <Loader2 className="w-6 h-6 animate-spin text-primary-action" />
               </div>
             ))}
           </div>
@@ -215,9 +215,9 @@ export function HomeDashboard() {
             ))}
           </div>
         ) : (
-          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-white shadow-2xs text-center space-y-2">
-            <p className="text-sm font-semibold text-slate-700">No squads available right now.</p>
-            <p className="text-xs text-slate-500">
+          <div className="p-8 rounded-xl border border-dashed border-border-main bg-surface shadow-2xs text-center space-y-2">
+            <p className="text-sm font-semibold text-text-main">No squads available right now.</p>
+            <p className="text-xs text-text-muted">
               Check back soon or explore upcoming events to be the first to create a team.
             </p>
           </div>
@@ -228,10 +228,10 @@ export function HomeDashboard() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900 font-heading">
+            <h2 className="text-xl font-bold text-text-main font-heading">
               Upcoming Events
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-text-muted mt-0.5">
               Hackathons and university project fairs currently recruiting squads.
             </p>
           </div>
@@ -249,9 +249,9 @@ export function HomeDashboard() {
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
-                className="h-72 rounded-xl border border-slate-200 bg-slate-50 animate-pulse flex items-center justify-center text-slate-400"
+                className="h-72 rounded-xl border border-border-main bg-surface-dim animate-pulse flex items-center justify-center text-text-muted"
               >
-                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                <Loader2 className="w-6 h-6 animate-spin text-primary-action" />
               </div>
             ))}
           </div>
@@ -262,8 +262,8 @@ export function HomeDashboard() {
             ))}
           </div>
         ) : (
-          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-white shadow-2xs text-center">
-            <p className="text-sm text-slate-600">No upcoming events listed at this time.</p>
+          <div className="p-8 rounded-xl border border-dashed border-border-main bg-surface shadow-2xs text-center">
+            <p className="text-sm text-text-muted">No upcoming events listed at this time.</p>
           </div>
         )}
       </section>
@@ -271,10 +271,10 @@ export function HomeDashboard() {
       {/* Section 3: Your Squad */}
       <section className="space-y-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 font-heading">
+          <h2 className="text-xl font-bold text-text-main font-heading">
             Your Squad
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-text-muted mt-0.5">
             {isSignedIn
               ? userProfile?.teams && userProfile.teams.length > 0
                 ? `You're currently in ${userProfile.teams.length} ${
@@ -286,11 +286,11 @@ export function HomeDashboard() {
         </div>
 
         {!isSignedIn ? (
-          <div className="p-8 rounded-xl border border-slate-200 bg-white shadow-xs text-center space-y-3">
+          <div className="p-8 rounded-xl border border-border-main bg-surface shadow-xs text-center space-y-3">
             <Users className="w-8 h-8 text-primary-action mx-auto" />
             <div className="space-y-1">
-              <p className="text-sm font-bold text-slate-900">Sign in to view your squad</p>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
+              <p className="text-sm font-bold text-text-main">Sign in to view your squad</p>
+              <p className="text-xs text-text-muted max-w-md mx-auto">
                 Connect your account to access your active squads, manage member rosters, and review incoming candidate applications.
               </p>
             </div>
@@ -305,15 +305,15 @@ export function HomeDashboard() {
             {userProfile.teams.map((squad) => (
               <div
                 key={squad.teamId}
-                className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between"
+                className="bg-surface rounded-xl border border-border-main p-6 shadow-xs flex flex-col justify-between"
               >
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div>
                     <span className="text-xs font-semibold text-primary-action block">Active Team</span>
-                    <h3 className="text-lg font-bold text-slate-900 font-heading mt-0.5">
+                    <h3 className="text-lg font-bold text-text-main font-heading mt-0.5">
                       {squad.teamName}
                     </h3>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-text-muted mt-1">
                       Joined {new Date(squad.joinedAt).toLocaleDateString()}
                     </p>
                   </div>
@@ -322,15 +322,15 @@ export function HomeDashboard() {
                     className={`text-xs font-semibold px-2.5 py-1 rounded-md shrink-0 border ${
                       squad.role === "Leader"
                         ? "bg-primary-light text-primary-action border-primary-border"
-                        : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                        : "bg-best-fit/15 text-best-fit-dark border-best-fit/30"
                     }`}
                   >
                     {squad.role === "Leader" ? "👑 Squad Leader" : squad.role}
                   </span>
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="font-semibold text-emerald-700 flex items-center gap-1.5">
+                <div className="pt-4 border-t border-border-main flex items-center justify-between text-xs">
+                  <span className="font-semibold text-emerald-600 flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Active Roster Member
                   </span>
 
@@ -346,11 +346,11 @@ export function HomeDashboard() {
             ))}
           </div>
         ) : (
-          <div className="p-8 rounded-xl border border-dashed border-slate-300 bg-white shadow-2xs text-center space-y-3">
-            <Users className="w-8 h-8 text-slate-400 mx-auto" />
+          <div className="p-8 rounded-xl border border-dashed border-border-main bg-surface shadow-2xs text-center space-y-3">
+            <Users className="w-8 h-8 text-text-muted mx-auto" />
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-slate-800">No active squad memberships yet</p>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
+              <p className="text-sm font-semibold text-text-main">No active squad memberships yet</p>
+              <p className="text-xs text-text-muted max-w-md mx-auto">
                 Explore recommended teams above or browse events to apply for an open role in a squad.
               </p>
             </div>

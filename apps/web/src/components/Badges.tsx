@@ -47,16 +47,16 @@ export function RecommendationBadge({ category, score, className = "" }: Recomme
 export function ScopeBadge({ isGlobal, location }: { isGlobal: boolean; location?: string }) {
   if (isGlobal) {
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
-        <Globe className="w-3 h-3 text-emerald-600" />
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+        <Globe className="w-3 h-3 text-emerald-500" />
         Global Event
       </span>
     );
   }
 
   return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-800 border border-purple-200">
-      <Lock className="w-3 h-3 text-purple-600" />
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-600 border border-purple-500/20">
+      <Lock className="w-3 h-3 text-purple-500" />
       {location ? `Campus Only (${location})` : "Campus Only"}
     </span>
   );
@@ -75,7 +75,7 @@ export function SkillTag({
 }) {
   if (isNeeded) {
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-800 border border-dashed border-amber-300">
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-500/10 text-amber-600 border border-dashed border-amber-500/30">
         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
         {skill} (Needed)
       </span>
@@ -84,11 +84,11 @@ export function SkillTag({
 
   if (isMatched) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">
+        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
         <span>{skill}</span>
         {provenance && (
-          <span className="text-[10px] px-1 py-0.2 rounded bg-white text-emerald-700 border border-emerald-100">
+          <span className="text-[10px] px-1 py-0.2 rounded bg-surface text-emerald-600 border border-emerald-500/20">
             {provenance}
           </span>
         )}
@@ -97,10 +97,10 @@ export function SkillTag({
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200 transition-colors">
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-surface-dim text-text-main border border-border-main hover:bg-surface transition-colors">
       <span>{skill}</span>
       {provenance && (
-        <span className="text-[10px] px-1 py-0.2 rounded bg-white text-slate-500 border border-slate-200">
+        <span className="text-[10px] px-1 py-0.2 rounded bg-surface text-text-muted border border-border-main">
           {provenance}
         </span>
       )}
@@ -113,8 +113,8 @@ export function StatusBadge({ status }: { status: string }) {
 
   if (norm === "PENDING") {
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">
-        <Clock className="w-3 h-3 text-amber-600" />
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 border border-amber-500/30">
+        <Clock className="w-3 h-3 text-amber-500" />
         Application Pending
       </span>
     );
@@ -122,8 +122,8 @@ export function StatusBadge({ status }: { status: string }) {
 
   if (norm === "ACCEPTED") {
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
-        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">
+        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
         Accepted to Squad
       </span>
     );
@@ -131,15 +131,15 @@ export function StatusBadge({ status }: { status: string }) {
 
   if (norm === "REJECTED") {
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-800 border border-rose-200">
-        <AlertCircle className="w-3 h-3 text-rose-600" />
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-600 border border-rose-500/30">
+        <AlertCircle className="w-3 h-3 text-rose-500" />
         Declined
       </span>
     );
   }
 
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-surface-dim text-text-muted border border-border-main">
       {status}
     </span>
   );
@@ -184,26 +184,26 @@ export function VerificationBadge({
         onClick={() => setIsOpen((prev) => !prev)}
         className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full border transition-all cursor-help select-none ${
           isVerified
-            ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300"
+            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20"
             : university
-            ? "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 hover:border-amber-300"
-            : "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+            ? "bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/20"
+            : "bg-surface-dim text-text-muted border-border-main hover:bg-surface"
         } ${className}`}
         aria-label="Student verification status"
       >
         {isVerified ? (
           <>
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
             <span>Verified Student</span>
           </>
         ) : university ? (
           <>
-            <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             <span>Unverified Student</span>
           </>
         ) : (
           <>
-            <AlertCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <AlertCircle className="w-3.5 h-3.5 text-text-muted shrink-0" />
             <span>Unaffiliated</span>
           </>
         )}
@@ -212,15 +212,15 @@ export function VerificationBadge({
       {/* Hover / Click Popup Card */}
       {isOpen && (
         <div
-          className="absolute top-full right-0 mt-2 z-50 w-72 sm:w-80 p-3.5 bg-white rounded-xl shadow-xl border border-slate-200 text-left text-xs animate-in fade-in zoom-in-95 duration-150"
+          className="absolute top-full right-0 mt-2 z-50 w-72 sm:w-80 p-3.5 bg-surface rounded-xl shadow-xl border border-border-main text-left text-xs animate-in fade-in zoom-in-95 duration-150 text-text-main"
           role="tooltip"
         >
           {/* Header */}
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-            <div className="flex items-center gap-1.5 font-bold text-slate-900">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-border-main">
+            <div className="flex items-center gap-1.5 font-bold text-text-main">
               <span
                 className={`w-2 h-2 rounded-full ${
-                  isVerified ? "bg-emerald-500" : university ? "bg-amber-500" : "bg-slate-400"
+                  isVerified ? "bg-emerald-500" : university ? "bg-amber-500" : "bg-text-muted"
                 }`}
               />
               <span>Institutional Verification</span>
@@ -228,10 +228,10 @@ export function VerificationBadge({
             <span
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                 isVerified
-                  ? "bg-emerald-100 text-emerald-800"
+                  ? "bg-emerald-500/10 text-emerald-600"
                   : university
-                  ? "bg-amber-100 text-amber-800"
-                  : "bg-slate-100 text-slate-700"
+                  ? "bg-amber-500/10 text-amber-600"
+                  : "bg-surface-dim text-text-muted"
               }`}
             >
               {isVerified ? "Verified" : university ? "Unverified" : "Independent"}
@@ -239,32 +239,32 @@ export function VerificationBadge({
           </div>
 
           {/* Explanation Message */}
-          <p className="text-slate-600 leading-relaxed mb-3">
+          <p className="text-text-muted leading-relaxed mb-3">
             {derivedReason}
           </p>
 
           {/* Domain & Email Details Box */}
-          <div className="bg-slate-50 rounded-lg p-2.5 space-y-1.5 border border-slate-100 font-mono text-[11px]">
+          <div className="bg-surface-dim rounded-lg p-2.5 space-y-1.5 border border-border-main font-mono text-[11px]">
             {email && (
-              <div className="flex items-center justify-between text-slate-600">
-                <span className="text-slate-400 font-sans">Account Email:</span>
-                <span className="font-semibold text-slate-800 truncate max-w-[150px]">{email}</span>
+              <div className="flex items-center justify-between text-text-muted">
+                <span className="text-text-muted font-sans">Account Email:</span>
+                <span className="font-semibold text-text-main truncate max-w-[150px]">{email}</span>
               </div>
             )}
             {university && (
-              <div className="flex items-center justify-between text-slate-600">
-                <span className="text-slate-400 font-sans">Institution:</span>
-                <span className="font-semibold text-slate-800 truncate max-w-[150px]">{university}</span>
+              <div className="flex items-center justify-between text-text-muted">
+                <span className="text-text-muted font-sans">Institution:</span>
+                <span className="font-semibold text-text-main truncate max-w-[150px]">{university}</span>
               </div>
             )}
             {domain && (
-              <div className="flex items-center justify-between text-slate-600">
-                <span className="text-slate-400 font-sans">Required Domain:</span>
-                <span className="font-semibold text-indigo-700">@{domain}</span>
+              <div className="flex items-center justify-between text-text-muted">
+                <span className="text-text-muted font-sans">Required Domain:</span>
+                <span className="font-semibold text-primary-action">@{domain}</span>
               </div>
             )}
-            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 font-sans">
-              <span className="text-slate-400">Match Status:</span>
+            <div className="flex items-center justify-between pt-1 border-t border-border-main font-sans">
+              <span className="text-text-muted">Match Status:</span>
               <span
                 className={`font-bold inline-flex items-center gap-1 ${
                   isVerified ? "text-emerald-600" : "text-amber-600"
@@ -286,7 +286,7 @@ export function VerificationBadge({
           </div>
 
           {/* Footer Guide Note */}
-          <div className="mt-2.5 pt-2 border-t border-slate-100 text-[10px] text-slate-500 font-sans leading-tight">
+          <div className="mt-2.5 pt-2 border-t border-border-main text-[10px] text-text-muted font-sans leading-tight">
             {isVerified
               ? "✨ Verified members receive campus-only event eligibility and priority matchmaking."
               : "💡 To get verified, connect or sign in with your official university email (@thapar.edu, @stanford.edu)."}

@@ -76,18 +76,18 @@ export function CompatibilityScoreRing({
 
       {/* Percentage Center Text */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className={`font-black tracking-tight font-heading ${isUnrated || score === undefined ? "text-slate-400 text-sm" : "text-slate-900"}`}>
+        <span className={`font-black tracking-tight font-heading ${isUnrated || score === undefined ? "text-text-muted text-sm" : "text-text-main"}`}>
           {isUnrated || score === undefined ? "—" : `${percentage}%`}
         </span>
         {size >= 80 && (
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none mt-0.5">
+          <span className="text-[10px] font-semibold text-text-muted uppercase tracking-widest leading-none mt-0.5">
             {isUnrated || score === undefined ? "Unscored" : "Match"}
           </span>
         )}
       </div>
 
       {showLabel && size >= 100 && (
-        <span className="text-xs font-semibold text-slate-600 mt-2">
+        <span className="text-xs font-semibold text-text-muted mt-2">
           Pure Compatibility Score
         </span>
       )}

@@ -204,13 +204,13 @@ export function EventsPage() {
           {/* Back Button */}
           <button
             onClick={() => setSelectedEvent(null)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-main bg-surface hover:bg-surface-dim text-text-main text-xs font-semibold transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to All Events
           </button>
 
           {/* Event Hero Banner */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-xs space-y-6">
+          <div className="bg-surface rounded-2xl border border-border-main p-8 shadow-xs space-y-6">
             <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
               <div className="space-y-3 max-w-2xl">
                 <div className="flex flex-wrap items-center gap-2">
@@ -218,25 +218,25 @@ export function EventsPage() {
                     Hosted by {selectedEvent.organizerName}
                   </span>
                   <ScopeBadge isGlobal={selectedEvent.isGlobal} location={selectedEvent.location} />
-                  <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-slate-400" /> {selectedEvent.daysRemaining} Days Remaining
+                  <span className="text-xs font-medium text-text-muted bg-surface-dim border border-border-main px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-text-muted" /> {selectedEvent.daysRemaining} Days Remaining
                   </span>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl font-black text-slate-900 font-heading tracking-tight">
+                <h1 className="text-3xl sm:text-4xl font-black text-text-main font-heading tracking-tight">
                   {selectedEvent.title}
                 </h1>
 
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 font-medium">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted font-medium">
                   <span className="flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4 text-slate-400" /> {selectedEvent.dateStr}
+                    <Calendar className="w-4 h-4 text-text-muted" /> {selectedEvent.dateStr}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <MapPin className="w-4 h-4 text-slate-400" /> {selectedEvent.location}
+                    <MapPin className="w-4 h-4 text-text-muted" /> {selectedEvent.location}
                   </span>
                 </div>
 
-                <p className="text-sm text-slate-600 leading-relaxed">
+                <p className="text-sm text-text-muted leading-relaxed">
                   {selectedEvent.description}
                 </p>
               </div>
@@ -254,7 +254,7 @@ export function EventsPage() {
                     navigator.clipboard?.writeText(window.location.href);
                     alert("Event link copied to clipboard!");
                   }}
-                  className="px-5 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+                  className="px-5 py-2.5 rounded-lg border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
                 >
                   Share Event Link
                 </button>
@@ -262,31 +262,31 @@ export function EventsPage() {
             </div>
 
             {/* Live Metrics Telemetry Strip */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-slate-100">
-              <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-                <span className="text-xs text-slate-500 block">Recruiting Squads</span>
-                <span className="text-xl font-bold text-slate-900 font-heading">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-border-main">
+              <div className="p-3.5 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
+                <span className="text-xs text-text-muted block">Recruiting Squads</span>
+                <span className="text-xl font-bold text-text-main font-heading">
                   {eventTeams.length} Active
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-                <span className="text-xs text-slate-500 block">Event Track</span>
-                <span className="text-xl font-bold text-slate-900 font-heading truncate block">
+              <div className="p-3.5 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
+                <span className="text-xs text-text-muted block">Event Track</span>
+                <span className="text-xl font-bold text-text-main font-heading truncate block">
                   {selectedEvent.tracks?.[0] || "General Track"}
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-                <span className="text-xs text-slate-500 block">Days to Kickoff</span>
-                <span className="text-xl font-bold text-slate-900 font-heading">
+              <div className="p-3.5 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
+                <span className="text-xs text-text-muted block">Days to Kickoff</span>
+                <span className="text-xl font-bold text-text-main font-heading">
                   {selectedEvent.daysRemaining} Days
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-                <span className="text-xs text-slate-500 block">Access Scope</span>
-                <span className="text-xl font-bold text-slate-900 font-heading">
+              <div className="p-3.5 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
+                <span className="text-xs text-text-muted block">Access Scope</span>
+                <span className="text-xl font-bold text-text-main font-heading">
                   {selectedEvent.isGlobal ? "Global Open" : "Campus Locked"}
                 </span>
               </div>
@@ -297,10 +297,10 @@ export function EventsPage() {
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-slate-900 font-heading">
+                <h2 className="text-xl font-bold text-text-main font-heading">
                   Recruiting Teams in {selectedEvent.title}
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-text-muted mt-0.5">
                   Explore squads actively seeking teammates for this competition.
                 </p>
               </div>
@@ -311,7 +311,7 @@ export function EventsPage() {
             {teamsLoading ? (
               <div className="py-12 flex flex-col items-center justify-center space-y-2">
                 <Loader2 className="w-6 h-6 text-primary-action animate-spin" />
-                <p className="text-xs font-semibold text-slate-500">Loading participating squads...</p>
+                <p className="text-xs font-semibold text-text-muted">Loading participating squads...</p>
               </div>
             ) : eventTeams.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -324,10 +324,10 @@ export function EventsPage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
-                <Users className="w-10 h-10 text-slate-300 mx-auto" />
-                <h4 className="text-sm font-bold text-slate-800">No teams formed yet for this event</h4>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              <div className="bg-surface rounded-2xl border border-border-main p-12 text-center space-y-3">
+                <Users className="w-10 h-10 text-text-muted mx-auto opacity-50" />
+                <h4 className="text-sm font-bold text-text-main">No teams formed yet for this event</h4>
+                <p className="text-xs text-text-muted max-w-sm mx-auto">
                   Be the first to create a squad and invite peers to build with you.
                 </p>
                 <Link
@@ -348,10 +348,10 @@ export function EventsPage() {
           {/* Page Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-black text-slate-900 font-heading tracking-tight">
+              <h1 className="text-3xl font-black text-text-main font-heading tracking-tight">
                 Hackathons & Tech Events
               </h1>
-              <p className="text-sm text-slate-500 font-medium mt-1">
+              <p className="text-sm text-text-muted font-medium mt-1">
                 Discover university project fairs, hackathons, and global competitions recruiting squads.
               </p>
             </div>
@@ -365,21 +365,21 @@ export function EventsPage() {
           </div>
 
           {/* Search & Filter Toolbar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-3.5 rounded-xl border border-border-main shadow-2xs">
             {/* Search Input */}
             <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-4 h-4 text-text-muted absolute left-3 top-2.5" />
               <input
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search events by name, location, or track..."
-                className="w-full text-xs text-slate-800 placeholder:text-slate-400 pl-9 pr-3 py-2 rounded-lg border border-slate-200 outline-hidden focus:border-primary-action font-sans"
+                className="w-full text-xs text-text-main placeholder:text-text-muted bg-surface-dim pl-9 pr-3 py-2 rounded-lg border border-border-main outline-hidden focus:border-primary-action font-sans"
               />
             </div>
 
             {/* Scope Tabs */}
-            <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-100 border border-slate-200 text-xs font-medium">
+            <div className="flex items-center gap-1.5 p-1 rounded-lg bg-surface-dim border border-border-main text-xs font-medium">
               <button
                 onClick={() => {
                   setScopeFilter("all");
@@ -387,8 +387,8 @@ export function EventsPage() {
                 }}
                 className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   scopeFilter === "all"
-                    ? "bg-white text-slate-900 shadow-2xs font-bold"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-surface text-text-main shadow-2xs font-bold border border-border-main"
+                    : "text-text-muted hover:text-text-main"
                 }`}
               >
                 All Events ({totalEvents})
@@ -401,8 +401,8 @@ export function EventsPage() {
                 }}
                 className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   scopeFilter === "global"
-                    ? "bg-white text-slate-900 shadow-2xs font-bold"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-surface text-text-main shadow-2xs font-bold border border-border-main"
+                    : "text-text-muted hover:text-text-main"
                 }`}
               >
                 Global
@@ -415,8 +415,8 @@ export function EventsPage() {
                 }}
                 className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
                   scopeFilter === "org"
-                    ? "bg-white text-slate-900 shadow-2xs font-bold"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-surface text-text-main shadow-2xs font-bold border border-border-main"
+                    : "text-text-muted hover:text-text-main"
                 }`}
               >
                 Campus Only
@@ -428,13 +428,13 @@ export function EventsPage() {
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center space-y-3">
               <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
-              <p className="text-xs font-semibold text-slate-500">Loading hackathons & competitions...</p>
+              <p className="text-xs font-semibold text-text-muted">Loading hackathons & competitions...</p>
             </div>
           ) : error ? (
-            <div className="bg-white rounded-2xl border border-rose-200 p-8 text-center space-y-2">
+            <div className="bg-surface rounded-2xl border border-rose-500/30 p-8 text-center space-y-2">
               <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
-              <p className="text-sm font-bold text-slate-800">Failed to load events</p>
-              <p className="text-xs text-slate-500">{error}</p>
+              <p className="text-sm font-bold text-text-main">Failed to load events</p>
+              <p className="text-xs text-text-muted">{error}</p>
             </div>
           ) : events.length > 0 ? (
             /* Events Grid */
@@ -448,18 +448,18 @@ export function EventsPage() {
               ))}
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-2">
-              <Calendar className="w-10 h-10 text-slate-300 mx-auto" />
-              <h4 className="text-sm font-bold text-slate-800">No events matched your criteria</h4>
-              <p className="text-xs text-slate-500">Try adjusting your search terms or scope filter.</p>
+            <div className="bg-surface rounded-2xl border border-border-main p-12 text-center space-y-2">
+              <Calendar className="w-10 h-10 text-text-muted mx-auto opacity-50" />
+              <h4 className="text-sm font-bold text-text-main">No events matched your criteria</h4>
+              <p className="text-xs text-text-muted">Try adjusting your search terms or scope filter.</p>
             </div>
           )}
 
           {/* Server-Side Pagination Footer */}
           {!loading && events.length > 0 && (
-            <div className="pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
+            <div className="pt-6 border-t border-border-main flex flex-wrap items-center justify-between gap-4 text-xs text-text-muted">
               <span>
-                Page <strong className="text-slate-800">{currentPage}</strong> of {totalPages} (
+                Page <strong className="text-text-main">{currentPage}</strong> of {totalPages} (
                 {totalEvents} total events)
               </span>
 
@@ -467,7 +467,7 @@ export function EventsPage() {
                 <button
                   disabled={currentPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-md border border-border-main bg-surface hover:bg-surface-dim text-text-main disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
                   Previous
                 </button>
@@ -477,14 +477,14 @@ export function EventsPage() {
                   .map((pageNum, idx, arr) => (
                     <React.Fragment key={pageNum}>
                       {idx > 0 && arr[idx - 1] !== pageNum - 1 && (
-                        <span className="px-1 text-slate-400">...</span>
+                        <span className="px-1 text-text-muted">...</span>
                       )}
                       <button
                         onClick={() => setCurrentPage(pageNum)}
                         className={`px-3 py-1.5 rounded-md border transition-colors cursor-pointer ${
                           currentPage === pageNum
                             ? "border-primary-action bg-primary-action text-white font-bold"
-                            : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                            : "border-border-main bg-surface hover:bg-surface-dim text-text-main"
                         }`}
                       >
                         {pageNum}
@@ -495,7 +495,7 @@ export function EventsPage() {
                 <button
                   disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-md border border-border-main bg-surface hover:bg-surface-dim text-text-main disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
                   Next →
                 </button>

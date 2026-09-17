@@ -128,17 +128,17 @@ export function PlaygroundPage() {
   return (
     <div className="min-h-screen pb-16">
       {/* Top Banner */}
-      <div className="bg-white border-b border-slate-200 sticky top-[73px] z-20 px-4 sm:px-8 py-3.5 shadow-2xs">
+      <div className="bg-surface border-b border-border-main sticky top-[73px] z-20 px-4 sm:px-8 py-3.5 shadow-2xs">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-primary-light border border-primary-border flex items-center justify-center text-primary-action">
               <Sliders className="w-4 h-4" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-slate-900 font-heading">
+              <h1 className="text-sm font-bold text-text-main font-heading">
                 SquadUp 2.0 Design System & Component Playground
               </h1>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-text-muted">
                 Live palette customization • Hierarchy demonstration • Theme code exporter
               </p>
             </div>
@@ -154,7 +154,7 @@ export function PlaygroundPage() {
 
             <button
               onClick={resetPalette}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-text-muted hover:text-text-main hover:bg-surface-dim transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" /> Reset Default
             </button>
@@ -172,16 +172,16 @@ export function PlaygroundPage() {
       {/* Main Workspace Layout: Sidebar Customizer + Component Hierarchy Canvas */}
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
         {/* LEFT COLUMN: Sidebar Live Palette Customizer */}
-        <aside className="lg:col-span-1 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-6 lg:sticky lg:top-[140px]">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+        <aside className="lg:col-span-1 bg-surface rounded-2xl border border-border-main p-5 shadow-xs space-y-6 lg:sticky lg:top-[140px]">
+          <div className="flex items-center justify-between pb-3 border-b border-border-main">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2">
               <Palette className="w-4 h-4 text-primary-action" /> Palette Customizer
             </h2>
           </div>
 
           {/* Preset Buttons */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-700 block">
+            <label className="text-xs font-semibold text-text-main block">
               Curated Theme Presets
             </label>
             <div className="grid grid-cols-1 gap-1.5">
@@ -189,7 +189,7 @@ export function PlaygroundPage() {
                 <button
                   key={presetKey}
                   onClick={() => loadPreset(presetKey)}
-                  className="text-left text-xs font-medium px-3 py-2 rounded-xl bg-slate-50 hover:bg-primary-light hover:text-primary-action border border-slate-200/80 transition-colors cursor-pointer flex items-center justify-between"
+                  className="text-left text-xs font-medium px-3 py-2 rounded-xl bg-surface-dim hover:bg-primary-light hover:text-primary-action border border-border-main transition-colors cursor-pointer flex items-center justify-between text-text-main"
                 >
                   <span>{presetKey}</span>
                   <div className="flex items-center gap-1">
@@ -212,122 +212,122 @@ export function PlaygroundPage() {
           </div>
 
           {/* Color Category 1: Recommendation Tiers */}
-          <div className="space-y-3 pt-2 border-t border-slate-100">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+          <div className="space-y-3 pt-2 border-t border-border-main">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted block">
               Recommendation Tiers
             </span>
 
             {/* Best Fit */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <span className="font-semibold text-text-main flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
                   Best Fit
                 </span>
-                <span className="text-[11px] font-mono text-slate-400">{palette.bestFit}</span>
+                <span className="text-[11px] font-mono text-text-muted">{palette.bestFit}</span>
               </div>
               <input
                 type="color"
                 value={palette.bestFit}
                 onChange={(e) => updateToken("bestFit", e.target.value)}
-                className="w-full h-8 rounded-lg cursor-pointer border border-slate-200 bg-slate-50 p-0.5"
+                className="w-full h-8 rounded-lg cursor-pointer border border-border-main bg-surface-dim p-0.5"
               />
             </div>
 
             {/* Cross-Campus */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <span className="font-semibold text-text-main flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
                   Cross-Campus
                 </span>
-                <span className="text-[11px] font-mono text-slate-400">{palette.crossCampus}</span>
+                <span className="text-[11px] font-mono text-text-muted">{palette.crossCampus}</span>
               </div>
               <input
                 type="color"
                 value={palette.crossCampus}
                 onChange={(e) => updateToken("crossCampus", e.target.value)}
-                className="w-full h-8 rounded-lg cursor-pointer border border-slate-200 bg-slate-50 p-0.5"
+                className="w-full h-8 rounded-lg cursor-pointer border border-border-main bg-surface-dim p-0.5"
               />
             </div>
 
             {/* Same Campus */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <span className="font-semibold text-text-main flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
                   Same Campus
                 </span>
-                <span className="text-[11px] font-mono text-slate-400">{palette.campusExplorer}</span>
+                <span className="text-[11px] font-mono text-text-muted">{palette.campusExplorer}</span>
               </div>
               <input
                 type="color"
                 value={palette.campusExplorer}
                 onChange={(e) => updateToken("campusExplorer", e.target.value)}
-                className="w-full h-8 rounded-lg cursor-pointer border border-slate-200 bg-slate-50 p-0.5"
+                className="w-full h-8 rounded-lg cursor-pointer border border-border-main bg-surface-dim p-0.5"
               />
             </div>
           </div>
 
           {/* Color Category 2: Brand Action & Canvas */}
-          <div className="space-y-3 pt-2 border-t border-slate-100">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+          <div className="space-y-3 pt-2 border-t border-border-main">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted block">
               Core Surfaces & Action
             </span>
 
             {/* Primary Action */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700">Primary Button / Action</span>
-                <span className="text-[11px] font-mono text-slate-400">{palette.primaryAction}</span>
+                <span className="font-semibold text-text-main">Primary Button / Action</span>
+                <span className="text-[11px] font-mono text-text-muted">{palette.primaryAction}</span>
               </div>
               <input
                 type="color"
                 value={palette.primaryAction}
                 onChange={(e) => updateToken("primaryAction", e.target.value)}
-                className="w-full h-8 rounded-lg cursor-pointer border border-slate-200 bg-slate-50 p-0.5"
+                className="w-full h-8 rounded-lg cursor-pointer border border-border-main bg-surface-dim p-0.5"
               />
             </div>
 
             {/* Canvas / Background */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700">Canvas (Page BG)</span>
-                <span className="text-[11px] font-mono text-slate-400">{palette.canvas}</span>
+                <span className="font-semibold text-text-main">Canvas (Page BG)</span>
+                <span className="text-[11px] font-mono text-text-muted">{palette.canvas}</span>
               </div>
               <input
                 type="color"
                 value={palette.canvas}
                 onChange={(e) => updateToken("canvas", e.target.value)}
-                className="w-full h-8 rounded-lg cursor-pointer border border-slate-200 bg-slate-50 p-0.5"
+                className="w-full h-8 rounded-lg cursor-pointer border border-border-main bg-surface-dim p-0.5"
               />
             </div>
 
             {/* Surface */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700">Card Surface</span>
-                <span className="text-[11px] font-mono text-slate-400">{palette.surface}</span>
+                <span className="font-semibold text-text-main">Card Surface</span>
+                <span className="text-[11px] font-mono text-text-muted">{palette.surface}</span>
               </div>
               <input
                 type="color"
                 value={palette.surface}
                 onChange={(e) => updateToken("surface", e.target.value)}
-                className="w-full h-8 rounded-lg cursor-pointer border border-slate-200 bg-slate-50 p-0.5"
+                className="w-full h-8 rounded-lg cursor-pointer border border-border-main bg-surface-dim p-0.5"
               />
             </div>
 
             {/* Border */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-700">Borders</span>
-                <span className="text-[11px] font-mono text-slate-400">{palette.border}</span>
+                <span className="font-semibold text-text-main">Borders</span>
+                <span className="text-[11px] font-mono text-text-muted">{palette.border}</span>
               </div>
               <input
                 type="color"
                 value={palette.border}
                 onChange={(e) => updateToken("border", e.target.value)}
-                className="w-full h-8 rounded-lg cursor-pointer border border-slate-200 bg-slate-50 p-0.5"
+                className="w-full h-8 rounded-lg cursor-pointer border border-border-main bg-surface-dim p-0.5"
               />
             </div>
           </div>
@@ -336,24 +336,24 @@ export function PlaygroundPage() {
         {/* RIGHT COLUMN: Hierarchical Component Canvas */}
         <main className="lg:col-span-3 space-y-10">
           {/* LEVEL 1: Atomic Badges & Categorization Tokens */}
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="space-y-1 pb-4 border-b border-slate-100">
+          <section className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="space-y-1 pb-4 border-b border-border-main">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-primary-light text-primary-action border border-primary-border">
                   Level 1 • Atoms
                 </span>
-                <h2 className="text-lg font-bold text-slate-900 font-heading">
+                <h2 className="text-lg font-bold text-text-main font-heading">
                   Badges, Indicators & Legend Ribbon
                 </h2>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-text-muted">
                 Foundational tokens communicating taxonomy match tiers, verification scopes, and status.
               </p>
             </div>
 
             {/* Horizontal Legend Ribbon */}
             <div className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
                 Horizontal Match Legend Ribbon
               </h3>
               <CategoryLegend />
@@ -361,7 +361,7 @@ export function PlaygroundPage() {
 
             {/* Recommendation Badges */}
             <div className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
                 Recommendation Tiers (Dynamic CSS Colors)
               </h3>
               <div className="flex flex-wrap gap-3">
@@ -373,7 +373,7 @@ export function PlaygroundPage() {
 
             {/* Scope & Status Badges */}
             <div className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
                 Event Scopes & Application Status Badges
               </h3>
               <div className="flex flex-wrap gap-3">
@@ -387,7 +387,7 @@ export function PlaygroundPage() {
 
             {/* Skill Tags */}
             <div className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
                 Skill Tags (Provenanced vs Unmatched)
               </h3>
               <div className="flex flex-wrap gap-2">
@@ -400,67 +400,67 @@ export function PlaygroundPage() {
           </section>
 
           {/* LEVEL 2: Telemetry & Measurement Rings */}
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="space-y-1 pb-4 border-b border-slate-100">
+          <section className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="space-y-1 pb-4 border-b border-border-main">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-primary-light text-primary-action border border-primary-border">
                   Level 2 • Telemetry
                 </span>
-                <h2 className="text-lg font-bold text-slate-900 font-heading">
+                <h2 className="text-lg font-bold text-text-main font-heading">
                   Radial Compatibility Score Rings
                 </h2>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-text-muted">
                 Precise SVG geometry calculating perimeter stroke offsets based on semantic score.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-2">
+              <div className="p-4 rounded-xl bg-surface-dim border border-border-main text-center space-y-2">
                 <div className="flex justify-center">
                   <CompatibilityScoreRing score={0.94} size={76} strokeWidth={6} />
                 </div>
-                <h4 className="text-xs font-bold text-slate-800">Best Fit (94%)</h4>
-                <p className="text-[11px] text-slate-500">Tier 1 Mint Indicator</p>
+                <h4 className="text-xs font-bold text-text-main">Best Fit (94%)</h4>
+                <p className="text-[11px] text-text-muted">Tier 1 Mint Indicator</p>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-2">
+              <div className="p-4 rounded-xl bg-surface-dim border border-border-main text-center space-y-2">
                 <div className="flex justify-center">
                   <CompatibilityScoreRing score={0.85} size={76} strokeWidth={6} />
                 </div>
-                <h4 className="text-xs font-bold text-slate-800">Cross-Campus (85%)</h4>
-                <p className="text-[11px] text-slate-500">Tier 2 Indigo Indicator</p>
+                <h4 className="text-xs font-bold text-text-main">Cross-Campus (85%)</h4>
+                <p className="text-[11px] text-text-muted">Tier 2 Indigo Indicator</p>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-2">
+              <div className="p-4 rounded-xl bg-surface-dim border border-border-main text-center space-y-2">
                 <div className="flex justify-center">
                   <CompatibilityScoreRing score={0.65} size={76} strokeWidth={6} />
                 </div>
-                <h4 className="text-xs font-bold text-slate-800">Same Campus (65%)</h4>
-                <p className="text-[11px] text-slate-500">Tier 3 Amber Indicator</p>
+                <h4 className="text-xs font-bold text-text-main">Same Campus (65%)</h4>
+                <p className="text-[11px] text-text-muted">Tier 3 Amber Indicator</p>
               </div>
             </div>
           </section>
 
           {/* LEVEL 3: Core Cards & Interaction Tiles */}
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="space-y-1 pb-4 border-b border-slate-100">
+          <section className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="space-y-1 pb-4 border-b border-border-main">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-primary-light text-primary-action border border-primary-border">
                   Level 3 • Core Tiles
                 </span>
-                <h2 className="text-lg font-bold text-slate-900 font-heading">
+                <h2 className="text-lg font-bold text-text-main font-heading">
                   Interactive Squad & Candidate Tiles
                 </h2>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-text-muted">
                 Polymorphic cards demonstrating resting state, hover feedback, and accordion dossiers.
               </p>
             </div>
 
             {/* Team Cards Grid */}
             <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
                 Team Cards (Best Fit & Cross-Campus)
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -478,9 +478,9 @@ export function PlaygroundPage() {
             </div>
 
             {/* Collapsible Candidate Application Tile */}
-            <div className="space-y-3 pt-4 border-t border-slate-100">
+            <div className="space-y-3 pt-4 border-t border-border-main">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
                   Candidate Application Tile (Collapsed by Default — Click to Expand)
                 </h3>
                 <span className="text-[11px] text-primary-action font-semibold">
@@ -497,8 +497,8 @@ export function PlaygroundPage() {
             </div>
 
             {/* Event Card */}
-            <div className="space-y-3 pt-4 border-t border-slate-100">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            <div className="space-y-3 pt-4 border-t border-border-main">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
                 Event Directory Card
               </h3>
               <div className="max-w-md">
@@ -508,17 +508,17 @@ export function PlaygroundPage() {
           </section>
 
           {/* LEVEL 4: Composite Decision Panels */}
-          <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="space-y-1 pb-4 border-b border-slate-100">
+          <section className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="space-y-1 pb-4 border-b border-border-main">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-primary-light text-primary-action border border-primary-border">
                   Level 4 • Complex Composites
                 </span>
-                <h2 className="text-lg font-bold text-slate-900 font-heading">
+                <h2 className="text-lg font-bold text-text-main font-heading">
                   Smart Recommendation & Application Decision Panel
                 </h2>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-text-muted">
                 Composite panel articulating provenance reasons and powering application state transitions.
               </p>
             </div>
@@ -562,34 +562,34 @@ export function PlaygroundPage() {
 
       {/* Export Modal */}
       {isExportModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 space-y-6 relative">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-surface border border-border-main rounded-2xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 space-y-6 relative">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-slate-900 font-heading">
+                <h3 className="text-xl font-bold text-text-main font-heading">
                   Finalize & Export Palette
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-text-muted mt-1">
                   Copy your customized theme variables directly into your project's stylesheet or config.
                 </p>
               </div>
 
               <button
                 onClick={() => setIsExportModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-sm font-bold bg-slate-100 p-2 rounded-full cursor-pointer"
+                className="text-text-muted hover:text-text-main text-sm font-bold bg-surface-dim p-2 rounded-full cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             {/* Export Format Selector */}
-            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+            <div className="flex items-center gap-2 bg-surface-dim border border-border-main p-1 rounded-xl">
               <button
                 onClick={() => setActiveTab("css")}
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-2 ${
                   activeTab === "css"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-surface text-text-main shadow-xs border border-border-main"
+                    : "text-text-muted hover:text-text-main"
                 }`}
               >
                 <Code2 className="w-3.5 h-3.5" /> CSS Custom Properties (styles.css)
@@ -599,8 +599,8 @@ export function PlaygroundPage() {
                 onClick={() => setActiveTab("json")}
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-2 ${
                   activeTab === "json"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-surface text-text-main shadow-xs border border-border-main"
+                    : "text-text-muted hover:text-text-main"
                 }`}
               >
                 <FileJson className="w-3.5 h-3.5" /> JSON Tokens (tokens.json)
@@ -609,17 +609,17 @@ export function PlaygroundPage() {
 
             {/* Code Block Container */}
             <div className="relative">
-              <pre className="p-4 rounded-xl bg-slate-950 text-slate-200 text-xs font-mono overflow-x-auto max-h-72 border border-slate-800 leading-relaxed">
+              <pre className="p-4 rounded-xl bg-surface-dim text-text-main text-xs font-mono overflow-x-auto max-h-72 border border-border-main leading-relaxed">
                 <code>{activeTab === "css" ? exportCss() : exportJson()}</code>
               </pre>
 
               <button
                 onClick={handleCopy}
-                className="absolute top-3 right-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white shadow-xs transition-colors cursor-pointer border border-slate-700"
+                className="absolute top-3 right-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-surface hover:bg-surface-dim text-text-main shadow-xs transition-colors cursor-pointer border border-border-main"
               >
                 {copied ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" /> Copied!
+                    <Check className="w-3.5 h-3.5 text-emerald-500" /> Copied!
                   </>
                 ) : (
                   <>
@@ -629,11 +629,11 @@ export function PlaygroundPage() {
               </button>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between text-xs text-text-muted pt-2 border-t border-border-main">
               <span>Ready for production integration in SquadUp 2.0.</span>
               <button
                 onClick={() => setIsExportModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-primary-action text-white hover:bg-primary-hover transition-colors cursor-pointer"
               >
                 Done
               </button>
@@ -655,3 +655,4 @@ export function PlaygroundPage() {
     </div>
   );
 }
+

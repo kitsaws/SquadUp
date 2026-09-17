@@ -405,31 +405,31 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
         };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className="w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+        className="w-full max-w-xl bg-surface rounded-2xl shadow-2xl border border-border-main overflow-hidden flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ================= MODAL HEADER ================= */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+        <div className="p-5 border-b border-border-main flex items-center justify-between bg-surface shrink-0">
           <div className="flex items-center gap-2.5">
             {activeView !== "choose" && (
               <button
                 type="button"
                 onClick={() => setActiveView("choose")}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-text-muted hover:text-text-main hover:bg-surface-dim transition-colors cursor-pointer"
                 title="Back to options"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
             )}
             <div>
-              <h3 className="text-base font-bold text-slate-900 font-heading">
+              <h3 className="text-base font-bold text-text-main font-heading">
                 {activeView === "choose" && "Edit Profile"}
                 {activeView === "manual" && "Edit Profile Details"}
                 {activeView === "banner" && "Customize Background Banner"}
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-text-muted">
                 {activeView === "choose" && "Choose how you would like to update your developer profile"}
                 {activeView === "manual" && "Directly modify your headline, bio, and verified skills"}
                 {activeView === "banner" && "Design a custom gradient or upload an image banner"}
@@ -440,7 +440,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-surface-dim transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -459,10 +459,10 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                       <Sparkles className="w-4 h-4" />
                     </span>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900 font-heading">
+                      <h4 className="text-sm font-bold text-text-main font-heading">
                         Upload New Resume
                       </h4>
-                      <p className="text-[11px] text-text-main/80">
+                      <p className="text-[11px] text-text-muted">
                         AI automatically parses latest skills, projects, and roles into your profile.
                       </p>
                     </div>
@@ -493,25 +493,25 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                     className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
                       isDragOver
                         ? "border-primary-action bg-primary-light/50 scale-[0.99]"
-                        : "border-primary-border hover:border-primary-action bg-white"
+                        : "border-primary-border hover:border-primary-action bg-surface"
                     }`}
                   >
                     <Upload className="w-6 h-6 text-primary-action mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-slate-700">
+                    <p className="text-xs font-semibold text-text-main">
                       Drag and drop your PDF resume here, or{" "}
                       <span className="text-primary-action underline">browse</span>
                     </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Maximum size: 10MB • Format: .pdf</p>
+                    <p className="text-[10px] text-text-muted mt-0.5">Maximum size: 10MB • Format: .pdf</p>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-xl p-3.5 border border-primary-border flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="bg-surface rounded-xl p-3.5 border border-primary-border flex items-center justify-between gap-3 shadow-2xs">
                     <div className="flex items-center gap-2.5 overflow-hidden">
                       <FileText className="w-5 h-5 text-primary-action shrink-0" />
                       <div className="truncate text-left">
-                        <p className="text-xs font-bold text-slate-900 truncate">
+                        <p className="text-xs font-bold text-text-main truncate">
                           {resumeFile.name}
                         </p>
-                        <p className="text-[10px] text-slate-400">
+                        <p className="text-[10px] text-text-muted">
                           {(resumeFile.size / (1024 * 1024)).toFixed(2)} MB • Ready to ingest
                         </p>
                       </div>
@@ -521,7 +521,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                       <button
                         type="button"
                         onClick={() => setResumeFile(null)}
-                        className="text-xs text-slate-400 hover:text-rose-600 font-semibold cursor-pointer p-1"
+                        className="text-xs text-text-muted hover:text-rose-600 font-semibold cursor-pointer p-1"
                       >
                         Remove
                       </button>
@@ -549,36 +549,36 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
 
               {/* DIVIDER */}
               <div className="relative flex items-center justify-center">
-                <div className="w-full border-t border-slate-200" />
-                <span className="bg-white px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider absolute">
+                <div className="w-full border-t border-border-main" />
+                <span className="bg-surface px-3 text-[11px] font-bold text-text-muted uppercase tracking-wider absolute">
                   Or edit directly
                 </span>
               </div>
 
               {/* BOTTOM SECTION: MANUAL EDIT */}
-              <div className="p-5 rounded-2xl border border-slate-200 bg-white space-y-3 shadow-2xs">
+              <div className="p-5 rounded-2xl border border-border-main bg-surface space-y-3 shadow-2xs">
                 <div className="flex items-center gap-2.5">
-                  <span className="p-1.5 rounded-lg bg-slate-800 text-white shadow-2xs">
+                  <span className="p-1.5 rounded-lg bg-surface-dim text-text-main border border-border-main shadow-2xs">
                     <Pencil className="w-4 h-4" />
                   </span>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900 font-heading">
+                    <h4 className="text-sm font-bold text-text-main font-heading">
                       Edit Profile Manually
                     </h4>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-text-muted">
                       Directly tweak your headline, bio, skills, and links without re-uploading.
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-text-muted">
                     Updates your skill matches and team recommendations automatically.
                   </span>
                   <button
                     type="button"
                     onClick={() => setActiveView("manual")}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-colors shadow-2xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-action hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-colors shadow-2xs cursor-pointer"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                     <span>Open Editor</span>
@@ -587,15 +587,15 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
               </div>
 
               {/* EXTRA OPTION: BANNER CUSTOMIZER */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Palette className="w-4 h-4 text-indigo-600" />
+              <div className="pt-2 border-t border-border-main flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-text-muted">
+                  <Palette className="w-4 h-4 text-primary-action" />
                   <span className="font-semibold">Profile Background Banner</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setActiveView("banner")}
-                  className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer inline-flex items-center gap-1"
+                  className="text-xs font-bold text-primary-action hover:underline cursor-pointer inline-flex items-center gap-1"
                 >
                   <span>Customize Banner</span> &rarr;
                 </button>
@@ -608,7 +608,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
             <form onSubmit={handleSaveManual} className="space-y-4">
               {/* Full Name */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                <label className="text-xs font-bold text-text-main uppercase tracking-wider block">
                   Full Name
                 </label>
                 <input
@@ -617,13 +617,13 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="e.g. Jane Doe"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-border-main bg-surface text-text-main focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                 />
               </div>
 
               {/* Professional Title */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                <label className="text-xs font-bold text-text-main uppercase tracking-wider block">
                   Headline / Role
                 </label>
                 <input
@@ -631,34 +631,34 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Full Stack Engineer | Systems & AI"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-border-main bg-surface text-text-main focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                 />
               </div>
 
               {/* University (Locked) */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                  <label className="text-xs font-bold text-text-main uppercase tracking-wider block">
                     University / Institution
                   </label>
-                  <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                    <Lock className="w-3 h-3 text-slate-400" /> Managed via Institution
+                  <span className="text-[10px] font-bold text-text-muted flex items-center gap-1">
+                    <Lock className="w-3 h-3 text-text-muted" /> Managed via Institution
                   </span>
                 </div>
-                <div className="flex items-center justify-between bg-slate-100/70 border border-slate-200/80 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold cursor-not-allowed">
+                <div className="flex items-center justify-between bg-surface-dim/70 border border-border-main rounded-xl px-3 py-2 text-xs text-text-main font-semibold cursor-not-allowed">
                   <span>{profile.university || "Collegiate Participant"}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-500">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-surface border border-border-main text-text-muted">
                     Verified
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-400 italic">
+                <p className="text-[10px] text-text-muted italic">
                   Institutional affiliation is bound to your Clerk university organization to maintain event eligibility.
                 </p>
               </div>
 
               {/* Bio / Summary */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                <label className="text-xs font-bold text-text-main uppercase tracking-wider block">
                   About / Bio
                 </label>
                 <textarea
@@ -666,14 +666,14 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                   value={summary}
                   onChange={(e) => setSummary(e.target.value)}
                   placeholder="Brief summary of your interests, hackathon goals, and technical focus..."
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium resize-none"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-border-main bg-surface text-text-main focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium resize-none"
                 />
               </div>
 
               {/* Skills Tag Manager */}
-              <div className="space-y-2 pt-1 border-t border-slate-100">
+              <div className="space-y-2 pt-1 border-t border-border-main">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-text-main uppercase tracking-wider block flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-primary-action" /> Technical Skills
                   </label>
                   <span className="text-[11px] text-primary-action font-bold">
@@ -693,7 +693,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                       }
                     }}
                     placeholder="Add a technology (e.g. React, Docker, FastAPI)..."
-                    className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
+                    className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-border-main bg-surface text-text-main focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                   />
                   <button
                     type="button"
@@ -705,17 +705,17 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                 </div>
 
                 {skills.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-white rounded-xl border border-slate-200">
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-surface rounded-xl border border-border-main">
                     {skills.map((skill, index) => (
                       <span
                         key={index}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-800 shadow-2xs"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-surface-dim border border-border-main text-text-main shadow-2xs"
                       >
                         <span>{skill}</span>
                         <button
                           type="button"
                           onClick={() => handleRemoveSkill(skill)}
-                          className="text-slate-400 hover:text-rose-600 rounded-full p-0.5 transition-colors cursor-pointer"
+                          className="text-text-muted hover:text-rose-600 rounded-full p-0.5 transition-colors cursor-pointer"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -723,14 +723,14 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[11px] text-slate-400 italic">No skills specified yet.</p>
+                  <p className="text-[11px] text-text-muted italic">No skills specified yet.</p>
                 )}
               </div>
 
               {/* Links */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border-main">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  <label className="text-[11px] font-bold text-text-muted uppercase tracking-wider block">
                     GitHub Profile URL
                   </label>
                   <input
@@ -738,12 +738,12 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                     value={githubUrl}
                     onChange={(e) => setGithubUrl(e.target.value)}
                     placeholder="https://github.com/... or username"
-                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
+                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-border-main bg-surface text-text-main focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  <label className="text-[11px] font-bold text-text-muted uppercase tracking-wider block">
                     LinkedIn Profile URL
                   </label>
                   <input
@@ -751,14 +751,14 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                     value={linkedinUrl}
                     onChange={(e) => setLinkedinUrl(e.target.value)}
                     placeholder="https://linkedin.com/in/... or handle"
-                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
+                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-border-main bg-surface text-text-main focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                   />
                 </div>
               </div>
 
               {/* Academic Degree / Major */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                <label className="text-[11px] font-bold text-text-muted uppercase tracking-wider block">
                   Degree / Major
                 </label>
                 <input
@@ -766,16 +766,16 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                   value={degree}
                   onChange={(e) => setDegree(e.target.value)}
                   placeholder="e.g. B.S. Computer Science"
-                  className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
+                  className="w-full px-3 py-1.5 text-xs rounded-xl border border-border-main bg-surface text-text-main focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all font-medium"
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-4 border-t border-border-main flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setActiveView("choose")}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-bold text-text-muted hover:bg-surface-dim rounded-xl transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -803,12 +803,12 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
             <div className="space-y-5">
               {/* Live Preview */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider block">
                   Live Banner Preview
                 </span>
                 <div
                   style={liveBannerStyle}
-                  className="h-28 w-full rounded-xl border border-slate-200 shadow-inner relative overflow-hidden transition-all duration-300 flex items-end p-3"
+                  className="h-28 w-full rounded-xl border border-border-main shadow-inner relative overflow-hidden transition-all duration-300 flex items-end p-3"
                 >
                   <div className="bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-lg text-white text-[11px] font-semibold flex items-center gap-1.5 border border-white/15">
                     <span>{fullName || "Student Profile"}</span>
@@ -817,14 +817,14 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
               </div>
 
               {/* Mode Selector: Gradient vs Image */}
-              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+              <div className="grid grid-cols-2 gap-2 p-1 bg-surface-dim rounded-xl">
                 <button
                   type="button"
                   onClick={() => setBannerType("gradient")}
                   className={`py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     bannerType === "gradient"
-                      ? "bg-white text-slate-900 shadow-2xs"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-surface text-text-main shadow-2xs"
+                      : "text-text-muted hover:text-text-main"
                   }`}
                 >
                   <Sliders className="w-3.5 h-3.5" /> Gradient Designer
@@ -834,8 +834,8 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                   onClick={() => setBannerType("image")}
                   className={`py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     bannerType === "image"
-                      ? "bg-white text-slate-900 shadow-2xs"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-surface text-text-main shadow-2xs"
+                      : "text-text-muted hover:text-text-main"
                   }`}
                 >
                   <ImageIcon className="w-3.5 h-3.5" /> Upload Image
@@ -847,7 +847,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                 <div className="space-y-4">
                   {/* Preset Gradient Chips */}
                   <div className="space-y-1.5">
-                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
+                    <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider block">
                       Curated Designer Presets
                     </span>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -860,7 +860,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                             setGradientColor2(p.color2);
                             setGradientAngle(p.angle);
                           }}
-                          className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-left text-[11px] font-semibold hover:border-slate-400 transition-all flex items-center gap-2 cursor-pointer bg-white"
+                          className="px-2.5 py-1.5 rounded-lg border border-border-main text-left text-[11px] font-semibold hover:border-primary-border transition-all flex items-center gap-2 cursor-pointer bg-surface"
                         >
                           <span
                             className="w-3.5 h-3.5 rounded-full shrink-0 border border-black/10"
@@ -868,7 +868,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                               background: `linear-gradient(${p.angle}deg, ${p.color1}, ${p.color2})`,
                             }}
                           />
-                          <span className="truncate text-slate-700">{p.name}</span>
+                          <span className="truncate text-text-main">{p.name}</span>
                         </button>
                       ))}
                     </div>
@@ -877,7 +877,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                   {/* Gradient Sliders / Pickers */}
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-700 block">
+                      <label className="text-[11px] font-bold text-text-muted block">
                         Start Color
                       </label>
                       <div className="flex items-center gap-2">
@@ -885,19 +885,19 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                           type="color"
                           value={gradientColor1}
                           onChange={(e) => setGradientColor1(e.target.value)}
-                          className="w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5"
+                          className="w-8 h-8 rounded-lg border border-border-main cursor-pointer p-0.5 bg-surface"
                         />
                         <input
                           type="text"
                           value={gradientColor1}
                           onChange={(e) => setGradientColor1(e.target.value)}
-                          className="flex-1 px-2 py-1 text-xs rounded-lg border border-slate-200 font-mono"
+                          className="flex-1 px-2 py-1 text-xs rounded-lg border border-border-main bg-surface text-text-main font-mono"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-700 block">
+                      <label className="text-[11px] font-bold text-text-muted block">
                         End Color
                       </label>
                       <div className="flex items-center gap-2">
@@ -905,13 +905,13 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                           type="color"
                           value={gradientColor2}
                           onChange={(e) => setGradientColor2(e.target.value)}
-                          className="w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5"
+                          className="w-8 h-8 rounded-lg border border-border-main cursor-pointer p-0.5 bg-surface"
                         />
                         <input
                           type="text"
                           value={gradientColor2}
                           onChange={(e) => setGradientColor2(e.target.value)}
-                          className="flex-1 px-2 py-1 text-xs rounded-lg border border-slate-200 font-mono"
+                          className="flex-1 px-2 py-1 text-xs rounded-lg border border-border-main bg-surface text-text-main font-mono"
                         />
                       </div>
                     </div>
@@ -919,7 +919,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
 
                   {/* Angle Slider */}
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-text-muted">
                       <span>Gradient Angle</span>
                       <span>{gradientAngle}°</span>
                     </div>
@@ -929,7 +929,7 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
                       max={360}
                       value={gradientAngle}
                       onChange={(e) => setGradientAngle(Number(e.target.value))}
-                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary-action"
+                      className="w-full h-1.5 bg-surface-dim rounded-lg appearance-none cursor-pointer accent-primary-action"
                     />
                   </div>
                 </div>
@@ -948,20 +948,20 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
 
                   <div
                     onClick={() => bannerImageInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-200 hover:border-slate-400 rounded-xl p-6 text-center cursor-pointer transition-colors bg-white"
+                    className="border-2 border-dashed border-border-main hover:border-primary-border rounded-xl p-6 text-center cursor-pointer transition-colors bg-surface"
                   >
-                    <ImageIcon className="w-8 h-8 text-slate-400 mx-auto mb-1.5" />
-                    <p className="text-xs font-semibold text-slate-700">
+                    <ImageIcon className="w-8 h-8 text-text-muted mx-auto mb-1.5" />
+                    <p className="text-xs font-semibold text-text-main">
                       Click to choose banner photo
                     </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
+                    <p className="text-[10px] text-text-muted mt-0.5">
                       Recommended: 1200x300px • Max size: 2MB (JPG, PNG, WebP)
                     </p>
                   </div>
 
                   {bannerImageDataUrl && (
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 text-xs">
-                      <span className="text-slate-600 font-medium truncate max-w-xs">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-surface border border-border-main text-xs">
+                      <span className="text-text-main font-medium truncate max-w-xs">
                         Custom Image Loaded
                       </span>
                       <button
@@ -977,19 +977,19 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
               )}
 
               {/* DYNAMIC THEME COLOR SYNC TOGGLE */}
-              <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-1 shadow-2xs">
+              <div className="p-3.5 rounded-xl border border-border-main bg-surface space-y-1 shadow-2xs">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={syncThemeWithBanner}
                     onChange={(e) => setSyncThemeWithBanner(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded text-primary-action border-slate-300 focus:ring-primary-action cursor-pointer"
+                    className="mt-0.5 w-4 h-4 rounded text-primary-action border-border-main focus:ring-primary-action cursor-pointer"
                   />
                   <div>
-                    <span className="text-xs font-bold text-slate-900 block">
+                    <span className="text-xs font-bold text-text-main block">
                       Sync website theme with banner color
                     </span>
-                    <span className="text-[11px] text-slate-500 leading-snug block">
+                    <span className="text-[11px] text-text-muted leading-snug block">
                       Dynamically updates button and accent colors across your workspace to harmonize with your banner.
                     </span>
                   </div>
@@ -997,11 +997,11 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-border-main flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={initialView === "banner" ? onClose : () => setActiveView("choose")}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-bold text-text-muted hover:bg-surface-dim rounded-xl transition-colors cursor-pointer"
                 >
                   {initialView === "banner" ? "Cancel" : "Back"}
                 </button>

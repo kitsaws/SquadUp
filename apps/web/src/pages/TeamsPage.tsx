@@ -232,8 +232,8 @@ export function TeamsPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom duration-200">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        <div className="fixed bottom-6 right-6 z-50 bg-surface text-text-main border border-border-main px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -241,27 +241,27 @@ export function TeamsPage() {
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight font-heading">
+          <h1 className="text-3xl font-black text-text-main tracking-tight font-heading">
             Squads Directory
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-text-muted mt-1">
             Browse hackathon teams recruiting talent. Filter by skills, event, or campus match.
           </p>
         </div>
       </div>
 
       {/* Search & Filter Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+      <div className="bg-surface rounded-2xl border border-border-main p-4 shadow-xs space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search Input */}
           <div className="relative flex-1 min-w-[240px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search by team name or required skills (e.g. React, Docker)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-action transition-all"
+              className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-surface-dim rounded-xl border border-border-main text-text-main placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-action transition-all"
             />
           </div>
 
@@ -272,10 +272,11 @@ export function TeamsPage() {
                 setIsFilterOpen(!isFilterOpen);
                 setIsSortOpen(false);
               }}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${activeFilterCount > 0
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                activeFilterCount > 0
                   ? "bg-primary-light text-primary-action border-primary-border"
-                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                }`}
+                  : "bg-surface text-text-main border-border-main hover:bg-surface-dim"
+              }`}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
               <span>Filter</span>
@@ -287,9 +288,9 @@ export function TeamsPage() {
             </button>
 
             {isFilterOpen && (
-              <div className="absolute left-0 top-full mt-2 w-72 bg-white rounded-2xl border border-slate-200 shadow-xl p-4 z-30 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+              <div className="absolute left-0 top-full mt-2 w-72 bg-surface rounded-2xl border border-border-main shadow-xl p-4 z-30 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between pb-2 border-b border-border-main">
+                  <h4 className="text-xs font-black text-text-main uppercase tracking-wider">
                     Filter Squads
                   </h4>
                   {activeFilterCount > 0 && (
@@ -309,47 +310,51 @@ export function TeamsPage() {
                 {/* Match Recommendation Spectrum (only when signed in) */}
                 {isSignedIn && (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-700 block">
+                    <label className="text-xs font-black text-text-main block">
                       Match Recommendation
                     </label>
                     <div className="space-y-1 text-xs">
                       <button
                         type="button"
                         onClick={() => setFilterTier("ALL")}
-                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "ALL"
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
+                          filterTier === "ALL"
                             ? "bg-primary-light text-primary-action font-bold"
-                            : "text-slate-700 hover:bg-slate-100"
-                          }`}
+                            : "text-text-main hover:bg-surface-dim"
+                        }`}
                       >
                         All Tiers
                       </button>
                       <button
                         type="button"
                         onClick={() => setFilterTier("BEST")}
-                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "BEST"
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
+                          filterTier === "BEST"
                             ? "bg-best-fit text-best-fit-dark font-bold"
                             : "text-best-fit-dark hover:bg-best-fit-light"
-                          }`}
+                        }`}
                       >
                         Best Fit
                       </button>
                       <button
                         type="button"
                         onClick={() => setFilterTier("CROSS_CAMPUS")}
-                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "CROSS_CAMPUS"
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
+                          filterTier === "CROSS_CAMPUS"
                             ? "bg-cross-campus text-white font-bold"
                             : "text-cross-campus-dark hover:bg-cross-campus-light"
-                          }`}
+                        }`}
                       >
                         Cross-Campus
                       </button>
                       <button
                         type="button"
                         onClick={() => setFilterTier("CAMPUS_EXPLORER")}
-                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${filterTier === "CAMPUS_EXPLORER"
+                        className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
+                          filterTier === "CAMPUS_EXPLORER"
                             ? "bg-campus-explorer text-white font-bold"
                             : "text-campus-explorer-dark hover:bg-campus-explorer-light"
-                          }`}
+                        }`}
                       >
                         Same Campus
                       </button>
@@ -358,8 +363,8 @@ export function TeamsPage() {
                 )}
 
                 {/* Campus Affiliation */}
-                <div className={`space-y-1.5 ${isSignedIn ? "pt-2 border-t border-slate-100" : ""}`}>
-                  <label className="text-xs font-black text-slate-700 block">
+                <div className={`space-y-1.5 ${isSignedIn ? "pt-2 border-t border-border-main" : ""}`}>
+                  <label className="text-xs font-black text-text-main block">
                     Campus Affiliation
                   </label>
                   <div className="space-y-1">
@@ -373,10 +378,11 @@ export function TeamsPage() {
                         key={opt.id}
                         type="button"
                         onClick={() => setFilterCampus(opt.id)}
-                        className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${filterCampus === opt.id
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                          filterCampus === opt.id
                             ? "bg-primary-light text-primary-action font-bold"
-                            : "text-slate-700 hover:bg-slate-100"
-                          }`}
+                            : "text-text-main hover:bg-surface-dim"
+                        }`}
                       >
                         {opt.label}
                       </button>
@@ -385,8 +391,8 @@ export function TeamsPage() {
                 </div>
 
                 {/* Toggle Open Spots */}
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-700">Open Spots Only</span>
+                <div className="pt-2 border-t border-border-main flex items-center justify-between text-xs">
+                  <span className="font-semibold text-text-main">Open Spots Only</span>
                   <input
                     type="checkbox"
                     checked={filterOpenSpotsOnly}
@@ -405,26 +411,26 @@ export function TeamsPage() {
                 setIsSortOpen(!isSortOpen);
                 setIsFilterOpen(false);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-border-main bg-surface text-text-main hover:bg-surface-dim transition-all cursor-pointer"
             >
               <ArrowUpDown className="w-3.5 h-3.5" />
               <span>Sort: {sortLabels[sortBy].split(" ")[0]}</span>
             </button>
 
             {isSortOpen && (
-              <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-2xl border border-slate-200 shadow-xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute left-0 top-full mt-2 w-56 bg-surface rounded-2xl border border-border-main shadow-xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150">
                 {(
                   (isSignedIn
                     ? [
-                      { id: "FIT_DESC", label: "Fit Score (Highest)" },
-                      { id: "FIT_ASC", label: "Fit Score (Lowest)" },
-                      { id: "SPOTS_DESC", label: "Open Spots (Most)" },
-                      { id: "NAME_ASC", label: "Squad Name (A-Z)" },
-                    ]
+                        { id: "FIT_DESC", label: "Fit Score (Highest)" },
+                        { id: "FIT_ASC", label: "Fit Score (Lowest)" },
+                        { id: "SPOTS_DESC", label: "Open Spots (Most)" },
+                        { id: "NAME_ASC", label: "Squad Name (A-Z)" },
+                      ]
                     : [
-                      { id: "SPOTS_DESC", label: "Open Spots (Most)" },
-                      { id: "NAME_ASC", label: "Squad Name (A-Z)" },
-                    ]) as { id: SortOption; label: string }[]
+                        { id: "SPOTS_DESC", label: "Open Spots (Most)" },
+                        { id: "NAME_ASC", label: "Squad Name (A-Z)" },
+                      ]) as { id: SortOption; label: string }[]
                 ).map((opt) => (
                   <button
                     key={opt.id}
@@ -432,10 +438,11 @@ export function TeamsPage() {
                       setSortBy(opt.id);
                       setIsSortOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${sortBy === opt.id
+                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                      sortBy === opt.id
                         ? "bg-primary-light text-primary-action font-bold"
-                        : "text-slate-700 hover:bg-slate-50"
-                      }`}
+                        : "text-text-main hover:bg-surface-dim"
+                    }`}
                   >
                     <span>{opt.label}</span>
                     {sortBy === opt.id && <Check className="w-3.5 h-3.5 text-primary-action" />}
@@ -447,9 +454,9 @@ export function TeamsPage() {
         </div>
 
         {/* Legend */}
-        <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="pt-2.5 border-t border-border-main flex flex-wrap items-center justify-between gap-2 px-1">
           {isSignedIn ? <CategoryLegend /> : <div />}
-          <span className="text-xs text-slate-400 font-medium hidden sm:inline">
+          <span className="text-xs text-text-muted font-medium hidden sm:inline">
             Showing {filteredTeams.length} of {totalCount} squads
           </span>
         </div>
@@ -462,7 +469,7 @@ export function TeamsPage() {
           className={`w-full ${inspectedTeam ? "lg:w-[390px] xl:w-[420px] shrink-0" : ""}`}
         >
           {inspectedTeam && (
-            <div className="flex items-center justify-between px-1 mb-3 text-xs text-slate-500 font-medium animate-in fade-in duration-200">
+            <div className="flex items-center justify-between px-1 mb-3 text-xs text-text-muted font-medium animate-in fade-in duration-200">
               <span>Select a squad to inspect:</span>
               <button
                 onClick={() => setInspectedTeam(null)}
@@ -476,12 +483,13 @@ export function TeamsPage() {
           {isLoading ? (
             <div className="py-20 flex flex-col items-center justify-center space-y-3">
               <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
-              <p className="text-xs font-semibold text-slate-500">Loading squads & teams...</p>
+              <p className="text-xs font-semibold text-text-muted">Loading squads & teams...</p>
             </div>
           ) : (
             <div
-              className={`grid gap-6 ${inspectedTeam ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-                }`}
+              className={`grid gap-6 ${
+                inspectedTeam ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+              }`}
             >
               {filteredTeams.map((team) => (
                 <div key={team.id} id={`team-card-${team.id}`} className="h-full scroll-mt-24">
@@ -504,8 +512,8 @@ export function TeamsPage() {
 
           {/* Pagination Controls */}
           {!isLoading && totalPages > 1 && (
-            <div className="pt-8 flex items-center justify-between border-t border-slate-200 mt-6">
-              <span className="text-xs text-slate-500">
+            <div className="pt-8 flex items-center justify-between border-t border-border-main mt-6">
+              <span className="text-xs text-text-muted">
                 Page {page} of {totalPages} ({totalCount} squads)
               </span>
 
@@ -513,14 +521,14 @@ export function TeamsPage() {
                 <button
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-lg border border-border-main bg-surface text-xs font-semibold text-text-main hover:bg-surface-dim disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" /> Previous
                 </button>
                 <button
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-lg border border-border-main bg-surface text-xs font-semibold text-text-main hover:bg-surface-dim disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
                 >
                   Next <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -533,10 +541,10 @@ export function TeamsPage() {
         {inspectedTeam && (
           <div
             key={inspectedTeam.id}
-            className="w-full lg:flex-1 min-w-0 lg:sticky lg:top-20 bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden hover:[scrollbar-width:thin] hover:[&::-webkit-scrollbar]:block hover:[&::-webkit-scrollbar]:w-1.5 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 hover:[&::-webkit-scrollbar-thumb]:rounded-full animate-in fade-in slide-in-from-right-8 duration-300 ease-out"
+            className="w-full lg:flex-1 min-w-0 lg:sticky lg:top-20 bg-surface rounded-2xl border border-border-main p-5 sm:p-6 shadow-xs space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden hover:[scrollbar-width:thin] hover:[&::-webkit-scrollbar]:block hover:[&::-webkit-scrollbar]:w-1.5 hover:[&::-webkit-scrollbar-thumb]:bg-border-main hover:[&::-webkit-scrollbar-thumb]:rounded-full animate-in fade-in slide-from-right-8 duration-300 ease-out"
           >
             {/* Header & Close Button */}
-            <div className="flex items-start justify-between gap-4 pb-3 border-b border-slate-100">
+            <div className="flex items-start justify-between gap-4 pb-3 border-b border-border-main">
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   {isSignedIn && inspectedTeam.category ? (
@@ -545,7 +553,7 @@ export function TeamsPage() {
                       score={inspectedTeam.taxonomyScore}
                     />
                   ) : (
-                    <span className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
+                    <span className="text-xs font-semibold text-text-muted bg-surface-dim border border-border-main px-2.5 py-0.5 rounded-full">
                       General Squad
                     </span>
                   )}
@@ -554,11 +562,11 @@ export function TeamsPage() {
                   </span>
                 </div>
 
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 font-heading">
+                <h2 className="text-xl sm:text-2xl font-black text-text-main font-heading">
                   {inspectedTeam.name}
                 </h2>
 
-                <p className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+                <p className="text-xs text-text-muted flex items-center gap-1.5 font-medium">
                   <Shield className="w-3.5 h-3.5 text-primary-action" />
                   {inspectedTeam.university}
                 </p>
@@ -566,7 +574,7 @@ export function TeamsPage() {
 
               <button
                 onClick={() => setInspectedTeam(null)}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-surface-dim text-text-muted hover:text-text-main transition-colors cursor-pointer"
                 title="Close preview"
               >
                 <X className="w-5 h-5" />
@@ -575,10 +583,10 @@ export function TeamsPage() {
 
             {/* Team Mission */}
             <div className="space-y-1">
-              <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">
+              <h4 className="text-xs font-black uppercase tracking-wider text-text-muted">
                 Squad Mission
               </h4>
-              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed line-clamp-3">
+              <p className="text-xs sm:text-sm text-text-muted leading-relaxed line-clamp-3">
                 {inspectedTeam.description || "Active squad participating in the project sprint."}
               </p>
             </div>
@@ -586,28 +594,29 @@ export function TeamsPage() {
             {/* Skill & Requirement Alignment */}
             {isSignedIn ? (
               <div
-                className={`p-3.5 rounded-xl border space-y-3 ${inspectedTeam.category === "BEST"
+                className={`p-3.5 rounded-xl border space-y-3 ${
+                  inspectedTeam.category === "BEST"
                     ? "bg-best-fit-light border-best-fit"
                     : inspectedTeam.category === "GOOD_DIFFERENT_UNIVERSITY"
                       ? "bg-cross-campus-light border-cross-campus"
                       : inspectedTeam.category === "SAME_UNIVERSITY_LOWER_SCORE"
                         ? "bg-campus-explorer-light border-campus-explorer"
-                        : "bg-surface-dim border-surface-border"
-                  }`}
+                        : "bg-surface-dim border-border-main"
+                }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <span className="text-xs font-black uppercase tracking-wider text-text-main flex items-center gap-1.5">
                     {inspectedTeam.category ? (
                       <>
                         <Sparkles className="w-3.5 h-3.5 text-primary-action" /> Skill Compatibility Fit
                       </>
                     ) : (
                       <>
-                        <Shield className="w-3.5 h-3.5 text-slate-400" /> Technical Alignment
+                        <Shield className="w-3.5 h-3.5 text-text-muted" /> Technical Alignment
                       </>
                     )}
                   </span>
-                  <span className="text-xs font-bold text-slate-900">
+                  <span className="text-xs font-bold text-text-main">
                     {inspectedTeam.taxonomyScore !== undefined
                       ? `${Math.round(inspectedTeam.taxonomyScore * 100)}% Match`
                       : "Unranked Match"}
@@ -622,15 +631,15 @@ export function TeamsPage() {
                     size={52}
                     strokeWidth={4.5}
                   />
-                  <div className="space-y-0.5 text-xs text-slate-600">
-                    <p className="font-semibold text-slate-800">
+                  <div className="space-y-0.5 text-xs text-text-muted">
+                    <p className="font-semibold text-text-main">
                       {inspectedTeam.neededRequirement
                         ? `Actively seeking ${inspectedTeam.neededRequirement} lead`
                         : inspectedTeam.category
                           ? "Matching your core technical competencies"
                           : "General technical vacancy"}
                     </p>
-                    <p className="text-[11px] text-slate-500 leading-snug">
+                    <p className="text-[11px] text-text-muted leading-snug">
                       {inspectedTeam.category
                         ? "Your verified resume skills align with the squad's target architecture."
                         : "Compare required skills against your verified profile competencies below."}
@@ -639,8 +648,8 @@ export function TeamsPage() {
                 </div>
 
                 {/* Requirements Alignment Pills */}
-                <div className="space-y-1.5 pt-2 border-t border-slate-200/60">
-                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <div className="space-y-1.5 pt-2 border-t border-border-main/60">
+                  <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
                     Needs/Requirements:
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -657,18 +666,18 @@ export function TeamsPage() {
                 </div>
               </div>
             ) : (
-              <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white space-y-3">
+              <div className="p-3.5 rounded-xl border border-border-main bg-surface space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                    <Shield className="w-3.5 h-3.5 text-slate-400" /> Technical Requirements
+                  <span className="text-xs font-black uppercase tracking-wider text-text-main flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-text-muted" /> Technical Requirements
                   </span>
-                  <span className="text-xs font-medium text-slate-400">Sign in for compatibility</span>
+                  <span className="text-xs font-medium text-text-muted">Sign in for compatibility</span>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
+                <p className="text-xs text-text-muted leading-relaxed">
                   Review required skills and team composition below. Sign in to view your personalized compatibility score.
                 </p>
-                <div className="space-y-1.5 pt-2 border-t border-slate-200/60">
-                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <div className="space-y-1.5 pt-2 border-t border-border-main/60">
+                  <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
                     Needs/Requirements:
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -687,10 +696,10 @@ export function TeamsPage() {
             {/* Current Roster Preview */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-black uppercase tracking-wider text-slate-400">
+                <span className="font-black uppercase tracking-wider text-text-muted">
                   Current Roster
                 </span>
-                <span className="text-slate-500 font-medium">
+                <span className="text-text-muted font-medium">
                   {inspectedTeam.members.length} / {inspectedTeam.maxCapacity || 4} spots filled
                 </span>
               </div>
@@ -699,16 +708,16 @@ export function TeamsPage() {
                 {inspectedTeam.members.map((m, idx) => (
                   <div
                     key={m.id || idx}
-                    className="p-2 rounded-lg border border-slate-200 bg-white flex items-center gap-2"
+                    className="p-2 rounded-lg border border-border-main bg-surface-dim flex items-center gap-2"
                   >
-                    <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-[10px] shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-primary-action text-white font-bold flex items-center justify-center text-[10px] shrink-0">
                       {m.name.split(" ").map((n) => n[0]).join("")}
                     </div>
                     <div className="min-w-0">
-                      <span className="text-xs font-bold text-slate-900 block truncate">
+                      <span className="text-xs font-bold text-text-main block truncate">
                         {m.name}
                       </span>
-                      <span className="text-[10px] text-slate-400 block truncate">
+                      <span className="text-[10px] text-text-muted block truncate">
                         {m.role || (idx === 0 ? "Squad Lead" : "Contributor")}
                       </span>
                     </div>
@@ -718,15 +727,15 @@ export function TeamsPage() {
             </div>
 
             {/* Action Footer */}
-            <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+            <div className="pt-4 border-t border-border-main flex items-center gap-3">
               {inspectedTeam.members.length >= (inspectedTeam.maxCapacity || 4) ? (
                 <>
-                  <span className="flex-1 py-2.5 text-center text-xs font-semibold text-slate-400 bg-slate-100 rounded-xl border border-slate-200">
+                  <span className="flex-1 py-2.5 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-xl border border-border-main">
                     Squad Full • No Open Spots
                   </span>
                   <Link
                     to={`/team/${inspectedTeam.id}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
                   >
                     <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
                   </Link>
@@ -739,7 +748,7 @@ export function TeamsPage() {
                   <Crown className="w-4 h-4" /> Manage Applications & Roster →
                 </Link>
               ) : appliedTeamIds.includes(inspectedTeam.id) ? (
-                <div className="w-full text-center py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
+                <div className="w-full text-center py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold">
                   ⏳ Application submitted • Pending leader review
                 </div>
               ) : !isSignedIn ? (
@@ -752,7 +761,7 @@ export function TeamsPage() {
 
                   <Link
                     to={`/team/${inspectedTeam.id}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
                   >
                     <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
                   </Link>
@@ -768,7 +777,7 @@ export function TeamsPage() {
 
                   <Link
                     to={`/team/${inspectedTeam.id}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
                   >
                     <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
                   </Link>
@@ -780,10 +789,10 @@ export function TeamsPage() {
       </div>
 
       {!isLoading && filteredTeams.length === 0 && (
-        <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 p-8 space-y-3">
-          <Users className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="text-base font-bold text-slate-800">No matching squads found</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+        <div className="text-center py-16 bg-surface rounded-2xl border border-border-main p-8 space-y-3">
+          <Users className="w-12 h-12 text-text-muted mx-auto opacity-50" />
+          <h3 className="text-base font-bold text-text-main">No matching squads found</h3>
+          <p className="text-xs text-text-muted max-w-sm mx-auto">
             Try clearing your active filters or changing your search query.
           </p>
           <button

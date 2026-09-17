@@ -284,7 +284,7 @@ export function TeamDetailPage() {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center justify-center space-y-4">
         <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
-        <p className="text-sm font-semibold text-slate-600">Loading squad dossier...</p>
+        <p className="text-sm font-semibold text-text-muted">Loading squad dossier...</p>
       </div>
     );
   }
@@ -292,10 +292,10 @@ export function TeamDetailPage() {
   if (error || !team) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-4 shadow-sm">
+        <div className="max-w-md mx-auto bg-surface rounded-2xl border border-border-main p-8 text-center space-y-4 shadow-sm">
           <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
-          <h2 className="text-xl font-bold text-slate-900 font-heading">Squad Not Found</h2>
-          <p className="text-xs text-slate-500">{error || "The squad you requested does not exist or may have disbanded."}</p>
+          <h2 className="text-xl font-bold text-text-main font-heading">Squad Not Found</h2>
+          <p className="text-xs text-text-muted">{error || "The squad you requested does not exist or may have disbanded."}</p>
           <Link
             to="/teams"
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary-action hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-colors"
@@ -322,17 +322,17 @@ export function TeamDetailPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-200">
       {/* Toast Feedback */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom duration-200">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        <div className="fixed bottom-6 right-6 z-50 bg-surface text-text-main border border-border-main px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Top Navigation Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-main">
         <Link
           to="/teams"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-text-muted hover:text-text-main transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Teams Directory</span>
@@ -345,14 +345,14 @@ export function TeamDetailPage() {
             </span>
           )}
           {isUserMember && !isUserLeader && (
-            <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
               ✓ Active Squad Member
             </span>
           )}
           {isUserMember && (
             <button
               onClick={handleLeaveTeam}
-              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-rose-500 hover:text-rose-600 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg transition-colors cursor-pointer"
               title="Leave this squad"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -366,70 +366,70 @@ export function TeamDetailPage() {
       {isUserLeader ? (
         /* ================= LEADER MANAGEMENT DASHBOARD ================= */
         <div className="space-y-8">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-primary-light text-primary-action border border-primary-border">
                     Squad Leader Dashboard
                   </span>
-                  <span className="text-xs text-slate-400">• {team.event?.title || "Upcoming Event"}</span>
+                  <span className="text-xs text-text-muted">• {team.event?.title || "Upcoming Event"}</span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-heading">
+                <h1 className="text-2xl sm:text-3xl font-black text-text-main tracking-tight font-heading">
                   {team.name}
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
+                <p className="text-xs sm:text-sm text-text-muted mt-1 max-w-2xl">
                   {team.description || `Formed for ${team.event?.title || "hackathon"}. Recruiting verified candidates.`}
                 </p>
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   Active Formation
                 </span>
               </div>
             </div>
 
             {/* Telemetry Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
-              <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-                <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-border-main">
+              <div className="p-4 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
+                <div className="flex items-center justify-between text-xs text-text-muted font-semibold mb-1">
                   <span>Squad Roster</span>
                   <Users className="w-4 h-4 text-primary-action" />
                 </div>
-                <div className="text-xl font-black text-slate-900 font-heading">
+                <div className="text-xl font-black text-text-main font-heading">
                   {team.members.length} / {totalSpots} Spots
                 </div>
-                <p className="text-[11px] text-slate-500 font-medium mt-1">
+                <p className="text-[11px] text-text-muted font-medium mt-1">
                   {totalSpots - team.members.length > 0
                     ? `${totalSpots - team.members.length} spot(s) remaining for recruitment`
                     : "Roster complete"}
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-                <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
+              <div className="p-4 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
+                <div className="flex items-center justify-between text-xs text-text-muted font-semibold mb-1">
                   <span>Candidate Applications</span>
                   <Clock className="w-4 h-4 text-amber-500" />
                 </div>
-                <div className="text-xl font-black text-slate-900 font-heading">
+                <div className="text-xl font-black text-text-main font-heading">
                   {applications.filter((a) => a.status === "PENDING").length} Pending
                 </div>
-                <p className="text-[11px] text-slate-500 font-medium mt-1">
+                <p className="text-[11px] text-text-muted font-medium mt-1">
                   {applications.length} total candidate submissions
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
-                <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
+              <div className="p-4 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
+                <div className="flex items-center justify-between text-xs text-text-muted font-semibold mb-1">
                   <span>Primary Role Vacancy</span>
                   <Sparkles className="w-4 h-4 text-emerald-500" />
                 </div>
-                <div className="text-xl font-black text-slate-900 font-heading">
+                <div className="text-xl font-black text-text-main font-heading">
                   {openRequirement}
                 </div>
-                <p className="text-[11px] text-slate-500 font-medium mt-1">
+                <p className="text-[11px] text-text-muted font-medium mt-1">
                   Core capability seeking specialist
                 </p>
               </div>
@@ -440,15 +440,15 @@ export function TeamDetailPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-black text-slate-900 font-heading">
+                <h2 className="text-lg font-black text-text-main font-heading">
                   Incoming Applications & Candidate Review
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-text-muted">
                   Tiles are collapsed by default. Click any candidate to view their note, verified skills, and direct profile link.
                 </p>
               </div>
 
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface-dim text-text-muted border border-border-main">
                 {applications.length} Candidates
               </span>
             </div>
@@ -466,22 +466,22 @@ export function TeamDetailPage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-2">
-                <Users className="w-8 h-8 text-slate-300 mx-auto" />
-                <p className="text-sm font-bold text-slate-800">No applications received yet</p>
-                <p className="text-xs text-slate-500">Candidates applying to your squad will appear here with live skill compatibility scores.</p>
+              <div className="bg-surface rounded-2xl border border-border-main p-8 text-center space-y-2">
+                <Users className="w-8 h-8 text-text-muted mx-auto opacity-50" />
+                <p className="text-sm font-bold text-text-main">No applications received yet</p>
+                <p className="text-xs text-text-muted">Candidates applying to your squad will appear here with live skill compatibility scores.</p>
               </div>
             )}
           </div>
 
           {/* Current Roster & Invites */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-lg font-black text-slate-900 font-heading">
+                <h3 className="text-lg font-black text-text-main font-heading">
                   Current Squad Members
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-text-muted">
                   Manage active teammates or invite colleagues via university email.
                 </p>
               </div>
@@ -489,13 +489,13 @@ export function TeamDetailPage() {
               {/* Email Invite Input */}
               <form onSubmit={handleSendInvite} className="flex items-center gap-2">
                 <div className="relative">
-                  <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="Teammate email..."
-                    className="text-xs pl-8 pr-3 py-2 border border-slate-200 rounded-xl outline-hidden focus:border-primary-action focus:ring-1 focus:ring-primary-action w-52"
+                    className="text-xs pl-8 pr-3 py-2 border border-border-main bg-surface-dim text-text-main placeholder:text-text-muted rounded-xl outline-hidden focus:border-primary-action focus:ring-1 focus:ring-primary-action w-52"
                     required
                   />
                 </div>
@@ -514,7 +514,7 @@ export function TeamDetailPage() {
               {team.members.map((member) => (
                 <div
                   key={member.id}
-                  className="p-3.5 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-3 shadow-2xs"
+                  className="p-3.5 rounded-xl border border-border-main bg-surface-dim flex items-center justify-between gap-3 shadow-2xs"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-action to-cross-campus text-white font-bold flex items-center justify-center text-sm shrink-0">
@@ -527,7 +527,7 @@ export function TeamDetailPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-slate-900 truncate">
+                        <h4 className="text-sm font-bold text-text-main truncate">
                           {member.name || "Teammate"}
                         </h4>
                         {member.role === "Leader" && (
@@ -536,9 +536,9 @@ export function TeamDetailPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 truncate">{member.title || member.role || "Member"}</p>
+                      <p className="text-xs text-text-muted truncate">{member.title || member.role || "Member"}</p>
                       {member.university && (
-                        <p className="text-[11px] text-slate-400 truncate">{member.university}</p>
+                        <p className="text-[11px] text-text-muted truncate">{member.university}</p>
                       )}
                     </div>
                   </div>
@@ -546,7 +546,7 @@ export function TeamDetailPage() {
                   {member.userId !== profile?.id && (
                     <button
                       onClick={() => handleRemoveMember(member.userId, member.name)}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                      className="p-2 text-text-muted hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer shrink-0"
                       title={`Remove ${member.name} from squad`}
                     >
                       <UserMinus className="w-4 h-4" />
@@ -562,14 +562,14 @@ export function TeamDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column (2 cols) */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     {isSignedIn && category ? (
                       <RecommendationBadge category={category} score={taxonomyScore} />
                     ) : (
-                      <span className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full">
+                      <span className="text-xs font-semibold text-text-muted bg-surface-dim border border-border-main px-2.5 py-0.5 rounded-full">
                         General Squad
                       </span>
                     )}
@@ -577,44 +577,44 @@ export function TeamDetailPage() {
                       {team.event?.title || "Hackathon"}
                     </span>
                   </div>
-                  <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-heading">
+                  <h1 className="text-2xl sm:text-3xl font-black text-text-main tracking-tight font-heading">
                     {team.name}
                   </h1>
-                  <p className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+                  <p className="text-xs text-text-muted flex items-center gap-1.5 font-medium">
                     <Shield className="w-3.5 h-3.5 text-primary-action" />
                     Affiliation: {team.university || "Collegiate Squad"}
                   </p>
                 </div>
 
                 <div className="text-right">
-                  <span className="text-xs font-semibold text-slate-400 block uppercase tracking-wider">
+                  <span className="text-xs font-semibold text-text-muted block uppercase tracking-wider">
                     Roster Capacity
                   </span>
-                  <span className="text-xl font-bold text-slate-900">
+                  <span className="text-xl font-bold text-text-main">
                     {team.members.length} / {totalSpots} Members
                   </span>
                 </div>
               </div>
 
               {isRestrictedEvent && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center gap-2.5 text-xs text-amber-800 font-medium">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 flex items-center gap-2.5 text-xs text-amber-600 font-medium">
+                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
                   <span>This squad belongs to an institution-restricted event ({team.university || "Campus-only"}). Cross-campus applications may be rejected by the server.</span>
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                <h3 className="text-xs font-black uppercase tracking-wider text-text-muted">
                   Squad Mission & Objectives
                 </h3>
-                <p className="text-sm text-slate-700 leading-relaxed">
+                <p className="text-sm text-text-muted leading-relaxed">
                   {team.description || `Recruiting driven builders for ${team.event?.title || "the upcoming hackathon"}. Apply with your profile to join forces.`}
                 </p>
               </div>
 
               {/* Tech Stack */}
-              <div className="space-y-2 pt-2 border-t border-slate-100">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+              <div className="space-y-2 pt-2 border-t border-border-main">
+                <h3 className="text-xs font-black uppercase tracking-wider text-text-muted">
                   Required Tech Stack & Skills
                 </h3>
                 <div className="flex flex-wrap gap-2">
@@ -650,17 +650,17 @@ export function TeamDetailPage() {
             </div>
 
             {/* Squad Roster */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
+            <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-black text-slate-900 font-heading">
+                  <h3 className="text-lg font-black text-text-main font-heading">
                     Current Squad Roster
                   </h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-text-muted">
                     Verified team members currently committed to this project.
                   </p>
                 </div>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
                   {Math.max(0, totalSpots - team.members.length)} Spot{totalSpots - team.members.length === 1 ? "" : "s"} Remaining
                 </span>
               </div>
@@ -669,7 +669,7 @@ export function TeamDetailPage() {
                 {team.members.map((member) => (
                   <div
                     key={member.id}
-                    className="p-3.5 rounded-xl border border-slate-200 bg-white flex items-center gap-3 shadow-2xs"
+                    className="p-3.5 rounded-xl border border-border-main bg-surface-dim flex items-center gap-3 shadow-2xs"
                   >
                     <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-action to-cross-campus text-white font-bold flex items-center justify-center text-sm shrink-0">
                       {(member.name || "U")
@@ -681,7 +681,7 @@ export function TeamDetailPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-slate-900 truncate">
+                        <h4 className="text-sm font-bold text-text-main truncate">
                           {member.name || "Teammate"}
                         </h4>
                         {member.role === "Leader" && (
@@ -690,11 +690,11 @@ export function TeamDetailPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 truncate">
+                      <p className="text-xs text-text-muted truncate">
                         {member.title || member.role || "Member"}
                       </p>
                       {member.university && (
-                        <p className="text-[11px] text-slate-400 truncate">{member.university}</p>
+                        <p className="text-[11px] text-text-muted truncate">{member.university}</p>
                       )}
                     </div>
                   </div>
@@ -706,20 +706,20 @@ export function TeamDetailPage() {
           {/* Right Column: Smart Recommendation Panel or Logged-Out CTA */}
           <div className="space-y-6">
             {!isSignedIn ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-5 text-center">
+              <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-5 text-center">
                 <div className="w-12 h-12 rounded-2xl bg-primary-light border border-primary-border flex items-center justify-center text-primary-action mx-auto shadow-2xs">
                   <Users className="w-6 h-6" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-base sm:text-lg font-bold text-slate-900 font-heading">
+                  <h3 className="text-base sm:text-lg font-bold text-text-main font-heading">
                     Want to join this squad?
                   </h3>
-                  <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                  <p className="text-xs text-text-muted max-w-xs mx-auto leading-relaxed">
                     Sign in with your university account to verify your skills, see compatibility scores, and apply to open roles.
                   </p>
                 </div>
                 {team.members.length >= totalSpots ? (
-                  <span className="w-full block py-2.5 text-center text-xs font-semibold text-slate-400 bg-slate-100 rounded-xl border border-slate-200">
+                  <span className="w-full block py-2.5 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-xl border border-border-main">
                     Squad Full • No Open Spots Left
                   </span>
                 ) : (

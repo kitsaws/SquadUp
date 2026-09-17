@@ -47,14 +47,14 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   onClose,
   onPreferencesUpdated,
 }) => {
-  const { palette, updateToken, loadPreset } = usePalette();
+  const { palette, updateToken, loadPreset, themeMode: contextThemeMode, setThemeMode: setContextThemeMode } = usePalette();
 
   const [activeTab, setActiveTab] = useState<TabType>("theme");
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
 
   // Form states
-  const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">("system");
+  const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">(contextThemeMode || "system");
   const [selectedPreset, setSelectedPreset] = useState<string>("SquadUp 2.0 Default");
   const [customPrimaryColor, setCustomPrimaryColor] = useState<string>("#2563eb");
   const [syncThemeWithBanner, setSyncThemeWithBanner] = useState<boolean>(true);
@@ -80,7 +80,11 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
       .then((prefs) => {
         if (!isMounted) return;
         setThemeMode(prefs.themeMode || "system");
-        setSelectedPreset(prefs.palettePreset || "SquadUp 2.0 Default");
+        const initialPreset =
+          prefs.palettePreset === "midnight" || prefs.palettePreset === "Midnight Collegiate"
+            ? "Dark Theme"
+            : prefs.palettePreset || "SquadUp 2.0 Default";
+        setSelectedPreset(initialPreset);
         if (prefs.primaryColor) {
           setCustomPrimaryColor(prefs.primaryColor);
         } else {
@@ -114,6 +118,13 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   const handlePresetSelect = (presetName: string) => {
     setSelectedPreset(presetName);
     loadPreset(presetName);
+    if (presetName === "Dark Theme") {
+      setThemeMode("dark");
+      setContextThemeMode("dark");
+    } else if (presetName === "SquadUp 2.0 Default") {
+      setThemeMode("light");
+      setContextThemeMode("light");
+    }
     if (PALETTE_PRESETS[presetName]) {
       setCustomPrimaryColor(PALETTE_PRESETS[presetName].primaryAction);
     }
@@ -162,7 +173,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-surface w-full max-w-2xl rounded-2xl border border-border-main shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-border-main flex items-center justify-between bg-surface-dim/40">
@@ -253,7 +264,11 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                           <button
                             key={mode.id}
                             type="button"
-                            onClick={() => setThemeMode(mode.id as any)}
+                            onClick={() => {
+                              const newMode = mode.id as "light" | "dark" | "system";
+                              setThemeMode(newMode);
+                              setContextThemeMode(newMode);
+                            }}
                             className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-bold gap-1.5 transition-all cursor-pointer ${
                               isSelected
                                 ? "border-primary-action bg-primary-light text-primary-action shadow-xs"
@@ -410,7 +425,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                             onChange={(e) => item.setter(e.target.checked)}
                             className="sr-only peer"
                           />
-                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-action"></div>
+                          <div className="w-9 h-5 bg-surface-dim border border-border-main peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text-main after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-action peer-checked:border-primary-action peer-checked:after:bg-white"></div>
                         </label>
                       </div>
                     );
@@ -442,7 +457,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                         onChange={(e) => setDefaultCampusOnly(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-action"></div>
+                      <div className="w-9 h-5 bg-surface-dim border border-border-main peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text-main after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-action peer-checked:border-primary-action peer-checked:after:bg-white"></div>
                     </label>
                   </div>
 
@@ -467,7 +482,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                         onChange={(e) => setOpenToCollaboration(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-action"></div>
+                      <div className="w-9 h-5 bg-surface-dim border border-border-main peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text-main after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-action peer-checked:border-primary-action peer-checked:after:bg-white"></div>
                     </label>
                   </div>
 
@@ -487,7 +502,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
                               isSelected
                                 ? "border-primary-action bg-primary-light text-primary-action"
-                                : "border-border-main bg-surface text-text-muted hover:border-slate-300 hover:text-text-main"
+                                : "border-border-main bg-surface text-text-muted hover:border-primary-action hover:text-text-main"
                             }`}
                           >
                             <span>{role}</span>

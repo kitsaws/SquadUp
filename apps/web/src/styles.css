@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-heading: "Plus Jakarta Sans", system-ui, sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
@@ -61,6 +63,15 @@
   --sq-border: #e2e8f0;
 }
 
+.dark {
+  --sq-canvas: #0b0f19;
+  --sq-surface: #111827;
+  --sq-surface-dim: #1e293b;
+  --sq-text-primary: #f8fafc;
+  --sq-text-muted: #94a3b8;
+  --sq-border: #1e293b;
+}
+
 body {
   background-color: var(--sq-canvas);
   color: var(--sq-text-primary);
@@ -69,6 +80,7 @@ body {
   padding: 0;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {

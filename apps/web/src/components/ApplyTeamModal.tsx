@@ -52,28 +52,28 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
     .toUpperCase();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
+        className="w-full max-w-lg bg-surface rounded-2xl shadow-2xl border border-border-main overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="p-6 border-b border-slate-100 flex items-start justify-between">
+        <div className="p-6 border-b border-border-main flex items-start justify-between">
           <div>
             <span className="text-xs font-bold text-primary-action uppercase tracking-wider block">
               Join Request
             </span>
-            <h3 className="text-xl font-bold text-slate-900 font-heading">
+            <h3 className="text-xl font-bold text-text-main font-heading">
               Apply to {team.name}
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-text-muted mt-0.5">
               {team.eventTitle || "Hackathon Squad"} • Open Recruitment
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-surface-dim transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -81,8 +81,8 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Applicant Snapshot */}
-          <div className="p-3.5 rounded-xl bg-white border border-slate-200 flex items-center gap-3 shadow-2xs">
-            <div className="w-10 h-10 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-sm font-heading shrink-0 overflow-hidden">
+          <div className="p-3.5 rounded-xl bg-surface border border-border-main flex items-center gap-3 shadow-2xs">
+            <div className="w-10 h-10 rounded-full bg-surface-dim text-text-main border border-border-main font-bold flex items-center justify-center text-sm font-heading shrink-0 overflow-hidden">
               {user?.imageUrl ? (
                 <img src={user.imageUrl} alt={candidateName} className="w-full h-full object-cover" />
               ) : (
@@ -91,12 +91,12 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900 font-heading">{candidateName}</span>
-                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.2 rounded-full border border-emerald-200">
+                <span className="text-sm font-bold text-text-main font-heading">{candidateName}</span>
+                <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-500/10 px-2 py-0.2 rounded-full border border-emerald-500/20">
                   Verified Dossier
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-text-muted">
                 Verified portfolio & competencies will be shared with the squad leader.
               </p>
             </div>
@@ -104,7 +104,7 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
 
           {/* Role Selector Chips */}
           <div>
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-2">
+            <label className="text-xs font-bold text-text-muted uppercase tracking-wider block mb-2">
               Preferred Role in Squad:
             </label>
             <div className="flex flex-wrap gap-2">
@@ -116,7 +116,7 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                     selectedRole === role
                       ? "bg-primary-action text-white border-primary-action shadow-xs"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                      : "bg-surface text-text-main border-border-main hover:bg-surface-dim"
                   }`}
                 >
                   {selectedRole === role ? `✓ ${role}` : role}
@@ -128,10 +128,10 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
           {/* Message Textarea with counter */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+              <label className="text-xs font-bold text-text-muted uppercase tracking-wider">
                 Introduction Note (Optional):
               </label>
-              <span className="text-[11px] text-slate-400 font-mono">
+              <span className="text-[11px] text-text-muted font-mono">
                 {message.length} / 500
               </span>
             </div>
@@ -141,16 +141,16 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Introduce yourself, explain what you want to build, and highlight relevant projects..."
-              className="w-full text-xs text-slate-800 border border-slate-200 rounded-lg p-3 outline-hidden focus:border-primary-action focus:ring-2 focus:ring-primary-action/10 font-sans leading-relaxed"
+              className="w-full text-xs text-text-main bg-surface border border-border-main rounded-lg p-3 outline-hidden focus:border-primary-action focus:ring-2 focus:ring-primary-action/10 font-sans leading-relaxed"
             />
           </div>
 
           {/* Modal Footer */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+          <div className="pt-3 border-t border-border-main flex items-center justify-between">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-lg text-xs font-semibold text-text-muted hover:bg-surface-dim hover:text-text-main transition-colors cursor-pointer"
             >
               Cancel
             </button>

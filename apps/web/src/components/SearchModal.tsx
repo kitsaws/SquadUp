@@ -92,25 +92,25 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className="w-full max-w-xl bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
+        className="w-full max-w-xl bg-surface rounded-xl shadow-2xl border border-border-main overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-slate-200 gap-3">
-          <Search className="w-5 h-5 text-slate-400 shrink-0" />
+        <div className="flex items-center px-4 py-3.5 border-b border-border-main gap-3 bg-surface">
+          <Search className="w-5 h-5 text-text-muted shrink-0" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search squads, hackathons, skills (e.g. React, TreeHacks)..."
-            className="w-full text-slate-900 placeholder:text-slate-400 text-sm outline-hidden font-sans"
+            className="w-full text-text-main placeholder:text-text-muted text-sm outline-hidden font-sans bg-transparent"
           />
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-colors"
+            className="p-1 text-text-muted hover:text-text-main rounded-md hover:bg-surface-dim transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -119,12 +119,12 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
         {/* Results List */}
         <div className="max-h-80 overflow-y-auto p-2 space-y-1">
           {loading ? (
-            <div className="p-8 text-center text-slate-400 text-sm flex items-center justify-center gap-2">
+            <div className="p-8 text-center text-text-muted text-sm flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-primary-action" />
               <span>Searching squads & hackathons...</span>
             </div>
           ) : results.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-sm">
+            <div className="p-8 text-center text-text-muted text-sm">
               {query.trim()
                 ? `No matching squads or events found for "${query}".`
                 : "Type keywords to search across active squads and hackathons."}
@@ -135,24 +135,24 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 key={item.id}
                 to={item.link}
                 onClick={onClose}
-                className="flex items-center justify-between p-2.5 rounded-lg hover:bg-slate-50 transition-colors group cursor-pointer"
+                className="flex items-center justify-between p-2.5 rounded-lg hover:bg-surface-dim transition-colors group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-primary-light group-hover:text-primary-action transition-colors shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-surface-dim flex items-center justify-center text-text-muted group-hover:bg-primary-light group-hover:text-primary-action transition-colors shrink-0">
                     {item.type === "event" && <Calendar className="w-4 h-4" />}
                     {item.type === "team" && <Users className="w-4 h-4" />}
                     {item.type === "skill" && <Sparkles className="w-4 h-4" />}
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-slate-900 group-hover:text-primary-action transition-colors">
+                    <div className="text-sm font-semibold text-text-main group-hover:text-primary-action transition-colors">
                       {item.title}
                     </div>
-                    <div className="text-xs text-slate-500">{item.subtitle}</div>
+                    <div className="text-xs text-text-muted">{item.subtitle}</div>
                   </div>
                 </div>
 
                 {item.badge && (
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 group-hover:bg-primary-light group-hover:text-primary-action transition-colors shrink-0">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-surface-dim text-text-muted group-hover:bg-primary-light group-hover:text-primary-action transition-colors shrink-0 border border-border-main">
                     {item.badge}
                   </span>
                 )}
@@ -162,12 +162,12 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
         </div>
 
         {/* Modal Footer */}
-        <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between">
+        <div className="px-4 py-2 bg-surface-dim/50 border-t border-border-main text-[11px] text-text-muted flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span>Navigation: <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200">↑</kbd> <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200">↓</kbd></span>
-            <span>Select: <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200">Enter</kbd></span>
+            <span>Navigation: <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border-main">↑</kbd> <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border-main">↓</kbd></span>
+            <span>Select: <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border-main">Enter</kbd></span>
           </div>
-          <span>Press <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200">Esc</kbd> to exit</span>
+          <span>Press <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border-main">Esc</kbd> to exit</span>
         </div>
       </div>
     </div>

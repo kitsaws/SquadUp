@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { preferencesApi } from "../services/api";
+
+export type ThemeMode = "light" | "dark" | "system";
 
 export interface PaletteTokens {
   primaryAction: string;
@@ -13,7 +15,7 @@ export interface PaletteTokens {
   border: string;
 }
 
-export const DEFAULT_PALETTE: PaletteTokens = {
+export const DEFAULT_LIGHT_PALETTE: PaletteTokens = {
   primaryAction: "#2563eb",
   bestFit: "#68DBA9",
   crossCampus: "#6366F1",
@@ -25,19 +27,21 @@ export const DEFAULT_PALETTE: PaletteTokens = {
   border: "#e2e8f0",
 };
 
+export const DEFAULT_DARK_PALETTE: PaletteTokens = {
+  primaryAction: "#3b82f6",
+  bestFit: "#34d399",
+  crossCampus: "#818cf8",
+  campusExplorer: "#fbbf24",
+  canvas: "#0b0f19",
+  surface: "#111827",
+  textPrimary: "#f8fafc",
+  textMuted: "#94a3b8",
+  border: "#1e293b",
+};
+
 export const PALETTE_PRESETS: Record<string, PaletteTokens> = {
-  "SquadUp 2.0 Default": DEFAULT_PALETTE,
-  "Midnight Collegiate": {
-    primaryAction: "#3b82f6",
-    bestFit: "#34d399",
-    crossCampus: "#818cf8",
-    campusExplorer: "#fbbf24",
-    canvas: "#090d16",
-    surface: "#111827",
-    textPrimary: "#f8fafc",
-    textMuted: "#94a3b8",
-    border: "#1f2937",
-  },
+  "SquadUp 2.0 Default": DEFAULT_LIGHT_PALETTE,
+  "Dark Theme": DEFAULT_DARK_PALETTE,
   "Emerald Focus": {
     primaryAction: "#059669",
     bestFit: "#10b981",
@@ -64,6 +68,10 @@ export const PALETTE_PRESETS: Record<string, PaletteTokens> = {
 
 interface PaletteContextType {
   palette: PaletteTokens;
+  themeMode: ThemeMode;
+  isDark: boolean;
+  setThemeMode: (mode: ThemeMode) => void;
+  toggleThemeMode: () => void;
   updateToken: (key: keyof PaletteTokens, value: string) => void;
   loadPreset: (name: string) => void;
   resetPalette: () => void;
@@ -74,41 +82,127 @@ interface PaletteContextType {
 const PaletteContext = createContext<PaletteContextType | undefined>(undefined);
 
 export function PaletteProvider({ children }: { children: React.ReactNode }) {
+  // Theme mode: light | dark | system
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedMode = localStorage.getItem("squadup_theme_mode") as ThemeMode | null;
+        if (savedMode && (savedMode === "light" || savedMode === "dark" || savedMode === "system")) {
+          return savedMode;
+        }
+      } catch {
+        // fallback to system
+      }
+    }
+    return "system";
+  });
+
+  const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
+    if (typeof window !== "undefined" && window.matchMedia) {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
+    return false;
+  });
+
+  // Listen for system theme changes
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setSystemPrefersDark(e.matches);
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
+
+  const isDark = themeMode === "dark" || (themeMode === "system" && systemPrefersDark);
+
   const [palette, setPalette] = useState<PaletteTokens>(() => {
     if (typeof window !== "undefined") {
       try {
         const cached = localStorage.getItem("squadup_active_palette");
         if (cached) {
-          return { ...DEFAULT_PALETTE, ...JSON.parse(cached) };
+          return { ...DEFAULT_LIGHT_PALETTE, ...JSON.parse(cached) };
         }
       } catch {
-        // fallback to default
+        // fallback
       }
     }
-    return DEFAULT_PALETTE;
+    return DEFAULT_LIGHT_PALETTE;
   });
 
+  const setThemeMode = useCallback((mode: ThemeMode) => {
+    setThemeModeState(mode);
+    try {
+      localStorage.setItem("squadup_theme_mode", mode);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const toggleThemeMode = useCallback(() => {
+    // Cycle: system -> dark -> light -> system
+    if (themeMode === "system") {
+      setThemeMode("dark");
+    } else if (themeMode === "dark") {
+      setThemeMode("light");
+    } else {
+      setThemeMode("system");
+    }
+  }, [themeMode, setThemeMode]);
+
+  // Apply root CSS variables & .dark class on documentElement
   useEffect(() => {
     const root = document.documentElement;
+    root.classList.toggle("dark", isDark);
+
+    // Dynamic brand primary tints
     root.style.setProperty("--sq-primary-action", palette.primaryAction);
-    root.style.setProperty("--sq-primary-hover", `color-mix(in srgb, ${palette.primaryAction} 85%, black)`);
-    root.style.setProperty("--sq-primary-light", `color-mix(in srgb, ${palette.primaryAction} 10%, transparent)`);
-    root.style.setProperty("--sq-primary-border", `color-mix(in srgb, ${palette.primaryAction} 30%, transparent)`);
+    root.style.setProperty(
+      "--sq-primary-hover",
+      isDark
+        ? `color-mix(in srgb, ${palette.primaryAction} 85%, white)`
+        : `color-mix(in srgb, ${palette.primaryAction} 85%, black)`
+    );
+    root.style.setProperty(
+      "--sq-primary-light",
+      isDark
+        ? `color-mix(in srgb, ${palette.primaryAction} 18%, transparent)`
+        : `color-mix(in srgb, ${palette.primaryAction} 10%, transparent)`
+    );
+    root.style.setProperty(
+      "--sq-primary-border",
+      isDark
+        ? `color-mix(in srgb, ${palette.primaryAction} 35%, transparent)`
+        : `color-mix(in srgb, ${palette.primaryAction} 30%, transparent)`
+    );
+
+    // Recommendation tiers
     root.style.setProperty("--sq-best-fit", palette.bestFit);
     root.style.setProperty("--sq-cross-campus", palette.crossCampus);
     root.style.setProperty("--sq-campus-explorer", palette.campusExplorer);
-    root.style.setProperty("--sq-canvas", palette.canvas);
-    root.style.setProperty("--sq-surface", palette.surface);
-    root.style.setProperty("--sq-text-primary", palette.textPrimary);
-    root.style.setProperty("--sq-text-muted", palette.textMuted);
-    root.style.setProperty("--sq-border", palette.border);
+
+    // Foundations: if dark mode, adapt canvas/surface/text tokens
+    if (isDark) {
+      root.style.setProperty("--sq-canvas", palette.canvas === "#f8fafc" ? "#0b0f19" : palette.canvas);
+      root.style.setProperty("--sq-surface", palette.surface === "#ffffff" ? "#111827" : palette.surface);
+      root.style.setProperty("--sq-surface-dim", "#1e293b");
+      root.style.setProperty("--sq-text-primary", palette.textPrimary === "#0f172a" ? "#f8fafc" : palette.textPrimary);
+      root.style.setProperty("--sq-text-muted", palette.textMuted === "#64748b" ? "#94a3b8" : palette.textMuted);
+      root.style.setProperty("--sq-border", palette.border === "#e2e8f0" ? "#1e293b" : palette.border);
+    } else {
+      root.style.setProperty("--sq-canvas", palette.canvas);
+      root.style.setProperty("--sq-surface", palette.surface);
+      root.style.setProperty("--sq-surface-dim", "#f1f5f9");
+      root.style.setProperty("--sq-text-primary", palette.textPrimary);
+      root.style.setProperty("--sq-text-muted", palette.textMuted);
+      root.style.setProperty("--sq-border", palette.border);
+    }
 
     try {
       localStorage.setItem("squadup_active_palette", JSON.stringify(palette));
     } catch {
       // ignore
     }
-  }, [palette]);
+  }, [palette, isDark]);
 
   // Load preferences from API on startup if user is logged in
   useEffect(() => {
@@ -116,8 +210,14 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
       .getPreferences()
       .then((prefs) => {
         if (prefs) {
-          if (prefs.palettePreset && PALETTE_PRESETS[prefs.palettePreset]) {
-            setPalette((prev) => ({ ...prev, ...PALETTE_PRESETS[prefs.palettePreset] }));
+          if (prefs.themeMode && (prefs.themeMode === "light" || prefs.themeMode === "dark" || prefs.themeMode === "system")) {
+            setThemeModeState(prefs.themeMode);
+          }
+          const resolvedPreset = prefs.palettePreset === "midnight" || prefs.palettePreset === "Midnight Collegiate"
+            ? "Dark Theme"
+            : prefs.palettePreset;
+          if (resolvedPreset && PALETTE_PRESETS[resolvedPreset]) {
+            setPalette((prev) => ({ ...prev, ...PALETTE_PRESETS[resolvedPreset] }));
           }
           if (prefs.primaryColor) {
             setPalette((prev) => ({ ...prev, primaryAction: prefs.primaryColor! }));
@@ -134,6 +234,10 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loadPreset = (name: string) => {
+    if (name === "midnight" || name === "Midnight Collegiate") {
+      setPalette(PALETTE_PRESETS["Dark Theme"]);
+      return;
+    }
     if (PALETTE_PRESETS[name]) {
       setPalette(PALETTE_PRESETS[name]);
       return;
@@ -148,7 +252,7 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetPalette = () => {
-    setPalette(DEFAULT_PALETTE);
+    setPalette(isDark ? DEFAULT_DARK_PALETTE : DEFAULT_LIGHT_PALETTE);
   };
 
   const exportCss = () => {
@@ -193,6 +297,10 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
     <PaletteContext.Provider
       value={{
         palette,
+        themeMode,
+        isDark,
+        setThemeMode,
+        toggleThemeMode,
         updateToken,
         loadPreset,
         resetPalette,

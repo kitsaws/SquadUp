@@ -223,19 +223,19 @@ export function Profile() {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center justify-center space-y-3">
         <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
-        <p className="text-sm font-semibold text-slate-600">Loading profile...</p>
+        <p className="text-sm font-semibold text-text-muted">Loading profile...</p>
       </div>
     );
   }
 
   if (error || !profile) {
     return (
-      <div className="max-w-md mx-auto my-20 bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-4 shadow-sm">
+      <div className="max-w-md mx-auto my-20 bg-surface rounded-2xl border border-border-main p-8 text-center space-y-4 shadow-sm">
         <AlertCircle className="w-12 h-12 text-primary-action mx-auto" />
-        <h2 className="text-xl font-bold text-slate-900 font-heading">
+        <h2 className="text-xl font-bold text-text-main font-heading">
           {candidateId ? "Profile Not Found" : "Authentication Required"}
         </h2>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-text-muted">
           {candidateId
             ? "The student profile could not be found or is private."
             : "Sign in with your university credentials to access your profile and squad applications."}
@@ -250,7 +250,7 @@ export function Profile() {
           )}
           <Link
             to="/"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-surface-dim hover:bg-surface text-text-main border border-border-main text-xs font-bold rounded-xl transition-colors"
           >
             Return Home
           </Link>
@@ -326,7 +326,7 @@ export function Profile() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-in fade-in duration-200">
       {/* Uploading Status Banner / Spinner */}
       {isUploading && (
-        <div className="bg-gradient-to-r from-primary-light via-slate-50 to-primary-light border-2 border-primary-border p-5 rounded-2xl flex items-center gap-4 shadow-sm animate-pulse">
+        <div className="bg-gradient-to-r from-primary-light via-surface-dim to-primary-light border-2 border-primary-border p-5 rounded-2xl flex items-center gap-4 shadow-sm animate-pulse">
           <div className="relative shrink-0">
             <div className="w-10 h-10 border-3 border-primary-border border-t-primary-action rounded-full animate-spin" />
             <Sparkles className="w-4 h-4 text-primary-action absolute inset-0 m-auto" />
@@ -336,14 +336,14 @@ export function Profile() {
               <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary-action text-white">
                 AI Ingestion Active
               </span>
-              <h3 className="text-sm font-bold text-slate-900 font-heading">
+              <h3 className="text-sm font-bold text-text-main font-heading">
                 Building Your Profile...
               </h3>
             </div>
             <p className="text-xs text-text-main/80">
               {status || "Extracting skills, projects, and work experience from your resume..."}
             </p>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-text-muted">
               Your profile will update automatically once parsing is complete.
             </p>
           </div>
@@ -354,7 +354,7 @@ export function Profile() {
         {/* ================= LEFT SIDE (5 COLS): IDENTITY & BIO ================= */}
         <div className="lg:col-span-5 space-y-6">
           {/* Identity Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="bg-surface rounded-2xl border border-border-main overflow-hidden shadow-xs">
             {/* Banner (Dynamic: custom gradient or image) */}
             <div
               style={
@@ -382,7 +382,7 @@ export function Profile() {
                       setEditModalInitialView("banner");
                       setShowEditModal(true);
                     }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-200 hover:text-white bg-black/30 hover:bg-black/50 backdrop-blur-md border border-white/15 transition-all cursor-pointer shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white bg-black/30 hover:bg-black/50 backdrop-blur-md border border-white/15 transition-all cursor-pointer shadow-xs"
                     title="Customize background banner"
                   >
                     <Palette className="w-3.5 h-3.5 text-indigo-400" />
@@ -391,7 +391,7 @@ export function Profile() {
                   <button
                     type="button"
                     onClick={() => signOut({ redirectUrl: "/" })}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-200 hover:text-white bg-black/30 hover:bg-black/50 backdrop-blur-md border border-white/15 transition-all cursor-pointer shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white bg-black/30 hover:bg-black/50 backdrop-blur-md border border-white/15 transition-all cursor-pointer shadow-xs"
                     title="Sign out of SquadUp"
                   >
                     <LogOut className="w-3.5 h-3.5 text-rose-400" />
@@ -405,7 +405,7 @@ export function Profile() {
             <div className="p-6 pt-0 space-y-4">
               {/* Avatar Hanging Over Banner - square with heavily rounded corners */}
               <div className="flex items-end justify-between -mt-12 mb-2 relative z-10">
-                <div className="w-24 h-24 rounded-3xl border-4 border-white shadow-md bg-white overflow-hidden shrink-0">
+                <div className="w-24 h-24 rounded-3xl border-4 border-surface shadow-md bg-surface overflow-hidden shrink-0">
                   {user?.imageUrl && !isCandidateView ? (
                     <img
                       src={user.imageUrl}
@@ -431,23 +431,23 @@ export function Profile() {
 
               {/* Name & Headline */}
               <div>
-                <h1 className="text-2xl font-black text-slate-900 font-heading">
+                <h1 className="text-2xl font-black text-text-main font-heading">
                   {displayName}
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1 leading-snug">
+                <p className="text-xs sm:text-sm text-text-muted font-medium mt-1 leading-snug">
                   {displayTitle}
                 </p>
               </div>
 
               {/* Affiliation & Resume links */}
-              <div className="space-y-1.5 text-xs text-slate-500 pt-1 border-t border-slate-100">
-                <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+              <div className="space-y-1.5 text-xs text-text-muted pt-1 border-t border-border-main">
+                <div className="flex items-center gap-1.5 text-text-main font-semibold">
                   <Building className="w-3.5 h-3.5 text-primary-action" />
                   <span>{displayUniversity}</span>
                 </div>
                 {educationList[0] && (
                   <div className="flex items-center gap-1.5 font-medium">
-                    <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
+                    <GraduationCap className="w-3.5 h-3.5 text-primary-action" />
                     <span>{educationList[0].degree || educationList[0].college}</span>
                   </div>
                 )}
@@ -456,17 +456,17 @@ export function Profile() {
                     <button
                       type="button"
                       onClick={handleCopyEmail}
-                      className="inline-flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-colors group cursor-pointer text-left py-0.5 rounded"
+                      className="inline-flex items-center gap-1.5 text-text-muted hover:text-text-main transition-colors group cursor-pointer text-left py-0.5 rounded"
                       title="Click to copy email address"
                     >
-                      <Mail className="w-3.5 h-3.5 text-slate-400 group-hover:text-primary-action transition-colors shrink-0" />
+                      <Mail className="w-3.5 h-3.5 text-text-muted group-hover:text-primary-action transition-colors shrink-0" />
                       <span className="group-hover:underline">{displayEmail}</span>
                       {copiedEmail ? (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 animate-in fade-in duration-150">
-                          <Check className="w-2.5 h-2.5 text-emerald-600" /> Copied!
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 animate-in fade-in duration-150">
+                          <Check className="w-2.5 h-2.5 text-emerald-500" /> Copied!
                         </span>
                       ) : (
-                        <Copy className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                        <Copy className="w-3 h-3 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                       )}
                     </button>
                   </div>
@@ -480,10 +480,10 @@ export function Profile() {
                         href={formatGithubUrl(profile.githubUrl)}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-slate-800 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-text-main cursor-pointer hover:text-primary-action transition-colors"
                         title="View GitHub Profile"
                       >
-                        <GithubIcon className="w-3.5 h-3.5 text-slate-900" />
+                        <GithubIcon className="w-3.5 h-3.5 text-text-main" />
                         <span>GitHub</span>
                       </a>
                     )}
@@ -492,7 +492,7 @@ export function Profile() {
                         href={formatLinkedinUrl(profile.linkedinUrl)}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-[#0a66c2] cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-[#0a66c2] cursor-pointer hover:underline"
                         title="View LinkedIn Profile"
                       >
                         <LinkedinIcon className="w-3.5 h-3.5 text-[#0a66c2]" />
@@ -513,21 +513,21 @@ export function Profile() {
                       <FileText className="w-3.5 h-3.5" /> View Resume PDF <ArrowUpRight className="w-3 h-3" />
                     </a>
                   ) : (
-                    <span className="text-slate-400 italic">No resume PDF uploaded yet</span>
+                    <span className="text-text-muted italic">No resume PDF uploaded yet</span>
                   )}
                 </div>
               </div>
 
               {/* Action Buttons (Current User Only) */}
               {!isCandidateView && (
-                <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="space-y-2 pt-2 border-t border-border-main">
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => openUserProfile()}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-text-main bg-surface-dim hover:bg-surface border border-border-main transition-colors cursor-pointer"
                     >
-                      <Settings className="w-3.5 h-3.5 text-slate-600" />
+                      <Settings className="w-3.5 h-3.5 text-text-muted" />
                       <span>Account</span>
                     </button>
 
@@ -545,7 +545,7 @@ export function Profile() {
                     <button
                       type="button"
                       onClick={() => setShowPreferencesModal(true)}
-                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors cursor-pointer"
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-text-main bg-surface hover:bg-surface-dim border border-border-main transition-colors cursor-pointer"
                     >
                       <Sliders className="w-3.5 h-3.5 text-primary-action" />
                       <span>Preferences & Settings</span>
@@ -554,9 +554,9 @@ export function Profile() {
                     <button
                       type="button"
                       onClick={() => setShowLogoutConfirm(true)}
-                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50/70 hover:bg-rose-100 hover:text-rose-800 border border-rose-200/60 transition-colors cursor-pointer"
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors cursor-pointer"
                     >
-                      <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                      <LogOut className="w-3.5 h-3.5 text-rose-500" />
                       <span>Log Out</span>
                     </button>
                   </div>
@@ -564,11 +564,11 @@ export function Profile() {
               )}
 
               {/* About Section */}
-              <div className="pt-4 border-t border-slate-100 space-y-1">
-                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+              <div className="pt-4 border-t border-border-main space-y-1">
+                <h3 className="text-xs font-black text-text-main uppercase tracking-wider">
                   About
                 </h3>
-                <p className="text-xs text-slate-700 leading-relaxed">
+                <p className="text-xs text-text-muted leading-relaxed">
                   {displaySummary}
                 </p>
               </div>
@@ -576,24 +576,24 @@ export function Profile() {
           </div>
 
           {/* Education Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-            <h3 className="text-xs font-black text-slate-900 font-heading uppercase tracking-wider">
+          <div className="bg-surface rounded-2xl border border-border-main p-6 shadow-xs space-y-4">
+            <h3 className="text-xs font-black text-text-main font-heading uppercase tracking-wider">
               Academic Background
             </h3>
             {educationList.length > 0 ? (
               <div className="space-y-3">
                 {educationList.map((edu: any, i: number) => (
                   <div key={i} className="space-y-0.5">
-                    <h4 className="text-sm font-bold text-slate-900">{edu.college || displayUniversity}</h4>
-                    <p className="text-xs text-slate-600 font-medium">{edu.degree}</p>
-                    {edu.year && <p className="text-[11px] text-slate-400 font-medium">{edu.year}</p>}
+                    <h4 className="text-sm font-bold text-text-main">{edu.college || displayUniversity}</h4>
+                    <p className="text-xs text-text-muted font-medium">{edu.degree}</p>
+                    {edu.year && <p className="text-[11px] text-text-muted font-medium">{edu.year}</p>}
                   </div>
                 ))}
               </div>
             ) : (
               <div className="space-y-0.5">
-                <h4 className="text-sm font-bold text-slate-900">{displayUniversity}</h4>
-                <p className="text-xs text-slate-400 italic">Student Participant</p>
+                <h4 className="text-sm font-bold text-text-main">{displayUniversity}</h4>
+                <p className="text-xs text-text-muted italic">Student Participant</p>
               </div>
             )}
           </div>
@@ -602,13 +602,13 @@ export function Profile() {
         {/* ================= RIGHT SIDE (7 COLS): SQUADS, SKILLS, EXP ================= */}
         <div className="lg:col-span-7 space-y-6">
           {/* Section 1: "Teams / Squads" */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-4">
+          <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-7 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-black text-slate-900 font-heading flex items-center gap-2">
+                <h2 className="text-lg font-black text-text-main font-heading flex items-center gap-2">
                   <Users className="w-5 h-5 text-primary-action" /> {isCandidateView ? "Active Squads" : "My Squads"}
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-text-muted">
                   {isCandidateView
                     ? "Teams this candidate is currently participating in or leading."
                     : "Teams you are participating in or have applied to join."}
@@ -632,7 +632,7 @@ export function Profile() {
                   className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3 ${
                     squad.role === "Leader"
                       ? "bg-primary-light/30 border-primary-border hover:border-primary-action/40"
-                      : "bg-white border-slate-200 hover:border-slate-300 shadow-2xs"
+                      : "bg-surface-dim border-border-main hover:border-primary-action/40 shadow-2xs"
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -643,31 +643,31 @@ export function Profile() {
                             <Crown className="w-3 h-3 text-primary-action" /> Squad Leader
                           </span>
                         ) : (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface text-text-muted border border-border-main">
                             Member
                           </span>
                         )}
                       </div>
 
-                      <h3 className="text-base font-bold text-slate-900 font-heading">
+                      <h3 className="text-base font-bold text-text-main font-heading">
                         {squad.teamName}
                       </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-text-muted mt-0.5">
                         Joined {new Date(squad.joinedAt).toLocaleDateString()}
                       </p>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="text-xs font-bold text-slate-800 block">
+                      <span className="text-xs font-bold text-text-main block">
                         Role: {squad.role}
                       </span>
                     </div>
                   </div>
 
                   {/* Action Link */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-200/70 text-xs">
-                    <span className="text-slate-500 font-medium">
-                      Status: <strong className="text-slate-800">Active Member</strong>
+                  <div className="flex items-center justify-between pt-2 border-t border-border-main text-xs">
+                    <span className="text-text-muted font-medium">
+                      Status: <strong className="text-text-main">Active Member</strong>
                     </span>
 
                     <Link
@@ -675,7 +675,7 @@ export function Profile() {
                       className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition-colors shadow-2xs cursor-pointer ${
                         squad.role === "Leader"
                           ? "text-white bg-primary-action hover:bg-primary-hover"
-                          : "text-slate-700 bg-white hover:bg-slate-100 border border-slate-200"
+                          : "text-text-main bg-surface hover:bg-surface-dim border border-border-main"
                       }`}
                     >
                       <span>{squad.role === "Leader" ? "Manage Team" : "View Team"}</span>
@@ -690,32 +690,32 @@ export function Profile() {
                 myApplications.map((app) => (
                   <div
                     key={app.id}
-                    className="p-4 rounded-xl border border-amber-200 bg-amber-50/20 flex flex-col justify-between gap-3"
+                    className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/10 flex flex-col justify-between gap-3"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-amber-600" /> Application Pending
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-500" /> Application Pending
                           </span>
-                          <span className="text-[11px] font-medium text-slate-400">• {app.eventTitle}</span>
+                          <span className="text-[11px] font-medium text-text-muted">• {app.eventTitle}</span>
                         </div>
-                        <h3 className="text-base font-bold text-slate-900 font-heading">
+                        <h3 className="text-base font-bold text-text-main font-heading">
                           {app.teamName}
                         </h3>
                         {app.message && (
-                          <p className="text-xs text-slate-600 mt-0.5 line-clamp-1 italic">
+                          <p className="text-xs text-text-muted mt-0.5 line-clamp-1 italic">
                             "{app.message}"
                           </p>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-amber-200/60 text-xs">
-                      <span className="text-amber-800 font-medium">Under review by squad leader</span>
+                    <div className="flex items-center justify-between pt-2 border-t border-amber-500/20 text-xs">
+                      <span className="text-amber-600 font-medium">Under review by squad leader</span>
                       <Link
                         to={`/team/${app.teamId}`}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-amber-900 bg-white hover:bg-amber-50 border border-amber-200 transition-colors shadow-2xs cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-amber-600 bg-surface hover:bg-surface-dim border border-amber-500/20 transition-colors shadow-2xs cursor-pointer"
                       >
                         <span>View Squad</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -725,10 +725,10 @@ export function Profile() {
                 ))}
 
               {userTeams.length === 0 && myApplications.length === 0 && (
-                <div className="p-6 rounded-xl border border-dashed border-slate-200 text-center space-y-2">
-                  <Users className="w-8 h-8 text-slate-300 mx-auto" />
-                  <p className="text-xs font-semibold text-slate-600">No active squads or pending applications</p>
-                  <p className="text-[11px] text-slate-400">Join an existing squad for an upcoming hackathon or recruit teammates.</p>
+                <div className="p-6 rounded-xl border border-dashed border-border-main text-center space-y-2">
+                  <Users className="w-8 h-8 text-text-muted mx-auto opacity-50" />
+                  <p className="text-xs font-semibold text-text-muted">No active squads or pending applications</p>
+                  <p className="text-[11px] text-text-muted">Join an existing squad for an upcoming hackathon or recruit teammates.</p>
                   <Link
                     to="/teams"
                     className="inline-flex items-center gap-1 text-xs font-bold text-primary-action hover:underline pt-1"
@@ -741,21 +741,21 @@ export function Profile() {
           </div>
 
           {/* Section 2: Verified Skills (Collapsible) */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+          <div className="bg-surface rounded-2xl border border-border-main p-6 shadow-xs space-y-4">
             <button
               type="button"
               onClick={() => setIsSkillsExpanded(!isSkillsExpanded)}
               className="w-full flex items-center justify-between text-left cursor-pointer group"
             >
-              <h3 className="text-sm font-black text-slate-900 font-heading uppercase tracking-wider flex items-center gap-1.5 group-hover:text-primary-action transition-colors">
+              <h3 className="text-sm font-black text-text-main font-heading uppercase tracking-wider flex items-center gap-1.5 group-hover:text-primary-action transition-colors">
                 <Sparkles className="w-4 h-4 text-primary-action" /> Skills
               </h3>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400 font-medium">
+                <span className="text-xs text-text-muted font-medium">
                   {skillsList.length} Skills
                 </span>
                 <ChevronDown
-                  className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  className={`w-4 h-4 text-text-muted transition-transform duration-200 ${
                     isSkillsExpanded ? "rotate-180" : ""
                   }`}
                 />
@@ -771,9 +771,9 @@ export function Profile() {
                     ))}
                   </div>
                 ) : (
-                  <div className="p-4 rounded-xl bg-white border border-slate-200/80 text-center space-y-1">
-                    <p className="text-xs text-slate-600 font-medium">No verified skills detected yet</p>
-                    <p className="text-[11px] text-slate-400">Upload your PDF resume or add skills manually to build your profile.</p>
+                  <div className="p-4 rounded-xl bg-surface-dim border border-border-main text-center space-y-1">
+                    <p className="text-xs text-text-muted font-medium">No verified skills detected yet</p>
+                    <p className="text-[11px] text-text-muted">Upload your PDF resume or add skills manually to build your profile.</p>
                   </div>
                 )}
               </div>
@@ -781,12 +781,12 @@ export function Profile() {
           </div>
 
           {/* Section 3: Experience (Collapsible Cards) */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+          <div className="bg-surface rounded-2xl border border-border-main p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-900 font-heading uppercase tracking-wider flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-slate-600" /> Experience
+              <h3 className="text-sm font-black text-text-main font-heading uppercase tracking-wider flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-text-muted" /> Experience
               </h3>
-              <span className="text-xs text-slate-400 font-medium">
+              <span className="text-xs text-text-muted font-medium">
                 {experienceList.length} Roles
               </span>
             </div>
@@ -798,7 +798,7 @@ export function Profile() {
                   return (
                     <div
                       key={i}
-                      className="rounded-xl border border-slate-200/80 hover:border-slate-300 bg-white overflow-hidden transition-all shadow-2xs"
+                      className="rounded-xl border border-border-main hover:border-primary-action/40 bg-surface-dim overflow-hidden transition-all shadow-2xs"
                     >
                       {/* Card Header: visible by default (Title + Duration + Chevron) */}
                       <button
@@ -806,18 +806,18 @@ export function Profile() {
                         onClick={() =>
                           setExpandedExp((prev) => ({ ...prev, [i]: !prev[i] }))
                         }
-                        className="w-full p-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-slate-100/50 transition-colors"
+                        className="w-full p-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-surface transition-colors"
                       >
                         <div className="space-y-0.5 truncate">
-                          <h4 className="text-sm font-bold text-slate-900 truncate">
+                          <h4 className="text-sm font-bold text-text-main truncate">
                             {exp.role} <span className="text-primary-action font-semibold">@ {exp.company}</span>
                           </h4>
-                          <span className="text-xs text-slate-400 font-medium block">
+                          <span className="text-xs text-text-muted font-medium block">
                             {exp.duration}
                           </span>
                         </div>
                         <ChevronDown
-                          className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                          className={`w-4 h-4 text-text-muted shrink-0 transition-transform duration-200 ${
                             isExpanded ? "rotate-180" : ""
                           }`}
                         />
@@ -825,9 +825,9 @@ export function Profile() {
 
                       {/* Collapsible Content */}
                       {isExpanded && (
-                        <div className="px-4 pb-4 pt-1 border-t border-slate-200/60 space-y-2.5 bg-white animate-in fade-in duration-150">
+                        <div className="px-4 pb-4 pt-1 border-t border-border-main space-y-2.5 bg-surface-dim animate-in fade-in duration-150">
                           {exp.bullet_points && exp.bullet_points.length > 0 && (
-                            <ul className="space-y-1 text-xs text-slate-600 list-disc list-inside">
+                            <ul className="space-y-1 text-xs text-text-muted list-disc list-inside">
                               {exp.bullet_points.map((bp: string, j: number) => (
                                 <li key={j} className="leading-relaxed">
                                   {bp}
@@ -840,7 +840,7 @@ export function Profile() {
                               {exp.technologies.map((tech: string, k: number) => (
                                 <span
                                   key={k}
-                                  className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200"
+                                  className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface text-text-muted border border-border-main"
                                 >
                                   {tech}
                                 </span>
@@ -854,17 +854,17 @@ export function Profile() {
                 })}
               </div>
             ) : (
-              <p className="text-xs text-slate-400 italic">No formal engineering experience listed yet.</p>
+              <p className="text-xs text-text-muted italic">No formal engineering experience listed yet.</p>
             )}
           </div>
 
           {/* Section: Achievements & Hackathons (Collapsible Cards) */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+          <div className="bg-surface rounded-2xl border border-border-main p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-900 font-heading uppercase tracking-wider flex items-center gap-2">
+              <h3 className="text-sm font-black text-text-main font-heading uppercase tracking-wider flex items-center gap-2">
                 <Trophy className="w-4 h-4 text-amber-500" /> Achievements & Hackathons
               </h3>
-              <span className="text-xs text-slate-400 font-medium">
+              <span className="text-xs text-text-muted font-medium">
                 {achievementsList.length} Honors
               </span>
             </div>
@@ -876,7 +876,7 @@ export function Profile() {
                   return (
                     <div
                       key={i}
-                      className="rounded-xl border border-slate-200/80 hover:border-slate-300 bg-white overflow-hidden transition-all shadow-2xs"
+                      className="rounded-xl border border-border-main hover:border-primary-action/40 bg-surface-dim overflow-hidden transition-all shadow-2xs"
                     >
                       {/* Card Header: visible by default */}
                       <button
@@ -884,26 +884,26 @@ export function Profile() {
                         onClick={() =>
                           setExpandedAchievements((prev) => ({ ...prev, [i]: !prev[i] }))
                         }
-                        className="w-full p-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-slate-100/50 transition-colors"
+                        className="w-full p-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-surface transition-colors"
                       >
                         <div className="space-y-1 truncate">
                           <div className="flex items-center gap-2">
                             {ach.award_tier && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
-                                <Trophy className="w-2.5 h-2.5 text-amber-600" />
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 shrink-0">
+                                <Trophy className="w-2.5 h-2.5 text-amber-500" />
                                 {ach.award_tier}
                               </span>
                             )}
-                            <h4 className="text-sm font-bold text-slate-900 truncate">
+                            <h4 className="text-sm font-bold text-text-main truncate">
                               {ach.title}
                             </h4>
                           </div>
-                          <p className="text-xs text-slate-500 font-medium">
+                          <p className="text-xs text-text-muted font-medium">
                             {ach.organization} {ach.year && `• ${ach.year}`}
                           </p>
                         </div>
                         <ChevronDown
-                          className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                          className={`w-4 h-4 text-text-muted shrink-0 transition-transform duration-200 ${
                             isExpanded ? "rotate-180" : ""
                           }`}
                         />
@@ -911,9 +911,9 @@ export function Profile() {
 
                       {/* Collapsible Content */}
                       {isExpanded && (
-                        <div className="px-4 pb-4 pt-1 border-t border-slate-200/60 space-y-2.5 bg-white animate-in fade-in duration-150">
+                        <div className="px-4 pb-4 pt-1 border-t border-border-main space-y-2.5 bg-surface-dim animate-in fade-in duration-150">
                           {ach.description && (
-                            <p className="text-xs text-slate-600 leading-relaxed">
+                            <p className="text-xs text-text-muted leading-relaxed">
                               {ach.description}
                             </p>
                           )}
@@ -922,7 +922,7 @@ export function Profile() {
                               {ach.technologies.map((tech: string, k: number) => (
                                 <span
                                   key={k}
-                                  className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200"
+                                  className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface text-text-muted border border-border-main"
                                 >
                                   {tech}
                                 </span>
@@ -936,17 +936,17 @@ export function Profile() {
                 })}
               </div>
             ) : (
-              <p className="text-xs text-slate-400 italic">No hackathons or honors listed yet.</p>
+              <p className="text-xs text-text-muted italic">No hackathons or honors listed yet.</p>
             )}
           </div>
 
           {/* Section 4: Projects (Collapsible Cards) */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+          <div className="bg-surface rounded-2xl border border-border-main p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-900 font-heading uppercase tracking-wider flex items-center gap-2">
-                <Layers className="w-4 h-4 text-slate-600" /> Projects
+              <h3 className="text-sm font-black text-text-main font-heading uppercase tracking-wider flex items-center gap-2">
+                <Layers className="w-4 h-4 text-text-muted" /> Projects
               </h3>
-              <span className="text-xs text-slate-400 font-medium">
+              <span className="text-xs text-text-muted font-medium">
                 {projectsList.length} Built
               </span>
             </div>
@@ -958,7 +958,7 @@ export function Profile() {
                   return (
                     <div
                       key={i}
-                      className="rounded-xl border border-slate-200/80 hover:border-slate-300 bg-white overflow-hidden transition-all shadow-2xs"
+                      className="rounded-xl border border-border-main hover:border-primary-action/40 bg-surface-dim overflow-hidden transition-all shadow-2xs"
                     >
                       {/* Card Header: visible by default (Title + Subheading + Chevron) */}
                       <button
@@ -966,20 +966,20 @@ export function Profile() {
                         onClick={() =>
                           setExpandedProjects((prev) => ({ ...prev, [i]: !prev[i] }))
                         }
-                        className="w-full p-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-slate-100/50 transition-colors"
+                        className="w-full p-4 flex items-center justify-between gap-3 text-left cursor-pointer hover:bg-surface transition-colors"
                       >
                         <div className="space-y-0.5 truncate">
-                          <h4 className="text-sm font-bold text-slate-900 truncate">
+                          <h4 className="text-sm font-bold text-text-main truncate">
                             {proj.name}
                           </h4>
                           {proj.description && (
-                            <p className="text-xs text-slate-500 truncate">
+                            <p className="text-xs text-text-muted truncate">
                               {proj.description}
                             </p>
                           )}
                         </div>
                         <ChevronDown
-                          className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                          className={`w-4 h-4 text-text-muted shrink-0 transition-transform duration-200 ${
                             isExpanded ? "rotate-180" : ""
                           }`}
                         />
@@ -987,14 +987,14 @@ export function Profile() {
 
                       {/* Collapsible Content */}
                       {isExpanded && (
-                        <div className="px-4 pb-4 pt-1 border-t border-slate-200/60 space-y-2.5 bg-white animate-in fade-in duration-150">
+                        <div className="px-4 pb-4 pt-1 border-t border-border-main space-y-2.5 bg-surface-dim animate-in fade-in duration-150">
                           {proj.description && (
-                            <p className="text-xs text-slate-700 leading-relaxed">
+                            <p className="text-xs text-text-muted leading-relaxed">
                               {proj.description}
                             </p>
                           )}
                           {proj.bullet_points && proj.bullet_points.length > 0 && (
-                            <ul className="space-y-1 text-xs text-slate-600 list-disc list-inside">
+                            <ul className="space-y-1 text-xs text-text-muted list-disc list-inside">
                               {proj.bullet_points.map((bp: string, j: number) => (
                                 <li key={j} className="leading-relaxed">
                                   {bp}
@@ -1021,7 +1021,7 @@ export function Profile() {
                 })}
               </div>
             ) : (
-              <p className="text-xs text-slate-400 italic">No public technical projects listed yet.</p>
+              <p className="text-xs text-text-muted italic">No public technical projects listed yet.</p>
             )}
           </div>
         </div>
@@ -1059,31 +1059,31 @@ export function Profile() {
 
       {/* Sign Out Confirmation Modal */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 w-full max-w-sm space-y-4 animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-surface rounded-2xl border border-border-main shadow-2xl p-6 w-full max-w-sm space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20">
                 <LogOut className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-black text-slate-900 font-heading">
+                <h3 className="text-base font-black text-text-main font-heading">
                   Confirm Sign Out
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-text-muted">
                   Are you sure you want to log out?
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-text-muted leading-relaxed">
               You will need to sign back in with your university or Clerk account to manage your squads and applications.
             </p>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-main">
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-text-muted hover:bg-surface-dim hover:text-text-main transition-colors cursor-pointer"
               >
                 Cancel
               </button>
