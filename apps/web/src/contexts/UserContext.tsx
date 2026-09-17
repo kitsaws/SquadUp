@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useUser, useAuth } from "@clerk/react";
 import { profileApi, UserProfileResponse, setAuthTokenGetter } from "../services/api";
+import { CacheService } from "../services/cache.service";
 
 export interface UserContextType {
   isSignedIn: boolean;
@@ -10,7 +11,8 @@ export interface UserContextType {
   isLoadingProfile: boolean;
   hasInitialProfileLoaded: boolean;
   profileError: string | null;
-  refreshProfile: () => Promise<void>;
+  refreshProfile: (bypassCache?: boolean) => Promise<void>;
+  updateCachedProfile: (partial: Partial<UserProfileResponse>) => void;
   userVerifiedSkills: string[];
   userUniversity: string | null;
   hasResume: boolean;
@@ -21,9 +23,14 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoaded, isSignedIn } = useUser();
   const { getToken } = useAuth();
-  const [profile, setProfile] = useState<UserProfileResponse | null>(null);
-  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(false);
-  const [hasInitialProfileLoaded, setHasInitialProfileLoaded] = useState<boolean>(false);
+  
+  // Try synchronous cache read on initial render
+  const userId = user?.id;
+  const initialCache = userId ? CacheService.get<UserProfileResponse>(`sq:profile:${userId}`, "local") : null;
+
+  const [profile, setProfile] = useState<UserProfileResponse | null>(initialCache ? initialCache.data : null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(!initialCache);
+  const [hasInitialProfileLoaded, setHasInitialProfileLoaded] = useState<boolean>(Boolean(initialCache));
   const [profileError, setProfileError] = useState<string | null>(null);
 
   // Sync token getter with api service
@@ -31,18 +38,38 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setAuthTokenGetter(() => getToken());
   }, [getToken]);
 
-  const refreshProfile = useCallback(async () => {
-    if (!isSignedIn) {
+  const updateCachedProfile = useCallback((partial: Partial<UserProfileResponse>) => {
+    setProfile((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, ...partial };
+      if (userId) {
+        CacheService.set(`sq:profile:${userId}`, updated, 1000 * 60 * 30, "local");
+      }
+      return updated;
+    });
+  }, [userId]);
+
+  const refreshProfile = useCallback(async (bypassCache = false) => {
+    if (!isSignedIn || !user?.id) {
       setProfile(null);
       setProfileError(null);
       setHasInitialProfileLoaded(true);
       return;
     }
 
-    setIsLoadingProfile(true);
+    if (!profile) {
+      setIsLoadingProfile(true);
+    }
     setProfileError(null);
+
     try {
-      const data = await profileApi.getProfile();
+      const data = await profileApi.getProfile({
+        userId: user.id,
+        bypassCache,
+        onBackgroundUpdate: (fresh) => {
+          setProfile(fresh);
+        },
+      });
       setProfile(data);
     } catch (err: any) {
       console.warn("[UserContext] Could not load profile:", err);
@@ -51,17 +78,24 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setIsLoadingProfile(false);
       setHasInitialProfileLoaded(true);
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, user?.id, profile]);
 
   useEffect(() => {
-    if (isSignedIn) {
+    if (isSignedIn && user?.id) {
+      // If we don't have profile in memory yet, check cache synchronously for this user ID
+      const cached = CacheService.get<UserProfileResponse>(`sq:profile:${user.id}`, "local");
+      if (cached && !profile) {
+        setProfile(cached.data);
+        setHasInitialProfileLoaded(true);
+      }
       refreshProfile();
-    } else {
+    } else if (isLoaded && !isSignedIn) {
       setProfile(null);
       setIsLoadingProfile(false);
       setHasInitialProfileLoaded(true);
+      CacheService.clearAll();
     }
-  }, [isSignedIn, refreshProfile]);
+  }, [isSignedIn, isLoaded, user?.id]);
 
   const userVerifiedSkills = profile?.skills || [];
   const userUniversity = profile?.university || null;
@@ -78,6 +112,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         hasInitialProfileLoaded,
         profileError,
         refreshProfile,
+        updateCachedProfile,
         userVerifiedSkills,
         userUniversity,
         hasResume,

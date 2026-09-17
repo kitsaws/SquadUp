@@ -1,18 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { useAuth } from "@clerk/react";
-import type { ProfileData, ResumeStatusResponse } from "@squadup/shared";
-import { profileApi, resumeApi, setAuthTokenGetter } from "../services/api";
+import { profileApi, resumeApi, setAuthTokenGetter, UserProfileResponse } from "../services/api";
+import { CacheService } from "../services/cache.service";
 
 interface JobContextType {
   jobId: string | null;
   status: string | null;
   isUploading: boolean;
-  profileData: ProfileData | null;
+  profileData: UserProfileResponse | null;
   setJobId: (id: string | null) => void;
   setStatus: (status: string | null) => void;
   setIsUploading: (uploading: boolean) => void;
-  setProfileData: (data: ProfileData | null) => void;
+  setProfileData: (data: UserProfileResponse | null) => void;
   startJob: (jobId: string, token: string) => void;
 }
 
@@ -30,7 +30,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [profileData, setProfileData] = useState<UserProfileResponse | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
   // Synchronize Clerk token getter with api service
@@ -68,6 +68,9 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (data.state === "completed") {
           clearInterval(interval);
+          CacheService.invalidatePrefix("sq:profile:");
+          CacheService.invalidatePrefix("sq:recs:");
+          CacheService.invalidatePrefix("sq:teams:");
           setProfileData(data.result);
           setIsUploading(false);
           setJobId(null);

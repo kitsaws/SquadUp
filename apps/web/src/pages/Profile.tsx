@@ -37,6 +37,7 @@ import { SkillTag, VerificationBadge } from "../components/Badges";
 import { EditProfileModal, BannerConfig } from "../components/EditProfileModal";
 import { UserPreferencesModal } from "../components/UserPreferencesModal";
 import { usePalette } from "../contexts/PaletteContext";
+import { useUserContext } from "../contexts/UserContext";
 import {
   profileApi,
   preferencesApi,
@@ -90,12 +91,29 @@ export function Profile() {
   const { user } = useUser();
   const { openUserProfile, signOut } = useClerk();
   const { updateToken } = usePalette();
+  const {
+    profile: ctxProfile,
+    isLoadingProfile: isCtxLoading,
+    refreshProfile: refreshCtxProfile,
+    updateCachedProfile,
+  } = useUserContext();
 
-  const [profile, setProfile] = useState<UserProfileResponse | null>(null);
+  const isCandidateView = Boolean(candidateId);
+  const [profile, setProfile] = useState<UserProfileResponse | null>(
+    !isCandidateView && ctxProfile ? ctxProfile : null
+  );
   const [myApplications, setMyApplications] = useState<CandidateApplicationItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(isCandidateView ? true : !ctxProfile);
   const [error, setError] = useState<string | null>(null);
   const [copiedEmail, setCopiedEmail] = useState<boolean>(false);
+
+  // Sync context profile if user view
+  useEffect(() => {
+    if (!isCandidateView && ctxProfile) {
+      setProfile(ctxProfile);
+      setLoading(false);
+    }
+  }, [isCandidateView, ctxProfile]);
 
   // Edit Profile, Preferences & Collapsible States
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -164,52 +182,42 @@ export function Profile() {
   useEffect(() => {
     if ((prevUploadingRef.current && !isUploading && !jobId) || profileData) {
       if (!candidateId) {
-        profileApi
-          .getProfile()
-          .then((refreshed) => {
-            setProfile(refreshed);
-          })
-          .catch((err) => {
-            console.error("[Profile] Failed to re-fetch profile after resume processing:", err);
-          });
+        refreshCtxProfile(true);
       }
     }
     prevUploadingRef.current = isUploading;
-  }, [isUploading, jobId, profileData, candidateId]);
+  }, [isUploading, jobId, profileData, candidateId, refreshCtxProfile]);
 
   useEffect(() => {
     let isMounted = true;
 
     async function fetchProfileData() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        if (candidateId) {
-          // Public candidate profile view
+      if (isCandidateView && candidateId) {
+        setLoading(true);
+        setError(null);
+        try {
           const publicProf = await profileApi.getPublicProfile(candidateId);
           if (isMounted) {
             setProfile(publicProf);
             setMyApplications([]);
           }
-        } else {
-          // Current logged-in user profile view
-          const myProf = await profileApi.getProfile();
-          if (isMounted) setProfile(myProf);
-
-          // Fetch user's submitted applications
-          try {
-            const apps = await applicationsApi.getMyApplications();
-            if (isMounted) setMyApplications(apps.applications || []);
-          } catch {
-            // Unauthenticated or none
-          }
+        } catch (err: any) {
+          console.error("[Profile] Error fetching public profile:", err);
+          if (isMounted) setError(err.message || "Failed to load public profile.");
+        } finally {
+          if (isMounted) setLoading(false);
         }
-      } catch (err: any) {
-        console.error("[Profile] Error fetching profile:", err);
-        if (isMounted) setError(err.message || "Failed to load profile.");
-      } finally {
-        if (isMounted) setLoading(false);
+      } else {
+        // Logged-in user view
+        if (!ctxProfile) {
+          setLoading(true);
+        }
+        try {
+          const apps = await applicationsApi.getMyApplications();
+          if (isMounted) setMyApplications(apps.applications || []);
+        } catch {
+          // unauthenticated or none
+        }
       }
     }
 
@@ -217,9 +225,9 @@ export function Profile() {
     return () => {
       isMounted = false;
     };
-  }, [candidateId]);
+  }, [candidateId, isCandidateView]);
 
-  if (loading) {
+  if (loading && !profile) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center justify-center space-y-3">
         <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
@@ -259,7 +267,6 @@ export function Profile() {
     );
   }
 
-  const isCandidateView = Boolean(candidateId);
   const resumeUrl = isCandidateView
     ? `/api/resume/view/${candidateId}`
     : `/api/resume/view`;
@@ -1035,6 +1042,7 @@ export function Profile() {
           initialView={editModalInitialView}
           profile={profile}
           onProfileUpdated={(updatedProfile) => {
+            updateCachedProfile(updatedProfile);
             setProfile((prev) => (prev ? { ...prev, ...updatedProfile } : updatedProfile));
           }}
           currentBanner={bannerConfig || undefined}

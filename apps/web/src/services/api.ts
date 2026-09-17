@@ -104,6 +104,12 @@ export interface EventItem {
     slug: string;
     logoUrl?: string | null;
   };
+  organization?: {
+    id: string;
+    name: string;
+    slug: string;
+    logoUrl?: string | null;
+  };
   teamsCount?: number;
   participantsCount?: number;
   tracks?: string[];
@@ -130,6 +136,7 @@ export interface TeamItem {
   event?: {
     id: string;
     title: string;
+    description?: string;
     date: string;
     isGlobal: boolean;
     location: string;
@@ -284,6 +291,8 @@ export interface TeamInviteItem {
   createdAt: string;
 }
 
+import { CacheService } from "./cache.service";
+
 /* =========================================================================
    EVENTS API (/api/events)
    ========================================================================= */
@@ -293,8 +302,9 @@ export const eventsApi = {
     page?: number;
     limit?: number;
     search?: string;
-    scope?: "all" | "global" | "org";
-    sort?: "date_asc" | "date_desc" | "created_at";
+    scope?: "all" | "global" | "org" | "my_university";
+    sort?: "popularity" | "popular" | "date_asc" | "date_desc" | "created_at";
+    campus?: string;
   }): Promise<PaginatedResponse<EventItem>> => {
     const query = new URLSearchParams();
     if (params?.page) query.set("page", params.page.toString());
@@ -302,8 +312,26 @@ export const eventsApi = {
     if (params?.search) query.set("search", params.search);
     if (params?.scope) query.set("scope", params.scope);
     if (params?.sort) query.set("sort", params.sort);
+    if (params?.campus) query.set("campus", params.campus);
     const queryString = query.toString();
     return request<PaginatedResponse<EventItem>>(`/events${queryString ? `?${queryString}` : ""}`);
+  },
+
+  getPopularEvents: async (options?: { bypassCache?: boolean; onBackgroundUpdate?: (events: EventItem[]) => void }): Promise<EventItem[]> => {
+    const cacheKey = "sq:events:popular";
+    return CacheService.fetchWithSWR<EventItem[]>(
+      cacheKey,
+      async () => {
+        const res = await request<PaginatedResponse<EventItem>>("/events?limit=6&sort=popularity");
+        return res.data || [];
+      },
+      {
+        ttlMs: 1000 * 60 * 10, // 10 minutes TTL
+        storage: "local",
+        bypassCache: options?.bypassCache,
+        onBackgroundUpdate: options?.onBackgroundUpdate,
+      }
+    );
   },
 
   getEvent: (id: string): Promise<EventItem> => {
@@ -314,7 +342,7 @@ export const eventsApi = {
     return request<{ event: EventItem; teams: TeamItem[] }>(`/events/${id}/teams`);
   },
 
-  createEvent: (data: {
+  createEvent: async (data: {
     title: string;
     description: string;
     date: string;
@@ -322,10 +350,13 @@ export const eventsApi = {
     isGlobal: boolean;
     organizerProfileId?: string;
   }): Promise<EventItem> => {
-    return request<EventItem>("/events", {
+    const res = await request<EventItem>("/events", {
       method: "POST",
       body: JSON.stringify(data),
     });
+    CacheService.invalidatePrefix("sq:events:");
+    CacheService.invalidatePrefix("sq:teams:");
+    return res;
   },
 };
 
@@ -340,7 +371,10 @@ export const teamsApi = {
     eventId?: string;
     myTeams?: "true" | "false";
     search?: string;
-    sort?: "created_at" | "name";
+    campus?: string;
+    openSpotsOnly?: boolean;
+    tier?: string;
+    sort?: "fit_desc" | "fit_asc" | "spots_desc" | "name_asc" | "created_at" | "name";
   }): Promise<PaginatedResponse<TeamItem>> => {
     const query = new URLSearchParams();
     if (params?.page) query.set("page", params.page.toString());
@@ -348,6 +382,9 @@ export const teamsApi = {
     if (params?.eventId) query.set("eventId", params.eventId);
     if (params?.myTeams) query.set("myTeams", params.myTeams);
     if (params?.search) query.set("search", params.search);
+    if (params?.campus && params.campus !== "ALL") query.set("campus", params.campus);
+    if (params?.openSpotsOnly) query.set("openSpotsOnly", "true");
+    if (params?.tier && params.tier !== "ALL") query.set("tier", params.tier);
     if (params?.sort) query.set("sort", params.sort);
     const queryString = query.toString();
     return request<PaginatedResponse<TeamItem>>(`/teams${queryString ? `?${queryString}` : ""}`);
@@ -357,47 +394,62 @@ export const teamsApi = {
     return request<TeamItem>(`/teams/${id}`);
   },
 
-  createTeam: (data: {
+  createTeam: async (data: {
     eventId: string;
     name: string;
     requirements: string[];
     invites?: string[];
   }): Promise<{ message: string; teamId: string }> => {
-    return request<{ message: string; teamId: string }>("/teams", {
+    const res = await request<{ message: string; teamId: string }>("/teams", {
       method: "POST",
       body: JSON.stringify(data),
     });
+    CacheService.invalidatePrefix("sq:teams:");
+    CacheService.invalidatePrefix("sq:recs:");
+    return res;
   },
 
-  updateTeam: (
+  updateTeam: async (
     id: string,
     data: { name?: string; requirements?: string[]; university?: string }
   ): Promise<TeamItem> => {
-    return request<TeamItem>(`/teams/${id}`, {
+    const res = await request<TeamItem>(`/teams/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+    CacheService.invalidatePrefix("sq:teams:");
+    CacheService.invalidatePrefix("sq:recs:");
+    return res;
   },
 
-  deleteTeam: (id: string): Promise<{ message: string }> => {
-    return request<{ message: string }>(`/teams/${id}`, {
+  deleteTeam: async (id: string): Promise<{ message: string }> => {
+    const res = await request<{ message: string }>(`/teams/${id}`, {
       method: "DELETE",
     });
+    CacheService.invalidatePrefix("sq:teams:");
+    CacheService.invalidatePrefix("sq:recs:");
+    return res;
   },
 
-  leaveTeam: (id: string): Promise<{ message: string }> => {
-    return request<{ message: string }>(`/teams/${id}/leave`, {
+  leaveTeam: async (id: string): Promise<{ message: string }> => {
+    const res = await request<{ message: string }>(`/teams/${id}/leave`, {
       method: "DELETE",
     });
+    CacheService.invalidatePrefix("sq:teams:");
+    CacheService.invalidatePrefix("sq:recs:");
+    return res;
   },
 
-  removeMember: (teamId: string, userId: string): Promise<{ message: string }> => {
-    return request<{ message: string }>(`/teams/${teamId}/members/${userId}`, {
+  removeMember: async (teamId: string, userId: string): Promise<{ message: string }> => {
+    const res = await request<{ message: string }>(`/teams/${teamId}/members/${userId}`, {
       method: "DELETE",
     });
+    CacheService.invalidatePrefix("sq:teams:");
+    CacheService.invalidatePrefix("sq:recs:");
+    return res;
   },
 
-  cancelInvite: (teamId: string, inviteId: string): Promise<{ message: string }> => {
+  cancelInvite: async (teamId: string, inviteId: string): Promise<{ message: string }> => {
     return request<{ message: string }>(`/teams/${teamId}/invites/${inviteId}`, {
       method: "DELETE",
     });
@@ -409,11 +461,36 @@ export const teamsApi = {
    ========================================================================= */
 
 export const recommendationsApi = {
-  getRecommendations: (params?: {
+  getRecommendations: async (params?: {
     eventId?: string;
     sameUniversityOnly?: boolean;
     topK?: number;
+    bypassCache?: boolean;
+    userId?: string;
+    onBackgroundUpdate?: (recs: RecommendationsResponse) => void;
   }): Promise<RecommendationsResponse> => {
+    // Only cache generic topK recommendations per user
+    const isGenericTopRecommendations = !params?.eventId && !params?.sameUniversityOnly;
+    const userScope = params?.userId || "active_user";
+    const cacheKey = `sq:recs:${userScope}`;
+
+    if (isGenericTopRecommendations) {
+      return CacheService.fetchWithSWR<RecommendationsResponse>(
+        cacheKey,
+        () =>
+          request<RecommendationsResponse>("/teams/recommendations", {
+            method: "POST",
+            body: JSON.stringify({ topK: params?.topK || 50 }),
+          }),
+        {
+          ttlMs: 1000 * 60 * 15, // 15 minutes TTL
+          storage: "session",
+          bypassCache: params?.bypassCache,
+          onBackgroundUpdate: params?.onBackgroundUpdate,
+        }
+      );
+    }
+
     return request<RecommendationsResponse>("/teams/recommendations", {
       method: "POST",
       body: JSON.stringify(params || {}),
@@ -426,23 +503,30 @@ export const recommendationsApi = {
    ========================================================================= */
 
 export const applicationsApi = {
-  applyToTeam: (teamId: string, message?: string): Promise<{ message: string; applicationId: string; status: string }> => {
-    return request<{ message: string; applicationId: string; status: string }>(`/teams/${teamId}/apply`, {
+  applyToTeam: async (teamId: string, message?: string): Promise<{ message: string; applicationId: string; status: string }> => {
+    const res = await request<{ message: string; applicationId: string; status: string }>(`/teams/${teamId}/apply`, {
       method: "POST",
       body: JSON.stringify({ message: message || "I'd love to join your squad!" }),
     });
+    CacheService.invalidatePrefix("sq:teams:");
+    CacheService.invalidatePrefix("sq:recs:");
+    return res;
   },
 
-  withdrawApplication: (teamId: string): Promise<{ message: string }> => {
-    return request<{ message: string }>(`/teams/${teamId}/apply`, {
+  withdrawApplication: async (teamId: string): Promise<{ message: string }> => {
+    const res = await request<{ message: string }>(`/teams/${teamId}/apply`, {
       method: "DELETE",
     });
+    CacheService.invalidatePrefix("sq:teams:");
+    return res;
   },
 
-  withdrawApplicationById: (applicationId: string): Promise<{ message: string }> => {
-    return request<{ message: string }>(`/applications/${applicationId}`, {
+  withdrawApplicationById: async (applicationId: string): Promise<{ message: string }> => {
+    const res = await request<{ message: string }>(`/applications/${applicationId}`, {
       method: "DELETE",
     });
+    CacheService.invalidatePrefix("sq:teams:");
+    return res;
   },
 
   getApplication: (applicationId: string): Promise<any> => {
@@ -465,16 +549,21 @@ export const applicationsApi = {
     return request<IncomingApplicationItem[] | { applications: IncomingApplicationItem[] }>(`/teams/${teamId}/applications`);
   },
 
-  acceptApplication: (applicationId: string): Promise<{ message: string }> => {
-    return request<{ message: string }>(`/applications/${applicationId}/accept`, {
+  acceptApplication: async (applicationId: string): Promise<{ message: string }> => {
+    const res = await request<{ message: string }>(`/applications/${applicationId}/accept`, {
       method: "POST",
     });
+    CacheService.invalidatePrefix("sq:teams:");
+    CacheService.invalidatePrefix("sq:recs:");
+    return res;
   },
 
-  rejectApplication: (applicationId: string): Promise<{ message: string }> => {
-    return request<{ message: string }>(`/applications/${applicationId}/reject`, {
+  rejectApplication: async (applicationId: string): Promise<{ message: string }> => {
+    const res = await request<{ message: string }>(`/applications/${applicationId}/reject`, {
       method: "POST",
     });
+    CacheService.invalidatePrefix("sq:teams:");
+    return res;
   },
 };
 
@@ -483,19 +572,52 @@ export const applicationsApi = {
    ========================================================================= */
 
 export const profileApi = {
-  getProfile: (): Promise<UserProfileResponse> => {
-    return request<UserProfileResponse>("/profile");
+  getProfile: async (options?: {
+    userId?: string;
+    bypassCache?: boolean;
+    onBackgroundUpdate?: (prof: UserProfileResponse) => void;
+  }): Promise<UserProfileResponse> => {
+    const userScope = options?.userId || "active_user";
+    const cacheKey = `sq:profile:${userScope}`;
+
+    return CacheService.fetchWithSWR<UserProfileResponse>(
+      cacheKey,
+      () => request<UserProfileResponse>("/profile"),
+      {
+        ttlMs: 1000 * 60 * 30, // 30 minutes TTL
+        storage: "local",
+        bypassCache: options?.bypassCache,
+        onBackgroundUpdate: options?.onBackgroundUpdate,
+      }
+    );
   },
 
-  updateProfile: (data: Partial<UserProfileResponse>): Promise<{ message: string; profile: UserProfileResponse }> => {
-    return request<{ message: string; profile: UserProfileResponse }>("/profile", {
+  updateProfile: async (data: Partial<UserProfileResponse>, userId?: string): Promise<{ message: string; profile: UserProfileResponse }> => {
+    const res = await request<{ message: string; profile: UserProfileResponse }>("/profile", {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+
+    if (res.profile) {
+      const userScope = userId || res.profile.userId || res.profile.clerkId || "active_user";
+      CacheService.set(`sq:profile:${userScope}`, res.profile, 1000 * 60 * 30, "local");
+      CacheService.invalidatePrefix(`sq:recs:${userScope}`);
+      CacheService.invalidatePrefix("sq:teams:");
+    }
+
+    return res;
   },
 
-  getPublicProfile: (userId: string): Promise<UserProfileResponse> => {
-    return request<UserProfileResponse>(`/profile/${userId}`);
+  getPublicProfile: async (userId: string): Promise<UserProfileResponse> => {
+    const cacheKey = `sq:public_profile:${userId}`;
+    return CacheService.fetchWithSWR<UserProfileResponse>(
+      cacheKey,
+      () => request<UserProfileResponse>(`/profile/${userId}`),
+      {
+        ttlMs: 1000 * 60 * 5, // 5 minutes TTL
+        storage: "session",
+      }
+    );
   },
 };
 
