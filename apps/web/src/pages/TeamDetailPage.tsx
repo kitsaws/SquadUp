@@ -20,6 +20,9 @@ import {
   ArrowRight,
   Lock,
   User,
+  Layers,
+  Target,
+  Briefcase,
 } from "lucide-react";
 import { useUserContext } from "../contexts/UserContext";
 import {
@@ -33,7 +36,7 @@ import {
   IncomingApplicationItem,
   RecommendationItem,
 } from "../services/api";
-import { RecommendationBadge, RecommendationTier, SkillTag } from "../components/Badges";
+import { RecommendationBadge, RecommendationTier, SkillTag, getSkillMatchType } from "../components/Badges";
 import { SmartRecommendationPanel } from "../components/SmartRecommendationPanel";
 import { ApplyTeamModal } from "../components/ApplyTeamModal";
 import {
@@ -102,9 +105,15 @@ export function TeamDetailPage() {
           setProfile(userProfile);
         }
 
+        const currentUid = userProfile?.userId || userProfile?.id;
+        const currentEmail = userProfile?.email?.toLowerCase();
+
         const isUserLeader = Boolean(
           teamData.isLeader ||
-          (userProfile && teamData.members.some((m) => m.userId === userProfile.id && m.role === "Leader"))
+          (userProfile && teamData.members.some((m) =>
+            (m.userId === currentUid || (currentEmail && m.email && m.email.toLowerCase() === currentEmail)) &&
+            (m.role === "Leader" || m.role?.toLowerCase() === "leader")
+          ))
         );
 
         // 3. If Leader, fetch incoming applications for this squad
@@ -189,13 +198,21 @@ export function TeamDetailPage() {
     };
   }, [id, isSignedIn, contextProfile]);
 
+  const currentUserId = profile?.userId || profile?.id;
+  const currentUserEmail = profile?.email?.toLowerCase();
+
   const isUserLeader = Boolean(
     team?.isLeader ||
-    (profile && team?.members.some((m) => m.userId === profile.id && m.role === "Leader"))
+    (profile && team?.members.some((m) =>
+      (m.userId === currentUserId || (currentUserEmail && m.email && m.email.toLowerCase() === currentUserEmail)) &&
+      (m.role === "Leader" || m.role?.toLowerCase() === "leader")
+    ))
   );
   const isUserMember = Boolean(
     team?.isMember ||
-    (profile && team?.members.some((m) => m.userId === profile.id))
+    (profile && team?.members.some((m) =>
+      m.userId === currentUserId || (currentUserEmail && m.email && m.email.toLowerCase() === currentUserEmail)
+    ))
   );
 
   const handleApplySuccess = async (teamId: string, role: string, message: string) => {
@@ -316,7 +333,7 @@ export function TeamDetailPage() {
           <p className="text-xs text-text-muted">{error || "The squad you requested does not exist or may have disbanded."}</p>
           <Link
             to={fromEventId ? `/event/${fromEventId}` : "/teams"}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-action hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-action hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> {fromEventId ? `Back to ${fromEventTitle || "Event"}` : "Back to Teams Directory"}
           </Link>
@@ -325,18 +342,34 @@ export function TeamDetailPage() {
     );
   }
 
-  // Derive primary open requirement (if any)
-  const openRequirement = team.requirements.find((r) => !userVerifiedSkills.includes(r)) || team.requirements[0] || "Specialist";
+  // Derive primary open requirement / role
+  const openRole = team.roles?.find((r) => !r.assignedToId);
+  const openRequirement = openRole
+    ? `${openRole.title} (${openRole.skills.join(", ")})`
+    : team.requirements.find((r) => !userVerifiedSkills.includes(r)) || team.requirements[0] || "Specialist";
+
   const category = recommendation?.recommendationCategory ?? team.category;
   const taxonomyScore = recommendation?.taxonomyScore ?? team.taxonomyScore;
   const rawBreakdown = recommendation?.requirementBreakdown || (team as any).requirementBreakdown || [];
   const activeBreakdown = rawBreakdown.map((item: any) => ({
+    requirementNodeId: item.requirementNodeId,
     requirementName: item.requirementName,
+    requirementDepth: item.requirementDepth,
+    bestUserSkillId: item.bestUserSkillId,
+    bestUserSkillName: item.bestUserSkillName,
+    bestUserSkillDepth: item.bestUserSkillDepth,
+    lcaNodeId: item.lcaNodeId,
+    lcaNodeName: item.lcaNodeName,
+    lcaDepth: item.lcaDepth,
+    graphDistance: item.graphDistance,
+    matchType: item.matchType,
     score: item.score,
     isDirectMatch: item.score >= 0.8,
-    provenanceSource: item.bestUserSkillName ? `Skill: ${item.bestUserSkillName}` : "Taxonomy Alignment",
-    explanation: item.explanationText || "",
+    provenanceSource: item.bestUserSkillName ? `Verified Skill: ${item.bestUserSkillName}` : "Taxonomy Alignment",
+    explanation: item.explanationText || item.explanation || "",
+    explanationText: item.explanationText || item.explanation || "",
   }));
+
   const fulfilledCount = activeBreakdown.length > 0
     ? activeBreakdown.filter((b: any) => b.score >= 0.8).length
     : team.requirements.filter((r) => userVerifiedSkills.includes(r)).length;
@@ -348,6 +381,46 @@ export function TeamDetailPage() {
     !team.event.isGlobal &&
     (!userUni || !teamUni || userUni.toLowerCase().trim() !== teamUni.toLowerCase().trim())
   );
+
+  const checkSkillMatch = (skill: string) => {
+    if (!isSignedIn) return false;
+    const sLower = skill.toLowerCase().trim();
+
+    // 1. Direct match in userVerifiedSkills
+    const direct = userVerifiedSkills.some((us) => {
+      const uLower = us.toLowerCase().trim();
+      if (uLower === sLower) return true;
+      if (sLower.includes(uLower) || uLower.includes(sLower)) return true;
+      if (
+        (sLower.includes("react") && uLower.includes("react")) ||
+        (sLower.includes("frontend") && uLower.includes("frontend")) ||
+        (sLower.includes("backend") && uLower.includes("backend")) ||
+        (sLower.includes("python") && uLower.includes("python")) ||
+        (sLower.includes("javascript") && uLower.includes("javascript")) ||
+        (sLower.includes("typescript") && uLower.includes("typescript")) ||
+        (sLower.includes("design") && uLower.includes("design")) ||
+        (sLower.includes("css") && uLower.includes("css")) ||
+        (sLower.includes("node") && uLower.includes("node"))
+      ) {
+        return true;
+      }
+      return false;
+    });
+    if (direct) return true;
+
+    // 2. Check activeBreakdown
+    if (activeBreakdown && activeBreakdown.length > 0) {
+      const match = activeBreakdown.find((b: any) => {
+        const bName = (b.requirementName || "").toLowerCase().trim();
+        return bName === sLower || bName.includes(sLower) || sLower.includes(bName);
+      });
+      if (match && match.score >= 0.6) return true;
+    }
+
+    // 3. Fallback to getSkillMatchType
+    const badgeType = getSkillMatchType(skill, userVerifiedSkills);
+    return badgeType === "perfect" || badgeType === "partial";
+  };
 
   // Sort squad members so Leader is always the first person in the roster
   const sortedMembers = [...(team.members || [])].sort((a, b) => {
@@ -473,17 +546,96 @@ export function TeamDetailPage() {
 
               <div className="p-4 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
                 <div className="flex items-center justify-between text-xs text-text-muted font-semibold mb-1">
-                  <span>Primary Role Vacancy</span>
+                  <span>Primary Open Role</span>
                   <Sparkles className="w-4 h-4 text-emerald-500" />
                 </div>
-                <div className="text-xl font-black text-text-main font-heading">
-                  {openRequirement}
+                <div className="text-base font-black text-text-main font-heading truncate">
+                  {openRole ? openRole.title : openRequirement}
                 </div>
                 <p className="text-[11px] text-text-muted font-medium mt-1">
-                  Core capability seeking specialist
+                  {openRole ? `${openRole.skills.slice(0, 3).join(", ")}` : "Core capability seeking specialist"}
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Leader: Role : Technologies Needed Section */}
+          <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-black text-text-main font-heading flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-primary-action" />
+                  <span>Role : Technologies Needed</span>
+                </h2>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Structured capability vacancies, required tech stacks, and spot allocations for your squad.
+                </p>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface-dim text-text-muted border border-border-main self-start sm:self-auto shrink-0">
+                {team.roles?.length || team.requirements.length} Configured Roles
+              </span>
+            </div>
+
+            {team.roles && team.roles.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {team.roles.map((role) => (
+                  <div
+                    key={role.id || role.title}
+                    className="p-4 rounded-xl border border-border-main bg-surface-dim space-y-3 shadow-2xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="text-sm font-bold text-text-main font-heading">{role.title}</h4>
+                        <p className="text-[11px] text-text-muted mt-0.5">
+                          {role.assignedToId ? "Assigned" : `${role.spots || 1} spot(s) open`}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          role.assignedToId
+                            ? "bg-surface text-text-muted border border-border-main"
+                            : "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                        }`}
+                      >
+                        {role.assignedToId ? "Filled" : "Recruiting"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 pt-1 border-t border-border-main/50">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                        Technologies Needed:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {role.skills.map((skill) => (
+                          <span
+                            key={skill}
+                            className="text-xs font-medium px-2 py-0.5 rounded-md bg-surface text-text-main border border-border-main"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl border border-border-main bg-surface-dim space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                  Technologies Needed:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {team.requirements.map((req) => (
+                    <span
+                      key={req}
+                      className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-surface text-text-main border border-border-main"
+                    >
+                      {req}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Incoming Applications List */}
@@ -562,7 +714,10 @@ export function TeamDetailPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {sortedMembers.map((member) => {
-                const isCurrentMember = member.userId === profile?.id || member.id === profile?.id;
+                const isCurrentMember =
+                  member.userId === currentUserId ||
+                  member.id === currentUserId ||
+                  (currentUserEmail && member.email && member.email.toLowerCase() === currentUserEmail);
                 return (
                   <div
                     key={member.id}
@@ -599,7 +754,7 @@ export function TeamDetailPage() {
                       </div>
                     </div>
 
-                    {/* Leader View: View Profile and Kick/Remove or Leave stacked (flex-col) */}
+                    {/* Leader View: View Profile and Kick/Remove or Leave */}
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       <Link
                         to={member.userId ? `/profile/${member.userId}` : `/profile`}
@@ -691,37 +846,130 @@ export function TeamDetailPage() {
                 </p>
               </div>
 
-              {/* Tech Stack */}
-              <div className="space-y-2 pt-2 border-t border-border-main">
-                <h3 className="text-xs font-black uppercase tracking-wider text-text-muted">
-                  Required Tech Stack & Skills
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {team.requirements.map((req) => (
-                    <SkillTag
-                      key={req}
-                      skill={req}
-                      breakdown={recommendation?.requirementBreakdown || (team as any).requirementBreakdown}
-                      userSkills={isSignedIn ? userVerifiedSkills : undefined}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Open Role Highlight */}
-              {openRequirement && (
-                <div className="p-4 rounded-xl bg-primary-light border border-primary-border flex items-start gap-3">
-                  <Sparkles className="w-5 h-5 text-primary-action shrink-0 mt-0.5" />
+              {/* Role : Technologies Needed Section */}
+              <div className="space-y-4 pt-4 border-t border-border-main">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                   <div>
-                    <h4 className="text-sm font-bold text-primary-action">
-                      Actively Recruiting: {openRequirement} Specialist
-                    </h4>
-                    <p className="text-xs text-text-muted mt-1">
-                      Our architecture relies on verified hands-on execution. Candidates with experience matching this requirement will receive immediate review.
+                    <h3 className="text-sm font-black uppercase tracking-wider text-text-main flex items-center gap-2 font-heading">
+                      <Layers className="w-4 h-4 text-primary-action" />
+                      <span>Role : Technologies Needed</span>
+                    </h3>
+                    <p className="text-xs text-text-muted">
+                      Required competencies and open vacancies structured by role.
                     </p>
                   </div>
+                  {team.roles && team.roles.length > 0 && (
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-surface-dim text-text-muted border border-border-main self-start sm:self-auto">
+                      {team.roles.length} Defined Roles
+                    </span>
+                  )}
                 </div>
-              )}
+
+                {team.roles && team.roles.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {team.roles.map((role) => {
+                      const isOptimalRole = (team.bestMatchingRole?.roleTitle || recommendation?.bestMatchingRole?.roleTitle) === role.title;
+                      const matchingSkillsCount = role.skills.filter((s) => checkSkillMatch(s)).length;
+
+                      return (
+                        <div
+                          key={role.id || role.title}
+                          className={`p-4 sm:p-5 rounded-2xl border transition-all space-y-3.5 shadow-2xs ${
+                            isOptimalRole
+                              ? "bg-gradient-to-br from-primary-action/10 via-surface to-surface border-primary-action/40 shadow-xs"
+                              : "bg-surface-dim/50 border-border-main"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="text-sm sm:text-base font-bold text-text-main font-heading truncate">
+                                  {role.title}
+                                </h4>
+                                {isOptimalRole && (
+                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-primary-action text-white shadow-2xs">
+                                    ⭐ Best Match
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] font-medium block mt-0.5">
+                                {isOptimalRole ? (
+                                  <span className="text-primary-action font-bold">Recommended Role</span>
+                                ) : (
+                                  <span className="text-text-muted">{role.spots || 1} Open Spot{(role.spots || 1) > 1 ? "s" : ""}</span>
+                                )}
+                              </span>
+                            </div>
+
+                            {isSignedIn && (
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
+                                  matchingSkillsCount > 0
+                                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                    : "bg-surface text-text-muted border-border-main"
+                                }`}
+                              >
+                                {matchingSkillsCount}/{role.skills.length} Skills Match
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="space-y-1.5 pt-1 border-t border-border-main/50">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                              Technologies Needed:
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {role.skills.map((skill) => {
+                                const isMatched = checkSkillMatch(skill);
+                                return (
+                                  <span
+                                    key={skill}
+                                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                                      isMatched && isSignedIn
+                                        ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                        : "bg-surface text-text-muted border-border-main"
+                                    }`}
+                                  >
+                                    {isMatched && isSignedIn && <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />}
+                                    <span>{skill}</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* Fallback if no structured roles yet */
+                  <div className="p-4 sm:p-5 rounded-2xl border border-border-main bg-surface-dim/40 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold text-text-main font-heading">
+                        Core Squad Contributor
+                      </h4>
+                      <span className="text-xs text-text-muted font-medium">
+                        Open Technical Requirements
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                        Technologies Needed:
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {team.requirements.map((req) => (
+                          <SkillTag
+                            key={req}
+                            skill={req}
+                            breakdown={recommendation?.requirementBreakdown || (team as any).requirementBreakdown}
+                            userSkills={isSignedIn ? userVerifiedSkills : undefined}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Squad Roster */}
@@ -742,7 +990,10 @@ export function TeamDetailPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {sortedMembers.map((member) => {
-                  const isCurrentMember = member.userId === profile?.id || member.id === profile?.id;
+                  const isCurrentMember =
+                    member.userId === currentUserId ||
+                    member.id === currentUserId ||
+                    (currentUserEmail && member.email && member.email.toLowerCase() === currentUserEmail);
                   return (
                     <div
                       key={member.id}
@@ -851,6 +1102,8 @@ export function TeamDetailPage() {
                   taxonomyScore: taxonomyScore,
                   fulfilledRequirements: fulfilledCount,
                   totalRequirements: team.requirements.length,
+                  bestMatchingRole: team.bestMatchingRole || recommendation?.bestMatchingRole,
+                  roles: team.roles,
                   teamLeadName: team.members.find((m) => m.role === "Leader")?.name || team.members[0]?.name || "Team Lead",
                   teamLeadUniversity: team.university,
                   sameUniversity: Boolean(
@@ -865,12 +1118,14 @@ export function TeamDetailPage() {
                 isRecommended={Boolean(category && taxonomyScore !== undefined)}
                 isFull={team.members.length >= totalSpots}
                 isRestricted={isRestrictedEvent}
+                isMember={isUserMember || isUserLeader}
                 onApply={() => {
-                  if (!isRestrictedEvent) {
+                  if (!isRestrictedEvent && !isUserMember && !isUserLeader) {
                     setIsApplyModalOpen(true);
                   }
                 }}
                 onWithdraw={handleWithdrawApplication}
+                onLeave={handleLeaveTeam}
                 hasApplied={applied}
               />
             )}
@@ -889,6 +1144,8 @@ export function TeamDetailPage() {
             eventId: team.eventId,
             eventTitle: team.event?.title || "Hackathon",
             requirements: team.requirements,
+            roles: team.roles,
+            bestMatchingRole: team.bestMatchingRole || recommendation?.bestMatchingRole,
             university: team.university,
             members: team.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
           }}

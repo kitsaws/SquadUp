@@ -130,6 +130,27 @@ export interface TeamMember {
   title?: string;
 }
 
+export interface TeamRoleItem {
+  id?: string;
+  teamId?: string;
+  title: string;
+  skills: string[];
+  spots?: number;
+  assignedToId?: string | null;
+  requirementNodeIds?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BestMatchingRoleItem {
+  roleId?: string;
+  roleTitle: string;
+  score: number;
+  fulfilledCount: number;
+  totalCount: number;
+  skills: string[];
+}
+
 export interface TeamItem {
   id: string;
   name: string;
@@ -145,6 +166,8 @@ export interface TeamItem {
   };
   requirements: string[];
   requirementNodeIds?: string[];
+  roles?: TeamRoleItem[];
+  bestMatchingRole?: BestMatchingRoleItem;
   university?: string;
   description?: string;
   members: TeamMember[];
@@ -162,7 +185,15 @@ export interface TeamItem {
   requirementBreakdown?: Array<{
     requirementNodeId?: string;
     requirementName: string;
+    requirementDepth?: number;
+    bestUserSkillId?: string | null;
     bestUserSkillName?: string | null;
+    bestUserSkillDepth?: number;
+    lcaNodeId?: string | null;
+    lcaNodeName?: string | null;
+    lcaDepth?: number;
+    graphDistance?: number;
+    matchType?: "exact" | "ancestor" | "descendant" | "sibling" | "subdomain" | "domain" | "unmet";
     score: number;
     explanationText?: string;
     isStrong?: boolean;
@@ -247,6 +278,7 @@ export interface RecommendationItem {
   recommendationCategory: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE";
   fulfilledRequirementsCount: number;
   totalRequirementsCount: number;
+  bestMatchingRole?: BestMatchingRoleItem;
   requirementBreakdown?: RecommendationBreakdownItem[];
 }
 

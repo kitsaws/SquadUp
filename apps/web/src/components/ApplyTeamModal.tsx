@@ -12,16 +12,22 @@ interface ApplyTeamModalProps {
 
 export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamModalProps) {
   const { user } = useUser();
-  const defaultRole = team.neededRequirement
+  const configuredRoleTitles = team.roles && team.roles.length > 0
+    ? team.roles.map((r) => r.title)
+    : [];
+
+  const defaultRole = team.bestMatchingRole?.roleTitle
+    ? team.bestMatchingRole.roleTitle
+    : configuredRoleTitles[0]
+    ? configuredRoleTitles[0]
+    : team.neededRequirement
     ? `${team.neededRequirement} Specialist`
     : team.requirements?.[0]
     ? `${team.requirements[0]} Contributor`
     : "Core Contributor";
 
   const [selectedRole, setSelectedRole] = useState(defaultRole);
-  const [message, setMessage] = useState(
-    `Hi! I'd love to join ${team.name} for ${team.eventTitle || "the hackathon"}. My background aligns with your stack requirements, and I'm eager to contribute.`
-  );
+  const [message, setMessage] = useState("" );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -36,12 +42,14 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
     }, 400);
   };
 
-  const roles = [
-    defaultRole,
-    "Full Stack Engineer",
-    "Backend Specialist",
-    "Frontend Specialist",
-  ].filter((v, i, a) => a.indexOf(v) === i);
+  const roles = configuredRoleTitles.length > 0
+    ? configuredRoleTitles
+    : [
+        defaultRole,
+        "Full Stack Engineer",
+        "Backend Specialist",
+        "Frontend Specialist",
+      ].filter((v, i, a) => a.indexOf(v) === i);
 
   const candidateName = user?.fullName || "Student Applicant";
   const candidateInitials = candidateName
@@ -93,7 +101,7 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-text-main font-heading">{candidateName}</span>
                 <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-500/10 px-2 py-0.2 rounded-full border border-emerald-500/20">
-                  Verified Dossier
+                  Verified User
                 </span>
               </div>
               <p className="text-xs text-text-muted">
@@ -108,20 +116,38 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
               Preferred Role in Squad:
             </label>
             <div className="flex flex-wrap gap-2">
-              {roles.map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => setSelectedRole(role)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                    selectedRole === role
-                      ? "bg-primary-action text-white border-primary-action shadow-xs"
-                      : "bg-surface text-text-main border-border-main hover:bg-surface-dim"
-                  }`}
-                >
-                  {selectedRole === role ? `✓ ${role}` : role}
-                </button>
-              ))}
+              {roles.map((role) => {
+                const isRecommended = team.bestMatchingRole?.roleTitle === role;
+                const isSelected = selectedRole === role;
+
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setSelectedRole(role)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? "bg-primary-action text-white border-primary-action shadow-xs"
+                        : isRecommended
+                        ? "bg-primary-light text-primary-action border-primary-border hover:bg-primary-action hover:text-white"
+                        : "bg-surface text-text-main border-border-main hover:bg-surface-dim"
+                    }`}
+                  >
+                    {isRecommended && <span>⭐</span>}
+                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                    <span>{role}</span>
+                    {isRecommended && (
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                          isSelected ? "bg-white/20 text-white" : "bg-primary-action/10 text-primary-action"
+                        }`}
+                      >
+                        Recommended
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

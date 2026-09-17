@@ -23,6 +23,7 @@ import {
   ChevronRight,
   RotateCw,
   Lock,
+  Layers,
 } from "lucide-react";
 import { useUserContext } from "../contexts/UserContext";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
@@ -236,6 +237,8 @@ export function TeamsPage() {
         isGlobal: t.event?.isGlobal ?? (t as any).isGlobal ?? true,
         requirements: t.requirements || [],
         requirementBreakdown: t.requirementBreakdown,
+        roles: t.roles,
+        bestMatchingRole: t.bestMatchingRole,
         neededRequirement: t.requirements?.[0],
         taxonomyScore: t.taxonomyScore,
         category: t.category,
@@ -326,12 +329,79 @@ export function TeamsPage() {
     NAME_ASC: "Squad Name (A-Z)",
   };
 
+  // Helper to check if a specific skill matches user's verified competencies or requirement breakdown
+  const checkSkillMatch = (skill: string, team: TeamCardData): boolean => {
+    if (!isSignedIn || !userVerifiedSkills || userVerifiedSkills.length === 0) return false;
+    const sLower = skill.toLowerCase().trim();
+    const direct = userVerifiedSkills.some((us) => {
+      const uLower = us.toLowerCase().trim();
+      return (
+        uLower === sLower ||
+        sLower.includes(uLower) ||
+        uLower.includes(sLower) ||
+        (sLower.includes("react") && uLower.includes("react")) ||
+        (sLower.includes("frontend") && uLower.includes("frontend")) ||
+        (sLower.includes("backend") && uLower.includes("backend")) ||
+        (sLower.includes("python") && uLower.includes("python")) ||
+        (sLower.includes("javascript") && uLower.includes("javascript")) ||
+        (sLower.includes("typescript") && uLower.includes("typescript")) ||
+        (sLower.includes("design") && uLower.includes("design")) ||
+        (sLower.includes("css") && uLower.includes("css")) ||
+        (sLower.includes("node") && uLower.includes("node"))
+      );
+    });
+    if (direct) return true;
+    if (team.requirementBreakdown) {
+      const rb = team.requirementBreakdown.find((b) => {
+        const bName = (b.requirementName || "").toLowerCase().trim();
+        return bName === sLower || bName.includes(sLower) || sLower.includes(bName);
+      });
+      if (rb && (rb.score >= 0.6 || rb.isStrong)) return true;
+    }
+    return false;
+  };
+
+  // Helper to determine 3-tier role match status (perfect, partial, none)
+  const getRoleMatchStatus = (
+    role: { title: string; skills?: string[] },
+    team: TeamCardData
+  ): "perfect" | "partial" | "none" => {
+    if (!isSignedIn || !userVerifiedSkills || userVerifiedSkills.length === 0) return "none";
+
+    // 1. Check if bestMatchingRole matches this role
+    if (team.bestMatchingRole && team.bestMatchingRole.roleTitle.toLowerCase().trim() === role.title.toLowerCase().trim()) {
+      if (team.bestMatchingRole.score >= 0.85) return "perfect";
+      if (team.bestMatchingRole.score >= 0.40) return "partial";
+    }
+
+    const skills = role.skills || [];
+    if (skills.length === 0) return "none";
+
+    let matchedCount = 0;
+    for (const skill of skills) {
+      if (checkSkillMatch(skill, team)) {
+        matchedCount++;
+      }
+    }
+
+    if (matchedCount === skills.length && matchedCount > 0) return "perfect";
+    if (matchedCount > 0) return "partial";
+    return "none";
+  };
+
   // Reusable inspection details panel (used inline in Tiles view, and right-column in Cards view)
   const renderInspectionPanel = (team: TeamCardData, isInline = false) => {
     const isCampusRestricted = Boolean(
       team.isGlobal === false &&
       (!myCampus || !team.university || myCampus.toLowerCase().trim() !== team.university.toLowerCase().trim())
     );
+
+    const rolesList =
+      team.roles && team.roles.length > 0
+        ? team.roles
+        : team.requirements.length > 0
+        ? team.requirements.map((req) => ({ title: req, skills: [req], spots: 1 }))
+        : [{ title: "Core Contributor", skills: [], spots: 1 }];
 
     return (
       <div
@@ -359,6 +429,17 @@ export function TeamsPage() {
               <span className="text-xs font-semibold text-primary-action bg-primary-light border border-primary-border px-2 py-0.5 rounded-full">
                 {team.eventTitle}
               </span>
+
+              {team.isUserLeader && (
+                <span className="text-xs font-bold text-primary-action bg-primary-light border border-primary-border px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Crown className="w-3 h-3 text-primary-action" /> Squad Leader
+                </span>
+              )}
+              {team.isUserMember && !team.isUserLeader && (
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Check className="w-3 h-3 text-emerald-500" /> Member
+                </span>
+              )}
             </div>
 
             <h2 className="text-xl sm:text-2xl font-black text-text-main font-heading">
@@ -395,7 +476,7 @@ export function TeamsPage() {
         {/* Skill & Requirement Alignment */}
         {isSignedIn ? (
           <div
-            className={`p-3.5 rounded-xl border space-y-3 ${
+            className={`p-3.5 rounded-xl border space-y-3.5 ${
               team.category === "BEST"
                 ? "bg-best-fit-light border-best-fit"
                 : team.category === "GOOD_DIFFERENT_UNIVERSITY"
@@ -432,36 +513,108 @@ export function TeamsPage() {
                 size={52}
                 strokeWidth={4.5}
               />
-              <div className="space-y-0.5 text-xs text-text-muted">
-                <p className="font-semibold text-text-main">
-                  {team.neededRequirement
-                    ? `Actively seeking ${team.neededRequirement} lead`
-                    : team.category
-                      ? "Matching your core technical competencies"
-                      : "General technical vacancy"}
+              <div className="space-y-0.5 text-xs text-text-muted min-w-0 flex-1">
+                <p className="font-semibold text-text-main truncate">
+                  {team.bestMatchingRole ? (
+                    <span>
+                      Optimal Role: <strong className="text-primary-action font-bold">{team.bestMatchingRole.roleTitle}</strong>
+                    </span>
+                  ) : team.neededRequirement ? (
+                    `Actively seeking ${team.neededRequirement} lead`
+                  ) : team.category ? (
+                    "Matching your core technical competencies"
+                  ) : (
+                    "General technical vacancy"
+                  )}
                 </p>
                 <p className="text-[11px] text-text-muted leading-snug">
-                  {team.category
+                  {team.bestMatchingRole
+                    ? `Matching ${team.bestMatchingRole.fulfilledCount} of ${team.bestMatchingRole.totalCount} required role competencies.`
+                    : team.category
                     ? "Your verified resume skills align with the squad's target architecture."
                     : "Compare required skills against your verified profile competencies below."}
                 </p>
               </div>
             </div>
 
-            {/* Requirements Alignment Pills */}
-            <div className="space-y-1.5 pt-2 border-t border-border-main/60">
-              <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
-                Needs/Requirements:
+            {/* Role : Technologies Needed Section */}
+            <div className="space-y-2.5 pt-2.5 border-t border-border-main/60">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-primary-action" />
+                  <span>Role : Technologies Needed</span>
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface text-text-muted border border-border-main">
+                  {rolesList.length} Role{rolesList.length > 1 ? "s" : ""}
+                </span>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {team.requirements.map((req) => (
-                  <SkillTag
-                    key={req}
-                    skill={req}
-                    breakdown={team.requirementBreakdown}
-                    userSkills={userVerifiedSkills}
-                  />
-                ))}
+
+              <div className="space-y-2">
+                {rolesList.map((role, idx) => {
+                  const matchStatus = getRoleMatchStatus(role, team);
+                  const isOptimalRole =
+                    team.bestMatchingRole?.roleTitle?.toLowerCase().trim() === role.title.toLowerCase().trim();
+                  const roleSkills = role.skills || [];
+                  const matchedCount = roleSkills.filter((s) => checkSkillMatch(s, team)).length;
+
+                  return (
+                    <div
+                      key={(role as any).id || role.title || idx}
+                      className={`p-3 rounded-xl border transition-all space-y-2 ${
+                        isOptimalRole
+                          ? "bg-gradient-to-br from-primary-action/10 via-surface to-surface border-primary-action/40 shadow-2xs"
+                          : matchStatus === "perfect"
+                          ? "bg-emerald-500/10 border-emerald-500/30"
+                          : matchStatus === "partial"
+                          ? "bg-amber-500/10 border-amber-500/30"
+                          : "bg-surface border-border-main"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                          <span className="text-xs font-bold text-text-main truncate font-heading">
+                            {role.title}
+                          </span>
+                          {isOptimalRole && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-primary-action text-white shadow-2xs">
+                              ⭐ Recommended
+                            </span>
+                          )}
+                          {role.spots && (
+                            <span className="text-[10px] text-text-muted font-medium">
+                              • {role.spots} spot{role.spots > 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
+
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
+                            matchStatus === "perfect"
+                              ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
+                              : matchStatus === "partial"
+                              ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
+                              : "bg-surface-dim text-text-muted border-border-main"
+                          }`}
+                        >
+                          {roleSkills.length > 0 ? `${matchedCount}/${roleSkills.length} Skills Match` : "Open"}
+                        </span>
+                      </div>
+
+                      {roleSkills.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1 border-t border-border-main/40">
+                          {roleSkills.map((req) => (
+                            <SkillTag
+                              key={req}
+                              skill={req}
+                              breakdown={team.requirementBreakdown}
+                              userSkills={userVerifiedSkills}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -474,19 +627,29 @@ export function TeamsPage() {
               <span className="text-xs font-medium text-text-muted">Sign in for compatibility</span>
             </div>
             <p className="text-xs text-text-muted leading-relaxed">
-              Review required skills and team composition below. Sign in to view your personalized compatibility score.
+              Review required roles and team composition below. Sign in to view your personalized compatibility score.
             </p>
-            <div className="space-y-1.5 pt-2 border-t border-border-main/60">
-              <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
-                Needs/Requirements:
+            <div className="space-y-2 pt-2 border-t border-border-main/60">
+              <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-text-muted" /> Open Roles:
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {team.requirements.map((req) => (
-                  <SkillTag
-                    key={req}
-                    skill={req}
-                    isMatched={false}
-                  />
+              <div className="space-y-2">
+                {rolesList.map((role, idx) => (
+                  <div key={(role as any).id || role.title || idx} className="p-2.5 rounded-xl border border-border-main bg-surface-dim/50 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-text-main">{role.title}</span>
+                      {role.spots && (
+                        <span className="text-[10px] text-text-muted">{role.spots} Open Spot{role.spots > 1 ? "s" : ""}</span>
+                      )}
+                    </div>
+                    {role.skills && role.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {role.skills.map((req) => (
+                          <SkillTag key={req} skill={req} isMatched={false} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -511,7 +674,7 @@ export function TeamsPage() {
                 className="p-2 rounded-lg border border-border-main bg-surface-dim flex items-center gap-2"
               >
                 <div className="w-6 h-6 rounded-full bg-primary-action text-white font-bold flex items-center justify-center text-[10px] shrink-0">
-                  {m.name.split(" ").map((n) => n[0]).join("")}
+                  {(m.name || "M").split(" ").filter(Boolean).map((n) => n[0]).slice(0, 2).join("").toUpperCase() || "M"}
                 </div>
                 <div className="min-w-0">
                   <span className="text-xs font-bold text-text-main block truncate">
@@ -549,9 +712,31 @@ export function TeamsPage() {
             >
               <Crown className="w-4 h-4" /> Manage Applications & Roster →
             </Link>
+          ) : team.isUserMember ? (
+            <div className="w-full flex items-center gap-2">
+              <span className="flex-1 py-2.5 text-center text-xs font-bold text-emerald-600 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                ✓ Already Part Of The Squad
+              </span>
+              <Link
+                to={`/team/${team.id}`}
+                state={{ from: "teams" }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
+              </Link>
+            </div>
           ) : appliedTeamIds.includes(team.id) ? (
-            <div className="w-full text-center py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold">
-              ⏳ Application submitted • Pending leader review
+            <div className="w-full flex items-center gap-2">
+              <div className="flex-1 text-center py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold truncate px-2">
+                ⏳ Application submitted • Pending review
+              </div>
+              <Link
+                to={`/team/${team.id}`}
+                state={{ from: "teams" }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer shrink-0"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Dossier ↗
+              </Link>
             </div>
           ) : isCampusRestricted ? (
             <>
@@ -591,7 +776,7 @@ export function TeamsPage() {
             <>
               <button
                 onClick={() => {
-                  if (!team.isUserLeader) {
+                  if (!team.isUserLeader && !team.isUserMember) {
                     setIsApplyModalOpen(true);
                   }
                 }}

@@ -2,6 +2,7 @@ import React from "react";
 import { Users, ArrowRight, Check } from "lucide-react";
 import { RecommendationBadge, RecommendationTier, SkillTag } from "./Badges";
 import { useUserContext } from "../contexts/UserContext";
+import { TeamRoleItem, BestMatchingRoleItem } from "../services/api";
 
 export interface TeamMemberPreview {
   id: string;
@@ -21,11 +22,21 @@ export interface TeamCardData {
   requirementBreakdown?: Array<{
     requirementNodeId?: string;
     requirementName: string;
+    requirementDepth?: number;
+    bestUserSkillId?: string | null;
     bestUserSkillName?: string | null;
+    bestUserSkillDepth?: number;
+    lcaNodeId?: string | null;
+    lcaNodeName?: string | null;
+    lcaDepth?: number;
+    graphDistance?: number;
+    matchType?: "exact" | "ancestor" | "descendant" | "sibling" | "subdomain" | "domain" | "unmet";
     score: number;
     explanationText?: string;
     isStrong?: boolean;
   }>;
+  roles?: TeamRoleItem[];
+  bestMatchingRole?: BestMatchingRoleItem;
   neededRequirement?: string;
   members: TeamMemberPreview[];
   maxCapacity?: number;
@@ -98,6 +109,65 @@ export function TeamCard({
     topHighlightClass = "bg-campus-explorer";
   }
 
+  // Derive roles list: use configured roles if present, else fallback
+  const rolesList =
+    team.roles && team.roles.length > 0
+      ? team.roles
+      : team.requirements.length > 0
+      ? team.requirements.map((req) => ({ title: req, skills: [req] }))
+      : [{ title: "Core Specialist", skills: [] }];
+
+  const getRoleMatchStatus = (role: { title: string; skills?: string[] }): "perfect" | "partial" | "none" => {
+    if (!isSignedIn || !userVerifiedSkills || userVerifiedSkills.length === 0) return "none";
+
+    // 1. Check if bestMatchingRole matches this role
+    if (team.bestMatchingRole && team.bestMatchingRole.roleTitle.toLowerCase().trim() === role.title.toLowerCase().trim()) {
+      if (team.bestMatchingRole.score >= 0.85) return "perfect";
+      if (team.bestMatchingRole.score >= 0.40) return "partial";
+    }
+
+    const skills = role.skills || [];
+    if (skills.length === 0) return "none";
+
+    let matchedCount = 0;
+    for (const skill of skills) {
+      const sLower = skill.toLowerCase().trim();
+      const direct = userVerifiedSkills.some((us) => {
+        const uLower = us.toLowerCase().trim();
+        return (
+          uLower === sLower ||
+          sLower.includes(uLower) ||
+          uLower.includes(sLower) ||
+          (sLower.includes("react") && uLower.includes("react")) ||
+          (sLower.includes("frontend") && uLower.includes("frontend")) ||
+          (sLower.includes("backend") && uLower.includes("backend")) ||
+          (sLower.includes("python") && uLower.includes("python")) ||
+          (sLower.includes("javascript") && uLower.includes("javascript")) ||
+          (sLower.includes("typescript") && uLower.includes("typescript")) ||
+          (sLower.includes("design") && uLower.includes("design")) ||
+          (sLower.includes("css") && uLower.includes("css"))
+        );
+      });
+      if (direct) {
+        matchedCount++;
+        continue;
+      }
+      if (team.requirementBreakdown) {
+        const rb = team.requirementBreakdown.find((b) => {
+          const bName = (b.requirementName || "").toLowerCase().trim();
+          return bName === sLower || bName.includes(sLower) || sLower.includes(bName);
+        });
+        if (rb && (rb.score >= 0.7 || rb.isStrong)) {
+          matchedCount++;
+        }
+      }
+    }
+
+    if (matchedCount === skills.length && matchedCount > 0) return "perfect";
+    if (matchedCount > 0) return "partial";
+    return "none";
+  };
+
   return (
     <div
       onClick={() => onInspect?.(team)}
@@ -158,20 +228,30 @@ export function TeamCard({
         </p>
       </div>
 
-      {/* Stack Requirements Pills: mt-auto anchors to bottom and expands upward */}
+      {/* Open Roles Section */}
       <div className="mt-auto pt-3 mb-4">
         <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1.5">
-          Needs/Requirements:
+          Roles Needed:
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {team.requirements.map((req, i) => (
-            <SkillTag
-              key={i}
-              skill={req}
-              breakdown={team.requirementBreakdown}
-              userSkills={isSignedIn ? userVerifiedSkills : undefined}
-            />
-          ))}
+          {rolesList.map((role, i) => {
+            const matchStatus = getRoleMatchStatus(role);
+            return (
+              <span
+                key={i}
+                className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                  matchStatus === "perfect"
+                    ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 shadow-2xs"
+                    : matchStatus === "partial"
+                    ? "bg-amber-500/15 text-amber-600 border-amber-500/30 shadow-2xs"
+                    : "bg-surface-dim text-text-muted border-border-main"
+                }`}
+              >
+                {matchStatus === "perfect" && <Check className="w-3 h-3 text-emerald-500 shrink-0" />}
+                <span>{role.title}</span>
+              </span>
+            );
+          })}
         </div>
       </div>
 
@@ -229,7 +309,15 @@ export function TeamCard({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          {hasApplied ? (
+          {team.isUserLeader ? (
+            <span className="text-[11px] font-bold text-primary-action bg-primary-light px-2.5 py-1 rounded-md border border-primary-border">
+              Leader
+            </span>
+          ) : team.isUserMember ? (
+            <span className="text-[11px] font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
+              Member
+            </span>
+          ) : hasApplied ? (
             <span className="text-xs font-semibold text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
               Pending
             </span>
