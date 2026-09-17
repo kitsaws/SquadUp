@@ -286,7 +286,8 @@ export function TeamsPage() {
     } else {
       setInspectedTeam(team);
       setTimeout(() => {
-        const el = document.getElementById(`team-card-${team.id}`);
+        const id = viewMode === "cards" ? `team-card-${team.id}` : `team-tile-${team.id}`;
+        const el = document.getElementById(id);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "start" });
         }
@@ -319,6 +320,268 @@ export function TeamsPage() {
     FIT_ASC: "Fit Score (Lowest)",
     SPOTS_DESC: "Open Spots (Most)",
     NAME_ASC: "Squad Name (A-Z)",
+  };
+
+  // Reusable inspection details panel (used inline in Tiles view, and right-column in Cards view)
+  const renderInspectionPanel = (team: TeamCardData, isInline = false) => {
+    return (
+      <div
+        key={team.id}
+        className={`w-full bg-surface rounded-2xl border border-border-main p-5 sm:p-6 shadow-xs space-y-4 ${
+          isInline
+            ? "mt-3 mb-2 animate-in fade-in slide-in-from-top-2 duration-200"
+            : "lg:flex-1 min-w-0 lg:sticky lg:top-20 max-h-[calc(100vh-6rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden hover:[scrollbar-width:thin] hover:[&::-webkit-scrollbar]:block hover:[&::-webkit-scrollbar]:w-1.5 hover:[&::-webkit-scrollbar-thumb]:bg-border-main hover:[&::-webkit-scrollbar-thumb]:rounded-full animate-in fade-in slide-from-right-8 duration-300 ease-out"
+        }`}
+      >
+        {/* Header & Close Button */}
+        <div className="flex items-start justify-between gap-4 pb-3 border-b border-border-main">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {isSignedIn && team.category ? (
+                <RecommendationBadge
+                  category={team.category}
+                  score={team.taxonomyScore}
+                />
+              ) : (
+                <span className="text-xs font-semibold text-text-muted bg-surface-dim border border-border-main px-2.5 py-0.5 rounded-full">
+                  General Squad
+                </span>
+              )}
+              <span className="text-xs font-semibold text-primary-action bg-primary-light border border-primary-border px-2 py-0.5 rounded-full">
+                {team.eventTitle}
+              </span>
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-black text-text-main font-heading">
+              {team.name}
+            </h2>
+
+            {team.university && (
+              <p className="text-xs text-text-muted flex items-center gap-1.5 font-medium">
+                <Shield className="w-3.5 h-3.5 text-primary-action" />
+                {team.university}
+              </p>
+            )}
+          </div>
+
+          <button
+            onClick={() => setInspectedTeam(null)}
+            className="p-1.5 rounded-lg hover:bg-surface-dim text-text-muted hover:text-text-main transition-colors cursor-pointer"
+            title="Close preview"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Team Mission */}
+        <div className="space-y-1">
+          <h4 className="text-xs font-black uppercase tracking-wider text-text-muted">
+            Squad Mission
+          </h4>
+          <p className="text-xs sm:text-sm text-text-muted leading-relaxed line-clamp-3">
+            {team.description || "Active squad participating in the project sprint."}
+          </p>
+        </div>
+
+        {/* Skill & Requirement Alignment */}
+        {isSignedIn ? (
+          <div
+            className={`p-3.5 rounded-xl border space-y-3 ${
+              team.category === "BEST"
+                ? "bg-best-fit-light border-best-fit"
+                : team.category === "GOOD_DIFFERENT_UNIVERSITY"
+                  ? "bg-cross-campus-light border-cross-campus"
+                  : team.category === "SAME_UNIVERSITY_LOWER_SCORE"
+                    ? "bg-campus-explorer-light border-campus-explorer"
+                    : "bg-surface-dim border-border-main"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-text-main flex items-center gap-1.5">
+                {team.category ? (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 text-primary-action" /> Skill Compatibility Fit
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-3.5 h-3.5 text-text-muted" /> Technical Alignment
+                  </>
+                )}
+              </span>
+              <span className="text-xs font-bold text-text-main">
+                {team.taxonomyScore !== undefined
+                  ? `${Math.round(team.taxonomyScore * 100)}% Match`
+                  : "Unranked Match"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3.5">
+              <CompatibilityScoreRing
+                score={team.taxonomyScore}
+                category={team.category || "UNRATED"}
+                isUnrated={!team.category}
+                size={52}
+                strokeWidth={4.5}
+              />
+              <div className="space-y-0.5 text-xs text-text-muted">
+                <p className="font-semibold text-text-main">
+                  {team.neededRequirement
+                    ? `Actively seeking ${team.neededRequirement} lead`
+                    : team.category
+                      ? "Matching your core technical competencies"
+                      : "General technical vacancy"}
+                </p>
+                <p className="text-[11px] text-text-muted leading-snug">
+                  {team.category
+                    ? "Your verified resume skills align with the squad's target architecture."
+                    : "Compare required skills against your verified profile competencies below."}
+                </p>
+              </div>
+            </div>
+
+            {/* Requirements Alignment Pills */}
+            <div className="space-y-1.5 pt-2 border-t border-border-main/60">
+              <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
+                Needs/Requirements:
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {team.requirements.map((req) => (
+                  <SkillTag
+                    key={req}
+                    skill={req}
+                    isMatched={userVerifiedSkills.some(
+                      (s) => s.trim().toLowerCase() === req.trim().toLowerCase()
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3.5 rounded-xl border border-border-main bg-surface space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-text-main flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-text-muted" /> Technical Requirements
+              </span>
+              <span className="text-xs font-medium text-text-muted">Sign in for compatibility</span>
+            </div>
+            <p className="text-xs text-text-muted leading-relaxed">
+              Review required skills and team composition below. Sign in to view your personalized compatibility score.
+            </p>
+            <div className="space-y-1.5 pt-2 border-t border-border-main/60">
+              <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
+                Needs/Requirements:
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {team.requirements.map((req) => (
+                  <SkillTag
+                    key={req}
+                    skill={req}
+                    isMatched={false}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Current Roster Preview */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-black uppercase tracking-wider text-text-muted">
+              Current Roster
+            </span>
+            <span className="text-text-muted font-medium">
+              {team.members.length} / {team.maxCapacity || 4} spots filled
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {team.members.map((m, idx) => (
+              <div
+                key={m.id || idx}
+                className="p-2 rounded-lg border border-border-main bg-surface-dim flex items-center gap-2"
+              >
+                <div className="w-6 h-6 rounded-full bg-primary-action text-white font-bold flex items-center justify-center text-[10px] shrink-0">
+                  {m.name.split(" ").map((n) => n[0]).join("")}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-xs font-bold text-text-main block truncate">
+                    {m.name}
+                  </span>
+                  <span className="text-[10px] text-text-muted block truncate">
+                    {m.role || (idx === 0 ? "Squad Lead" : "Contributor")}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Action Footer */}
+        <div className="pt-4 border-t border-border-main flex items-center gap-3">
+          {team.members.length >= (team.maxCapacity || 4) ? (
+            <>
+              <span className="flex-1 py-2.5 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-xl border border-border-main">
+                Squad Full • No Open Spots
+              </span>
+              <Link
+                to={`/team/${team.id}`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
+              </Link>
+            </>
+          ) : team.isUserLeader ? (
+            <Link
+              to={`/team/${team.id}`}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+            >
+              <Crown className="w-4 h-4" /> Manage Applications & Roster →
+            </Link>
+          ) : appliedTeamIds.includes(team.id) ? (
+            <div className="w-full text-center py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold">
+              ⏳ Application submitted • Pending leader review
+            </div>
+          ) : !isSignedIn ? (
+            <>
+              <SignInButton mode="modal">
+                <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer">
+                  Sign In to Apply <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </SignInButton>
+
+              <Link
+                to={`/team/${team.id}`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
+              </Link>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  if (!team.isUserLeader) {
+                    setIsApplyModalOpen(true);
+                  }
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+              >
+                Request to Join Squad <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
+              <Link
+                to={`/team/${team.id}`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -661,12 +924,12 @@ export function TeamsPage() {
       </div>
 
       {/* DYNAMIC VIEW: Unified container with stable card width and smooth drawer slide-in */}
-      <div className="flex flex-col lg:flex-row items-start gap-6 relative">
-        {/* Cards Column */}
+      <div className={`flex flex-col ${viewMode === "cards" ? "lg:flex-row" : ""} items-start gap-6 relative`}>
+        {/* Cards / Tiles Column */}
         <div
-          className={`w-full ${inspectedTeam ? "lg:w-[390px] xl:w-[420px] shrink-0" : ""}`}
+          className={`w-full ${inspectedTeam && viewMode === "cards" ? "lg:w-[390px] xl:w-[420px] shrink-0" : ""}`}
         >
-          {inspectedTeam && (
+          {inspectedTeam && viewMode === "cards" && (
             <div className="flex items-center justify-between px-1 mb-3 text-xs text-text-muted font-medium animate-in fade-in duration-200">
               <span>Select a squad to inspect:</span>
               <button
@@ -707,23 +970,27 @@ export function TeamsPage() {
               ))}
             </div>
           ) : (
-            <div className="flex flex-col space-y-3">
-              {teams.map((team) => (
-                <div key={team.id} id={`team-tile-${team.id}`} className="w-full scroll-mt-24">
-                  <TeamTile
-                    team={team}
-                    isSelected={inspectedTeam?.id === team.id}
-                    hasApplied={appliedTeamIds.includes(team.id)}
-                    onInspect={() => handleInspectToggle(team)}
-                    onApply={() => {
-                      handleInspectToggle(team);
-                      if (!team.isUserLeader) {
-                        setIsApplyModalOpen(true);
-                      }
-                    }}
-                  />
-                </div>
-              ))}
+            <div className="flex flex-col space-y-3 w-full">
+              {teams.map((team) => {
+                const isSelected = inspectedTeam?.id === team.id;
+                return (
+                  <div key={team.id} id={`team-tile-${team.id}`} className="w-full scroll-mt-24">
+                    <TeamTile
+                      team={team}
+                      isSelected={isSelected}
+                      hasApplied={appliedTeamIds.includes(team.id)}
+                      onInspect={() => handleInspectToggle(team)}
+                      onApply={() => {
+                        handleInspectToggle(team);
+                        if (!team.isUserLeader) {
+                          setIsApplyModalOpen(true);
+                        }
+                      }}
+                    />
+                    {isSelected && renderInspectionPanel(team, true)}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -757,254 +1024,9 @@ export function TeamsPage() {
           )}
         </div>
 
-        {/* Right Column: Sticky Inspection Panel */}
-        {inspectedTeam && (
-          <div
-            key={inspectedTeam.id}
-            className="w-full lg:flex-1 min-w-0 lg:sticky lg:top-20 bg-surface rounded-2xl border border-border-main p-5 sm:p-6 shadow-xs space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden hover:[scrollbar-width:thin] hover:[&::-webkit-scrollbar]:block hover:[&::-webkit-scrollbar]:w-1.5 hover:[&::-webkit-scrollbar-thumb]:bg-border-main hover:[&::-webkit-scrollbar-thumb]:rounded-full animate-in fade-in slide-from-right-8 duration-300 ease-out"
-          >
-            {/* Header & Close Button */}
-            <div className="flex items-start justify-between gap-4 pb-3 border-b border-border-main">
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  {isSignedIn && inspectedTeam.category ? (
-                    <RecommendationBadge
-                      category={inspectedTeam.category}
-                      score={inspectedTeam.taxonomyScore}
-                    />
-                  ) : (
-                    <span className="text-xs font-semibold text-text-muted bg-surface-dim border border-border-main px-2.5 py-0.5 rounded-full">
-                      General Squad
-                    </span>
-                  )}
-                  <span className="text-xs font-semibold text-primary-action bg-primary-light border border-primary-border px-2 py-0.5 rounded-full">
-                    {inspectedTeam.eventTitle}
-                  </span>
-                </div>
-
-                <h2 className="text-xl sm:text-2xl font-black text-text-main font-heading">
-                  {inspectedTeam.name}
-                </h2>
-
-                <p className="text-xs text-text-muted flex items-center gap-1.5 font-medium">
-                  <Shield className="w-3.5 h-3.5 text-primary-action" />
-                  {inspectedTeam.university}
-                </p>
-              </div>
-
-              <button
-                onClick={() => setInspectedTeam(null)}
-                className="p-1.5 rounded-lg hover:bg-surface-dim text-text-muted hover:text-text-main transition-colors cursor-pointer"
-                title="Close preview"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Team Mission */}
-            <div className="space-y-1">
-              <h4 className="text-xs font-black uppercase tracking-wider text-text-muted">
-                Squad Mission
-              </h4>
-              <p className="text-xs sm:text-sm text-text-muted leading-relaxed line-clamp-3">
-                {inspectedTeam.description || "Active squad participating in the project sprint."}
-              </p>
-            </div>
-
-            {/* Skill & Requirement Alignment */}
-            {isSignedIn ? (
-              <div
-                className={`p-3.5 rounded-xl border space-y-3 ${
-                  inspectedTeam.category === "BEST"
-                    ? "bg-best-fit-light border-best-fit"
-                    : inspectedTeam.category === "GOOD_DIFFERENT_UNIVERSITY"
-                      ? "bg-cross-campus-light border-cross-campus"
-                      : inspectedTeam.category === "SAME_UNIVERSITY_LOWER_SCORE"
-                        ? "bg-campus-explorer-light border-campus-explorer"
-                        : "bg-surface-dim border-border-main"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-wider text-text-main flex items-center gap-1.5">
-                    {inspectedTeam.category ? (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5 text-primary-action" /> Skill Compatibility Fit
-                      </>
-                    ) : (
-                      <>
-                        <Shield className="w-3.5 h-3.5 text-text-muted" /> Technical Alignment
-                      </>
-                    )}
-                  </span>
-                  <span className="text-xs font-bold text-text-main">
-                    {inspectedTeam.taxonomyScore !== undefined
-                      ? `${Math.round(inspectedTeam.taxonomyScore * 100)}% Match`
-                      : "Unranked Match"}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3.5">
-                  <CompatibilityScoreRing
-                    score={inspectedTeam.taxonomyScore}
-                    category={inspectedTeam.category || "UNRATED"}
-                    isUnrated={!inspectedTeam.category}
-                    size={52}
-                    strokeWidth={4.5}
-                  />
-                  <div className="space-y-0.5 text-xs text-text-muted">
-                    <p className="font-semibold text-text-main">
-                      {inspectedTeam.neededRequirement
-                        ? `Actively seeking ${inspectedTeam.neededRequirement} lead`
-                        : inspectedTeam.category
-                          ? "Matching your core technical competencies"
-                          : "General technical vacancy"}
-                    </p>
-                    <p className="text-[11px] text-text-muted leading-snug">
-                      {inspectedTeam.category
-                        ? "Your verified resume skills align with the squad's target architecture."
-                        : "Compare required skills against your verified profile competencies below."}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Requirements Alignment Pills */}
-                <div className="space-y-1.5 pt-2 border-t border-border-main/60">
-                  <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
-                    Needs/Requirements:
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {inspectedTeam.requirements.map((req) => (
-                      <SkillTag
-                        key={req}
-                        skill={req}
-                        isMatched={userVerifiedSkills.some(
-                          (s) => s.trim().toLowerCase() === req.trim().toLowerCase()
-                        )}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3.5 rounded-xl border border-border-main bg-surface space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-wider text-text-main flex items-center gap-1.5">
-                    <Shield className="w-3.5 h-3.5 text-text-muted" /> Technical Requirements
-                  </span>
-                  <span className="text-xs font-medium text-text-muted">Sign in for compatibility</span>
-                </div>
-                <p className="text-xs text-text-muted leading-relaxed">
-                  Review required skills and team composition below. Sign in to view your personalized compatibility score.
-                </p>
-                <div className="space-y-1.5 pt-2 border-t border-border-main/60">
-                  <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
-                    Needs/Requirements:
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {inspectedTeam.requirements.map((req) => (
-                      <SkillTag
-                        key={req}
-                        skill={req}
-                        isMatched={false}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Current Roster Preview */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-black uppercase tracking-wider text-text-muted">
-                  Current Roster
-                </span>
-                <span className="text-text-muted font-medium">
-                  {inspectedTeam.members.length} / {inspectedTeam.maxCapacity || 4} spots filled
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                {inspectedTeam.members.map((m, idx) => (
-                  <div
-                    key={m.id || idx}
-                    className="p-2 rounded-lg border border-border-main bg-surface-dim flex items-center gap-2"
-                  >
-                    <div className="w-6 h-6 rounded-full bg-primary-action text-white font-bold flex items-center justify-center text-[10px] shrink-0">
-                      {m.name.split(" ").map((n) => n[0]).join("")}
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-xs font-bold text-text-main block truncate">
-                        {m.name}
-                      </span>
-                      <span className="text-[10px] text-text-muted block truncate">
-                        {m.role || (idx === 0 ? "Squad Lead" : "Contributor")}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Action Footer */}
-            <div className="pt-4 border-t border-border-main flex items-center gap-3">
-              {inspectedTeam.members.length >= (inspectedTeam.maxCapacity || 4) ? (
-                <>
-                  <span className="flex-1 py-2.5 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-xl border border-border-main">
-                    Squad Full • No Open Spots
-                  </span>
-                  <Link
-                    to={`/team/${inspectedTeam.id}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
-                  </Link>
-                </>
-              ) : inspectedTeam.isUserLeader ? (
-                <Link
-                  to={`/team/${inspectedTeam.id}`}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
-                >
-                  <Crown className="w-4 h-4" /> Manage Applications & Roster →
-                </Link>
-              ) : appliedTeamIds.includes(inspectedTeam.id) ? (
-                <div className="w-full text-center py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold">
-                  ⏳ Application submitted • Pending leader review
-                </div>
-              ) : !isSignedIn ? (
-                <>
-                  <SignInButton mode="modal">
-                    <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer">
-                      Sign In to Apply <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </SignInButton>
-
-                  <Link
-                    to={`/team/${inspectedTeam.id}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => setIsApplyModalOpen(true)}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
-                  >
-                    Request to Join Squad <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-
-                  <Link
-                    to={`/team/${inspectedTeam.id}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
+        {/* Right Column: Sticky Inspection Panel (ONLY in Cards View) */}
+        {inspectedTeam && viewMode === "cards" && (
+          renderInspectionPanel(inspectedTeam, false)
         )}
       </div>
 
