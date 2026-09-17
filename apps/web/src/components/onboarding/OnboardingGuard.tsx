@@ -13,7 +13,7 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   // If auth is still loading, or if signed in and initial profile hasn't loaded yet, do NOT make redirect decisions
   if (!isLoaded || (isSignedIn && !hasInitialProfileLoaded)) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-slate-400">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-text-muted">
         <div className="w-8 h-8 border-3 border-primary-action border-t-transparent rounded-full animate-spin" />
         <span className="text-xs font-medium">Verifying SquadUp session...</span>
       </div>

@@ -84,7 +84,7 @@ export function ResumeDropzone({ onUpload, isUploading, uploadError }: ResumeDro
             ? "border-primary-action/60 bg-primary-light/30"
             : isDragOver
             ? "border-primary-action bg-primary-light/50 scale-[1.01] cursor-pointer"
-            : "border-slate-300/80 bg-slate-50/50 hover:bg-slate-50 hover:border-primary-action/50 cursor-pointer"
+            : "border-border-main bg-surface-dim/50 hover:bg-surface-dim hover:border-primary-action/50 cursor-pointer"
         } ${isUploading ? "pointer-events-none opacity-80" : ""}`}
       >
         <input
@@ -99,16 +99,16 @@ export function ResumeDropzone({ onUpload, isUploading, uploadError }: ResumeDro
         {selectedFile ? (
           /* File Selected Preview State */
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-primary-border shadow-xs text-left">
+            <div className="flex items-center justify-between p-3.5 bg-surface rounded-xl border border-primary-border shadow-xs text-left">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-primary-light border border-primary-border flex items-center justify-center text-primary-action shrink-0">
                   <FileText className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate font-heading">
+                  <h4 className="text-xs sm:text-sm font-bold text-text-main truncate font-heading">
                     {selectedFile.name}
                   </h4>
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-[11px] text-text-muted">
                     {Math.round(selectedFile.size / 1024)} KB • Ready to parse
                   </span>
                 </div>
@@ -118,7 +118,7 @@ export function ResumeDropzone({ onUpload, isUploading, uploadError }: ResumeDro
                 type="button"
                 onClick={handleRemoveFile}
                 disabled={isUploading}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0 ml-2"
+                className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-surface-dim transition-colors cursor-pointer shrink-0 ml-2"
                 title="Change or remove resume"
               >
                 <X className="w-4 h-4" />
@@ -149,22 +149,22 @@ export function ResumeDropzone({ onUpload, isUploading, uploadError }: ResumeDro
         ) : (
           /* Empty / Awaiting File State */
           <div className="flex flex-col items-center justify-center space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-primary-action group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-surface border border-border-main shadow-xs flex items-center justify-center text-primary-action group-hover:scale-105 transition-transform">
               <UploadCloud className="w-6 h-6" />
             </div>
 
             <div className="space-y-1">
-              <h4 className="text-sm font-bold text-slate-900 font-heading">
+              <h4 className="text-sm font-bold text-text-main font-heading">
                 Drag and drop your resume PDF
               </h4>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              <p className="text-xs text-text-muted max-w-sm mx-auto">
                 Supports standard PDF resumes up to 10MB. We'll extract your skills and projects into your profile.
               </p>
             </div>
 
             <button
               type="button"
-              className="mt-1 px-4 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-all shadow-2xs pointer-events-none"
+              className="mt-1 px-4 py-1.5 rounded-xl bg-surface border border-border-main text-xs font-bold text-text-main hover:bg-surface-dim hover:border-primary-border transition-all shadow-2xs pointer-events-none"
             >
               Browse Files
             </button>
@@ -174,7 +174,7 @@ export function ResumeDropzone({ onUpload, isUploading, uploadError }: ResumeDro
 
       {/* Error message */}
       {errorToShow && (
-        <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+        <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 text-xs flex items-center gap-2">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span>{errorToShow}</span>
         </div>

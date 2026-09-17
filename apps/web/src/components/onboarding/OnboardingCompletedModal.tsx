@@ -21,13 +21,13 @@ export function OnboardingCompletedModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 sm:p-7 text-center space-y-5 animate-in zoom-in-95 duration-200 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-surface rounded-2xl border border-border-main shadow-2xl max-w-md w-full p-6 sm:p-7 text-center space-y-5 animate-in zoom-in-95 duration-200 relative">
         {onClose && (
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="absolute top-4 right-4 p-1 rounded-lg text-text-muted hover:text-text-main hover:bg-surface-dim transition-colors cursor-pointer"
             title="Dismiss modal"
           >
             <X className="w-4 h-4" />
@@ -35,20 +35,20 @@ export function OnboardingCompletedModal({
         )}
         {/* Animated Celebration Icon */}
         <div className="relative inline-flex items-center justify-center">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center justify-center shadow-xs">
             <CheckCircle2 className="w-9 h-9" />
           </div>
-          <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-primary-action text-white flex items-center justify-center ring-2 ring-white shadow-2xs animate-bounce">
+          <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-primary-action text-white flex items-center justify-center ring-2 ring-surface shadow-2xs animate-bounce">
             <Sparkles className="w-3.5 h-3.5" />
           </div>
         </div>
 
         {/* Heading & Subtitle */}
         <div className="space-y-1.5">
-          <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight font-heading">
+          <h3 className="text-2xl font-extrabold text-text-main tracking-tight font-heading">
             Onboarding Completed!
           </h3>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-xs mx-auto">
+          <p className="text-xs sm:text-sm text-text-muted leading-relaxed max-w-xs mx-auto">
             {method === "resume"
               ? "Your resume has been submitted and queued for background AI parsing. Your skills & recommendations will update automatically."
               : "Your developer profile has been created and verified across the SquadUp deterministic taxonomy graph."}
@@ -56,18 +56,18 @@ export function OnboardingCompletedModal({
         </div>
 
         {/* Institution Context Pill */}
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs text-slate-700">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-dim border border-border-main text-xs text-text-muted">
           {universityName ? (
             <>
               <Building2 className="w-3.5 h-3.5 text-primary-action" />
-              <span className="font-semibold text-slate-900 truncate max-w-[220px]">
+              <span className="font-semibold text-text-main truncate max-w-[220px]">
                 {universityName}
               </span>
             </>
           ) : (
             <>
-              <Globe className="w-3.5 h-3.5 text-purple-600" />
-              <span className="font-semibold text-slate-900">Independent Participant</span>
+              <Globe className="w-3.5 h-3.5 text-purple-500" />
+              <span className="font-semibold text-text-main">Independent Participant</span>
             </>
           )}
         </div>
@@ -87,9 +87,9 @@ export function OnboardingCompletedModal({
           <button
             type="button"
             onClick={onBrowseTeams}
-            className="w-full py-2.5 px-5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-2.5 px-5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer"
           >
-            <Users className="w-4 h-4 text-slate-500" />
+            <Users className="w-4 h-4 text-text-muted" />
             <span>Explore Squads & Teams</span>
           </button>
         </div>

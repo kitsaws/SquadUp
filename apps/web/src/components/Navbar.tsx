@@ -9,9 +9,13 @@ import {
   Calendar,
   Check,
   X,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 import { SignInButton, SignUpButton } from "@clerk/react";
 import { useUserContext } from "../contexts/UserContext";
+import { usePalette } from "../contexts/PaletteContext";
 import { SearchModal } from "./SearchModal";
 
 interface NotificationItem {
@@ -58,6 +62,7 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isSignedIn } = useUserContext();
+  const { themeMode, toggleThemeMode } = usePalette();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
@@ -126,7 +131,7 @@ export function Navbar() {
 
   return (
     <>
-      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-xs">
+      <header className="bg-surface border-b border-border-main sticky top-0 z-40 shadow-xs transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Left: Brand & Navigation */}
           <div className="flex items-center gap-8">
@@ -134,7 +139,7 @@ export function Navbar() {
               <div className="w-8 h-8 rounded-lg bg-primary-action text-white flex items-center justify-center font-bold text-lg shadow-xs group-hover:bg-primary-hover transition-colors font-heading">
                 S
               </div>
-              <span className="text-xl font-bold tracking-tight text-slate-900 font-heading">
+              <span className="text-xl font-bold tracking-tight text-text-main font-heading">
                 Squad<span className="text-primary-action">Up</span>
               </span>
             </Link>
@@ -155,10 +160,10 @@ export function Navbar() {
                         <div
                           className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                             currentStep > 1
-                              ? "bg-emerald-500 text-white shadow-2xs"
+                              ? "bg-best-fit text-best-fit-dark shadow-2xs"
                               : currentStep === 1
                               ? "bg-primary-action text-white ring-4 ring-primary-light shadow-2xs"
-                              : "bg-slate-100 text-slate-400"
+                              : "bg-surface-dim text-text-muted border border-border-main"
                           }`}
                         >
                           {currentStep > 1 ? (
@@ -170,10 +175,10 @@ export function Navbar() {
                         <span
                           className={`text-xs font-semibold hidden sm:inline ${
                             currentStep === 1
-                              ? "text-slate-900 font-bold"
+                              ? "text-text-main font-bold"
                               : currentStep > 1
-                              ? "text-slate-700"
-                              : "text-slate-400"
+                              ? "text-text-main"
+                              : "text-text-muted"
                           }`}
                         >
                           Select Campus
@@ -181,7 +186,7 @@ export function Navbar() {
                       </div>
 
                       {/* Connecting Progress Track */}
-                      <div className="w-8 sm:w-12 h-0.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="w-8 sm:w-12 h-0.5 bg-border-main rounded-full overflow-hidden">
                         <div
                           className={`h-full bg-primary-action transition-all duration-300 ${
                             currentStep > 1 ? "w-full" : "w-0"
@@ -194,10 +199,10 @@ export function Navbar() {
                         <div
                           className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                             currentStep >= 3
-                              ? "bg-emerald-500 text-white shadow-2xs"
+                              ? "bg-best-fit text-best-fit-dark shadow-2xs"
                               : currentStep === 2
                               ? "bg-primary-action text-white ring-4 ring-primary-light shadow-2xs"
-                              : "bg-slate-100 text-slate-400 border border-slate-200"
+                              : "bg-surface-dim text-text-muted border border-border-main"
                           }`}
                         >
                           {currentStep >= 3 ? (
@@ -209,10 +214,10 @@ export function Navbar() {
                         <span
                           className={`text-xs font-semibold hidden sm:inline ${
                             currentStep === 2
-                              ? "text-slate-900 font-bold"
+                              ? "text-text-main font-bold"
                               : currentStep >= 3
-                              ? "text-slate-700"
-                              : "text-slate-400"
+                              ? "text-text-main"
+                              : "text-text-muted"
                           }`}
                         >
                           Build Profile
@@ -220,7 +225,7 @@ export function Navbar() {
                       </div>
 
                       {/* Progress percentage pill */}
-                      <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold border border-slate-200 ml-2">
+                      <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full bg-surface-dim text-text-muted text-[11px] font-semibold border border-border-main ml-2">
                         {currentStep === 1
                           ? "50% Complete"
                           : currentStep === 2
@@ -253,11 +258,11 @@ export function Navbar() {
                       className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors relative flex items-center gap-1.5 ${
                         isActive
                           ? "text-primary-action font-bold"
-                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                          : "text-text-muted hover:text-text-main hover:bg-surface-dim"
                       }`}
                     >
                       {link.isSpecial && (
-                        <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                        <Sparkles className="w-3.5 h-3.5 text-campus-explorer animate-pulse" />
                       )}
                       {link.label}
                     </Link>
@@ -277,19 +282,34 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Right: Search trigger, Notification Menu, Profile */}
-          <div className="flex items-center gap-3">
+          {/* Right: Search trigger, Theme switcher, Notification Menu, Profile */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Quick Search Button (Triggers Command Palette Modal) */}
             <button
               onClick={() => setIsSearchOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-all text-xs font-medium cursor-pointer shadow-2xs"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border-main bg-surface-dim/60 text-text-muted hover:bg-surface-dim hover:text-text-main hover:border-border-main transition-all text-xs font-medium cursor-pointer shadow-2xs"
               title="Search squads, hackathons, and skills (⌘K)"
             >
-              <Search className="w-3.5 h-3.5 text-slate-400" />
+              <Search className="w-3.5 h-3.5 text-text-muted" />
               <span className="hidden sm:inline">Search</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-white text-[10px] border border-slate-200 font-mono text-slate-400">
+              <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border-main font-mono text-text-muted text-[10px]">
                 ⌘K
               </kbd>
+            </button>
+
+            {/* Quick Theme Switcher Button */}
+            <button
+              onClick={toggleThemeMode}
+              className="p-2 text-text-muted hover:text-text-main rounded-lg hover:bg-surface-dim transition-colors cursor-pointer"
+              title={`Theme: ${themeMode.charAt(0).toUpperCase() + themeMode.slice(1)} (Click to switch)`}
+            >
+              {themeMode === "dark" ? (
+                <Moon className="w-4 h-4 text-primary-action" />
+              ) : themeMode === "light" ? (
+                <Sun className="w-4 h-4 text-amber-500" />
+              ) : (
+                <Monitor className="w-4 h-4 text-text-muted" />
+              )}
             </button>
 
             {isSignedIn ? (
@@ -298,21 +318,21 @@ export function Navbar() {
                 <div className="relative" ref={notificationsRef}>
                   <button
                     onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                    className="p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 relative transition-colors cursor-pointer"
+                    className="p-2 text-text-muted hover:text-text-main rounded-lg hover:bg-surface-dim relative transition-colors cursor-pointer"
                     title="Notifications"
                   >
                     <Bell className="w-4 h-4" />
                     {unreadCount > 0 && (
-                       <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary-action ring-2 ring-white" />
+                       <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary-action ring-2 ring-surface" />
                     )}
                   </button>
 
                   {/* Notification Popover */}
                   {isNotificationsOpen && (
-                    <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl border border-slate-200 shadow-xl p-4 z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-surface rounded-2xl border border-border-main shadow-xl p-4 z-50 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center justify-between pb-2 border-b border-border-main">
                         <div className="flex items-center gap-2">
-                          <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                          <h4 className="text-xs font-bold text-text-main uppercase tracking-wider">
                             Notifications
                           </h4>
                           {unreadCount > 0 && (
@@ -343,11 +363,11 @@ export function Navbar() {
                             }}
                             className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
                               item.unread
-                                ? "bg-primary-light/40 border-primary-border/70 hover:bg-primary-light/70"
-                                : "bg-slate-50/50 border-slate-200/70 hover:bg-slate-100"
+                                ? "bg-primary-light border-primary-border"
+                                : "bg-surface-dim/40 border-border-main hover:bg-surface-dim"
                             }`}
                           >
-                            <div className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-primary-action shrink-0 mt-0.5 shadow-2xs">
+                            <div className="w-7 h-7 rounded-lg bg-surface border border-border-main flex items-center justify-center text-primary-action shrink-0 mt-0.5 shadow-2xs">
                               {item.type === "application" ? (
                                 <Users className="w-3.5 h-3.5" />
                               ) : (
@@ -357,14 +377,14 @@ export function Navbar() {
 
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-1">
-                                <h5 className="text-xs font-bold text-slate-900 truncate">
+                                <h5 className="text-xs font-bold text-text-main truncate">
                                   {item.title}
                                 </h5>
-                                <span className="text-[10px] text-slate-400 shrink-0">
+                                <span className="text-[10px] text-text-muted shrink-0">
                                   {item.timeAgo}
                                 </span>
                               </div>
-                              <p className="text-xs text-slate-600 line-clamp-2 mt-0.5">
+                              <p className="text-xs text-text-muted line-clamp-2 mt-0.5">
                                 {item.description}
                               </p>
                             </div>
@@ -372,7 +392,7 @@ export function Navbar() {
                         ))}
                       </div>
 
-                      <div className="pt-2 border-t border-slate-100 text-center">
+                      <div className="pt-2 border-t border-border-main text-center">
                         <Link
                           to="/teams?id=t-neurovision"
                           onClick={() => setIsNotificationsOpen(false)}
@@ -395,10 +415,10 @@ export function Navbar() {
                     <img
                       src={user.imageUrl}
                       alt={user.fullName || "Avatar"}
-                      className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-2xs"
+                      className="w-8 h-8 rounded-full object-cover border border-border-main shadow-2xs"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold font-heading shadow-2xs group-hover:bg-primary-action transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-surface-dim text-text-main border border-border-main flex items-center justify-center text-xs font-bold font-heading shadow-2xs group-hover:bg-primary-action group-hover:text-white transition-colors">
                       {user?.firstName ? user.firstName[0] : "S"}
                     </div>
                   )}
@@ -407,7 +427,7 @@ export function Navbar() {
             ) : (
               <div className="flex items-center gap-2">
                 <SignInButton mode="modal">
-                  <button className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer">
+                  <button className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-text-muted hover:text-text-main hover:bg-surface-dim transition-colors cursor-pointer">
                     Log In
                   </button>
                 </SignInButton>

@@ -35,21 +35,21 @@ export function ProfileChoiceCards({
           <Sparkles className="w-3.5 h-3.5" />
           <span>Step 2 of 2</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-heading">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-text-main tracking-tight font-heading">
           Let's build your developer profile
         </h2>
-        <p className="text-sm text-slate-600 max-w-lg mx-auto">
+        <p className="text-sm text-text-muted max-w-lg mx-auto">
           SquadUp computes pure compatibility match scores based on your technical capabilities. Choose how to set up your profile.
         </p>
 
         {/* Selected Institution summary bar with back button */}
-        <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs text-slate-700 shadow-2xs mt-2">
+        <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-surface border border-border-main text-xs text-text-main shadow-2xs mt-2">
           {isIndependent ? (
-            <Globe className="w-3.5 h-3.5 text-purple-600" />
+            <Globe className="w-3.5 h-3.5 text-purple-500" />
           ) : (
             <Building2 className="w-3.5 h-3.5 text-primary-action" />
           )}
-          <span className="font-semibold text-slate-900">
+          <span className="font-semibold text-text-main">
             {isIndependent ? "Independent Participant" : selectedUniversity?.name}
           </span>
           <button
@@ -65,7 +65,7 @@ export function ProfileChoiceCards({
       {/* Dual Selection Cards */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
         {/* OPTION A: Highlighted Primary CTA — AI Resume Upload (7 cols) */}
-        <div className="md:col-span-7 bg-gradient-to-b from-primary-light/40 to-white rounded-2xl border-2 border-primary-action/40 shadow-md p-6 sm:p-7 space-y-5 relative overflow-hidden">
+        <div className="md:col-span-7 bg-surface rounded-2xl border-2 border-primary-action/40 shadow-md p-6 sm:p-7 space-y-5 relative overflow-hidden">
           {/* Top Pill Badge */}
           <div className="flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-action text-white text-xs font-bold shadow-2xs">
@@ -78,10 +78,10 @@ export function ProfileChoiceCards({
           </div>
 
           <div className="space-y-1.5">
-            <h3 className="text-lg font-bold text-slate-900 font-heading">
+            <h3 className="text-lg font-bold text-text-main font-heading">
               Upload Resume (Smart Ingestion)
             </h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-text-muted leading-relaxed">
               Upload your PDF resume. Our AI parser extracts your technical skills, projects, and work experience, mapping them directly into the 143-node canonical taxonomy.
             </p>
           </div>
@@ -95,33 +95,33 @@ export function ProfileChoiceCards({
         </div>
 
         {/* OPTION B: Secondary Fallback — Manual Setup (5 cols) */}
-        <div className="md:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-7 space-y-5 flex flex-col justify-between h-full">
+        <div className="md:col-span-5 bg-surface rounded-2xl border border-border-main shadow-sm p-6 sm:p-7 space-y-5 flex flex-col justify-between h-full">
           <div className="space-y-4">
-            <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center shadow-2xs">
+            <div className="w-10 h-10 rounded-xl bg-surface-dim border border-border-main text-text-main flex items-center justify-center shadow-2xs">
               <Edit3 className="w-5 h-5" />
             </div>
 
             <div className="space-y-1.5">
-              <h3 className="text-lg font-bold text-slate-900 font-heading">
+              <h3 className="text-lg font-bold text-text-main font-heading">
                 Build Profile Manually
               </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-text-muted leading-relaxed">
                 Don't have a resume handy? Enter your primary role, bio, links, and select your skill tags manually.
               </p>
             </div>
 
-            <ul className="space-y-2 text-xs text-slate-600 pt-1">
+            <ul className="space-y-2 text-xs text-text-muted pt-1">
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>Headline & degree credentials</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="text-text-main">Headline & degree credentials</span>
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>Curated skill tags</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="text-text-main">Curated skill tags</span>
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>GitHub & LinkedIn links</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="text-text-main">GitHub & LinkedIn links</span>
               </li>
             </ul>
           </div>
@@ -129,7 +129,7 @@ export function ProfileChoiceCards({
           <button
             type="button"
             onClick={() => setIsManualModalOpen(true)}
-            className="w-full py-2.5 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 text-slate-800 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer mt-4"
+            className="w-full py-2.5 px-4 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer mt-4"
           >
             <Edit3 className="w-3.5 h-3.5" />
             <span>Enter Details Manually</span>
@@ -142,7 +142,7 @@ export function ProfileChoiceCards({
         <button
           type="button"
           onClick={onBackToStep1}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-text-main transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to University Selection</span>

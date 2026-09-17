@@ -67,20 +67,20 @@ export function UniversitySearchSelect({
           <Building2 className="w-3.5 h-3.5" />
           <span>Step 1 of 2</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-heading">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-text-main tracking-tight font-heading">
           Where do you study?
         </h2>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-text-muted">
           SquadUp isolates campus-only squads and hackathons to your home institution. Select your university below.
         </p>
       </div>
 
       {/* Main Search & Selection Card */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden max-w-2xl mx-auto">
+      <div className="bg-surface rounded-2xl border border-border-main shadow-sm overflow-hidden max-w-2xl mx-auto">
         {/* Search input field */}
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+        <div className="p-4 border-b border-border-main bg-surface-dim/50">
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               ref={searchInputRef}
               type="text"
@@ -91,15 +91,15 @@ export function UniversitySearchSelect({
               }}
               onKeyDown={handleKeyDown}
               placeholder="Search by university name, location, or domain (e.g. Thapar, BITS, stanford.edu)..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all shadow-2xs"
+              className="w-full pl-10 pr-4 py-2.5 bg-surface border border-border-main rounded-xl text-sm text-text-main placeholder-text-muted/60 focus:outline-none focus:ring-2 focus:ring-primary-action/20 focus:border-primary-action transition-all shadow-2xs"
             />
           </div>
         </div>
 
         {/* Results List */}
-        <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
+        <div className="max-h-72 overflow-y-auto divide-y divide-border-main p-2 space-y-1">
           {isLoading ? (
-            <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
+            <div className="py-12 flex flex-col items-center justify-center gap-3 text-text-muted">
               <div className="w-6 h-6 border-2 border-primary-action border-t-transparent rounded-full animate-spin" />
               <p className="text-xs font-medium">Loading partner institutions...</p>
             </div>
@@ -115,10 +115,10 @@ export function UniversitySearchSelect({
                   onClick={() => onSelectUniversity(uni, false)}
                   className={`w-full text-left p-3.5 rounded-xl transition-all flex items-center justify-between gap-3 cursor-pointer ${
                     active
-                      ? "bg-primary-light/60 border border-primary-border ring-1 ring-primary-action/30"
+                      ? "bg-primary-light border border-primary-border ring-1 ring-primary-action/30"
                       : isFocused
-                      ? "bg-slate-100 border border-transparent"
-                      : "hover:bg-slate-50 border border-transparent"
+                      ? "bg-surface-dim border border-transparent"
+                      : "hover:bg-surface-dim border border-transparent"
                   }`}
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
@@ -127,17 +127,17 @@ export function UniversitySearchSelect({
                       <img
                         src={uni.logoUrl}
                         alt={uni.name}
-                        className="w-10 h-10 rounded-xl object-contain bg-white border border-slate-200 p-1 shrink-0 shadow-2xs"
+                        className="w-10 h-10 rounded-xl object-contain bg-surface border border-border-main p-1 shrink-0 shadow-2xs"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm shrink-0 font-heading shadow-2xs">
+                      <div className="w-10 h-10 rounded-xl bg-surface-dim text-text-main border border-border-main flex items-center justify-center font-bold text-sm shrink-0 font-heading shadow-2xs">
                         {uni.name.charAt(0)}
                       </div>
                     )}
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-slate-900 truncate font-heading">
+                        <h4 className="text-sm font-bold text-text-main truncate font-heading">
                           {uni.name}
                         </h4>
                         {active && (
@@ -147,20 +147,20 @@ export function UniversitySearchSelect({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-text-muted">
                         {uni.location && (
                           <span className="flex items-center gap-1 shrink-0">
-                            <MapPin className="w-3 h-3 text-slate-400" />
+                            <MapPin className="w-3 h-3 text-text-muted" />
                             {uni.location}
                           </span>
                         )}
                         {uni.domain && (
-                          <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-mono text-[10px] border border-slate-200/80">
+                          <span className="px-1.5 py-0.2 rounded bg-surface-dim text-text-main font-mono text-[10px] border border-border-main">
                             @{uni.domain}
                           </span>
                         )}
                         {uni.subOrganizersCount !== undefined && uni.subOrganizersCount > 0 && (
-                          <span className="text-[11px] text-slate-400 hidden sm:inline">
+                          <span className="text-[11px] text-text-muted hidden sm:inline">
                             • {uni.subOrganizersCount} clubs & chapters
                           </span>
                         )}
@@ -173,7 +173,7 @@ export function UniversitySearchSelect({
                     className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border transition-all ${
                       active
                         ? "bg-primary-action border-primary-action text-white shadow-2xs"
-                        : "border-slate-200 bg-white text-transparent group-hover:border-slate-300"
+                        : "border-border-main bg-surface text-transparent hover:border-primary-border"
                     }`}
                   >
                     <Check className="w-3.5 h-3.5" />
@@ -183,11 +183,11 @@ export function UniversitySearchSelect({
             })
           ) : (
             <div className="py-8 text-center space-y-2">
-              <Building2 className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="text-xs font-semibold text-slate-600">
+              <Building2 className="w-8 h-8 text-text-muted/50 mx-auto" />
+              <p className="text-xs font-semibold text-text-muted">
                 No universities found matching "{searchQuery}"
               </p>
-              <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+              <p className="text-[11px] text-text-muted/80 max-w-xs mx-auto">
                 Don't see your college? You can join as an independent participant or contact your campus lead to register.
               </p>
             </div>
@@ -195,22 +195,22 @@ export function UniversitySearchSelect({
         </div>
 
         {/* Independent / Unaffiliated Option Footer */}
-        <div className="p-3.5 bg-slate-50/80 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="p-3.5 bg-surface-dim/80 border-t border-border-main flex flex-col sm:flex-row items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => onSelectUniversity(null, true)}
             className={`w-full sm:w-auto text-left px-3.5 py-2 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer border ${
               isIndependent
-                ? "bg-purple-50 border-purple-300 text-purple-900 font-bold"
-                : "bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                ? "bg-purple-500/10 border-purple-500/30 text-purple-600 font-bold"
+                : "bg-surface border-border-main text-text-muted hover:text-text-main hover:bg-surface-dim"
             }`}
           >
-            <Globe className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+            <Globe className="w-3.5 h-3.5 text-purple-500 shrink-0" />
             <span>Continue as Independent / Unaffiliated</span>
-            {isIndependent && <Check className="w-3.5 h-3.5 text-purple-600 ml-auto" />}
+            {isIndependent && <Check className="w-3.5 h-3.5 text-purple-500 ml-auto" />}
           </button>
 
-          <span className="text-[11px] text-slate-400 hidden sm:inline">
+          <span className="text-[11px] text-text-muted hidden sm:inline">
             {selectedUniversity
               ? `Selected: ${selectedUniversity.name}`
               : isIndependent
@@ -229,7 +229,7 @@ export function UniversitySearchSelect({
           className={`px-8 py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 cursor-pointer ${
             selectedUniversity || isIndependent
               ? "bg-primary-action hover:bg-primary-hover text-white shadow-primary-action/20 hover:scale-[1.02]"
-              : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+              : "bg-surface-dim text-text-muted border border-border-main cursor-not-allowed shadow-none"
           }`}
         >
           <span>Continue to Profile Setup</span>
