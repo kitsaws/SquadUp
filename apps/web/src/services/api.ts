@@ -124,6 +124,7 @@ export interface TeamMember {
   joinedAt: string;
   name: string;
   email: string;
+  avatarUrl?: string;
   university?: string;
   skills?: string[];
   title?: string;
@@ -158,6 +159,14 @@ export interface TeamItem {
   // Augmented client fields
   taxonomyScore?: number;
   category?: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE";
+  requirementBreakdown?: Array<{
+    requirementNodeId?: string;
+    requirementName: string;
+    bestUserSkillName?: string | null;
+    score: number;
+    explanationText?: string;
+    isStrong?: boolean;
+  }>;
   neededRequirement?: string;
 }
 
@@ -167,6 +176,9 @@ export interface UserProfileResponse {
   clerkId: string;
   name: string;
   email: string;
+  imageUrl?: string | null;
+  profilePicture?: string | null;
+  avatarUrl?: string | null;
   university?: string;
   title?: string;
   summary?: string;

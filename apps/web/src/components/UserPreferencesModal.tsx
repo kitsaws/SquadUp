@@ -54,7 +54,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   const [saving, setSaving] = useState<boolean>(false);
 
   // Form states
-  const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">(contextThemeMode || "system");
+  const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">(contextThemeMode || "light");
   const [selectedPreset, setSelectedPreset] = useState<string>("SquadUp 2.0 Default");
   const [customPrimaryColor, setCustomPrimaryColor] = useState<string>("#2563eb");
   const [syncThemeWithBanner, setSyncThemeWithBanner] = useState<boolean>(true);
@@ -79,10 +79,10 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
       .getPreferences()
       .then((prefs) => {
         if (!isMounted) return;
-        setThemeMode(prefs.themeMode || "system");
+        setThemeMode(prefs.themeMode || contextThemeMode || "light");
         const initialPreset =
-          prefs.palettePreset === "midnight" || prefs.palettePreset === "Midnight Collegiate"
-            ? "Dark Theme"
+          prefs.palettePreset === "midnight" || prefs.palettePreset === "Midnight Collegiate" || prefs.palettePreset === "Dark Theme"
+            ? "SquadUp 2.0 Default"
             : prefs.palettePreset || "SquadUp 2.0 Default";
         setSelectedPreset(initialPreset);
         if (prefs.primaryColor) {
@@ -118,13 +118,6 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   const handlePresetSelect = (presetName: string) => {
     setSelectedPreset(presetName);
     loadPreset(presetName);
-    if (presetName === "Dark Theme") {
-      setThemeMode("dark");
-      setContextThemeMode("dark");
-    } else if (presetName === "SquadUp 2.0 Default") {
-      setThemeMode("light");
-      setContextThemeMode("light");
-    }
     if (PALETTE_PRESETS[presetName]) {
       setCustomPrimaryColor(PALETTE_PRESETS[presetName].primaryAction);
     }

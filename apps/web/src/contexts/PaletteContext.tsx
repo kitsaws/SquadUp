@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { useUser } from "@clerk/react";
 import { preferencesApi } from "../services/api";
 
 export type ThemeMode = "light" | "dark" | "system";
@@ -41,7 +42,6 @@ export const DEFAULT_DARK_PALETTE: PaletteTokens = {
 
 export const PALETTE_PRESETS: Record<string, PaletteTokens> = {
   "SquadUp 2.0 Default": DEFAULT_LIGHT_PALETTE,
-  "Dark Theme": DEFAULT_DARK_PALETTE,
   "Emerald Focus": {
     primaryAction: "#059669",
     bestFit: "#10b981",
@@ -82,7 +82,10 @@ interface PaletteContextType {
 const PaletteContext = createContext<PaletteContextType | undefined>(undefined);
 
 export function PaletteProvider({ children }: { children: React.ReactNode }) {
-  // Theme mode: light | dark | system
+  const { isSignedIn, isLoaded } = useUser();
+  const wasSignedIn = useRef(false);
+
+  // Theme mode: light | dark | system. Default is "light"
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -91,10 +94,10 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
           return savedMode;
         }
       } catch {
-        // fallback to system
+        // fallback to light
       }
     }
-    return "system";
+    return "light";
   });
 
   const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
@@ -103,6 +106,25 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
     }
     return false;
   });
+
+  // Clear theme from localStorage on logout and revert to default light mode
+  useEffect(() => {
+    if (isLoaded) {
+      if (isSignedIn) {
+        wasSignedIn.current = true;
+      } else if (wasSignedIn.current && !isSignedIn) {
+        wasSignedIn.current = false;
+        try {
+          localStorage.removeItem("squadup_theme_mode");
+          localStorage.removeItem("squadup_active_palette");
+        } catch {
+          // ignore
+        }
+        setThemeModeState("light");
+        setPalette(DEFAULT_LIGHT_PALETTE);
+      }
+    }
+  }, [isSignedIn, isLoaded]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -139,15 +161,10 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleThemeMode = useCallback(() => {
-    // Cycle: system -> dark -> light -> system
-    if (themeMode === "system") {
-      setThemeMode("dark");
-    } else if (themeMode === "dark") {
-      setThemeMode("light");
-    } else {
-      setThemeMode("system");
-    }
-  }, [themeMode, setThemeMode]);
+    // Toggle between light and dark
+    const nextMode: ThemeMode = isDark ? "light" : "dark";
+    setThemeMode(nextMode);
+  }, [isDark, setThemeMode]);
 
   // Apply root CSS variables & .dark class on documentElement
   useEffect(() => {
@@ -206,16 +223,16 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
 
   // Load preferences from API on startup if user is logged in
   useEffect(() => {
+    if (!isSignedIn) return;
     preferencesApi
       .getPreferences()
       .then((prefs) => {
         if (prefs) {
-          if (prefs.themeMode && (prefs.themeMode === "light" || prefs.themeMode === "dark" || prefs.themeMode === "system")) {
-            setThemeModeState(prefs.themeMode);
+          const savedMode = localStorage.getItem("squadup_theme_mode");
+          if (!savedMode && prefs.themeMode && (prefs.themeMode === "light" || prefs.themeMode === "dark" || prefs.themeMode === "system")) {
+            setThemeMode(prefs.themeMode);
           }
-          const resolvedPreset = prefs.palettePreset === "midnight" || prefs.palettePreset === "Midnight Collegiate"
-            ? "Dark Theme"
-            : prefs.palettePreset;
+          const resolvedPreset = prefs.palettePreset;
           if (resolvedPreset && PALETTE_PRESETS[resolvedPreset]) {
             setPalette((prev) => ({ ...prev, ...PALETTE_PRESETS[resolvedPreset] }));
           }
@@ -227,17 +244,13 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {
         // Not authenticated or guest; ignore silently
       });
-  }, []);
+  }, [isSignedIn, setThemeMode]);
 
   const updateToken = (key: keyof PaletteTokens, value: string) => {
     setPalette((prev) => ({ ...prev, [key]: value }));
   };
 
   const loadPreset = (name: string) => {
-    if (name === "midnight" || name === "Midnight Collegiate") {
-      setPalette(PALETTE_PRESETS["Dark Theme"]);
-      return;
-    }
     if (PALETTE_PRESETS[name]) {
       setPalette(PALETTE_PRESETS[name]);
       return;

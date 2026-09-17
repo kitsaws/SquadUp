@@ -94,6 +94,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setIsLoadingProfile(false);
       setHasInitialProfileLoaded(true);
       CacheService.clearAll();
+      try {
+        localStorage.removeItem("squadup_theme_mode");
+        localStorage.removeItem("squadup_active_palette");
+      } catch {
+        // ignore
+      }
     }
   }, [isSignedIn, isLoaded, user?.id]);
 
