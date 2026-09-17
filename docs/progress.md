@@ -123,6 +123,28 @@ The platform features a complete First-Time User Onboarding flow with dynamic Na
 - **Webhook Organization Cascade Updates (`webhook.controller.ts` & `auth.utils.ts`):**
   - Cascades organization name/metadata updates directly to member `Profile.university` and `Team.university` records upon `organization.updated` and `organization.deleted` events.
   - JIT dynamic profile alignment ensures `Profile.university` remains synchronised with the user's primary organization during API requests.
+- **Explainable Taxonomy Skill Badges & Score-Based Matching (`apps/web`):**
+  - Standardized color-coding across `TeamCard.tsx`, `TeamTile.tsx`, `TeamDetailPage.tsx`, and `SmartRecommendationPanel.tsx`:
+    - 🟢 **Green (`score === 1.0`)**: 100% exact taxonomy node match.
+    - 🟡 **Yellow (`0 < score < 1.0`)**: Partial / related taxonomy match with explainability details.
+    - ⚪ **Gray (`score === 0`)**: Missing requirement.
+  - Enabled skill explainability tooltips and details on `TeamDetailPage.tsx` and recommendation panels for all candidates, even when ineligible, enhancing transparency.
+- **Squad Leader Access Control & Card Capacity Refinements (`Profile.tsx`, `TeamCard.tsx`, `HomeDashboard.tsx`):**
+  - "Manage Team" action button is strictly constrained to squad leaders; non-leaders and visiting peers receive a clean "View Team" navigation link.
+  - Normalized team capacity indicators (`members.length / maxCapacity`) across shared card components.
+- **Infinite Re-Fetch Loop Resolution & User Context Stabilization (`UserContext.tsx`, `Profile.tsx`):**
+  - Eliminated rapid-fire cascading render loops and infinite 304 re-fetch cycles for `/api/profile` and `/api/applications/my-applications`.
+  - Removed dynamic object dependency `profile` from `refreshProfile`'s `useCallback` dependency array in `UserContext.tsx`.
+  - Scoped `fetchProfileData` in `Profile.tsx` to `[urlId, isOwner]`, decoupling background applications fetching from local state updates.
+  - Fixed background resume ingestion listener to strictly fire upon the true-to-false completion transition of `isUploading`.
+- **Banner & User Preferences Multi-Tier Caching & Persistence (`profile.controller.ts`, `preferences.controller.ts`, `EditProfileModal.tsx`, `UserPreferencesModal.tsx`):**
+  - Joined `UserPreferences` in `profile.controller.ts` `updateProfile` to guarantee `bannerConfig` is preserved when editing bio, headline, or skills.
+  - Automatic L1/L2 and Redis cache invalidation (`sq:profile:`, `sq:public_profile:`) upon saving preferences or banners.
+  - Isolated color picker and theme options in `UserPreferencesModal.tsx` to prevent application-wide re-renders during slider/wheel interactions, deferring global changes until "Save Preferences" is clicked.
+  - Automatic database persistence of theme mode toggles from `Navbar.tsx` and `PaletteContext.tsx` via `PATCH /api/preferences`.
+- **Clerk Organization Membership Cloud Synchronization (`auth.utils.ts`, `organizer.controller.ts`, `Onboarding.tsx`):**
+  - Implemented `linkUserToOrganization` using Clerk Backend SDK (`clerkClient.organizations.createOrganizationMembership`), automatically provisioning cloud memberships and capturing `clerkMemberId` in PostgreSQL.
+  - Integrated `useClerk().setActive({ organization: clerkOrgId })` in `Onboarding.tsx` so Clerk's frontend session and issued JWT tokens recognize the active university organization immediately.
 - **Decoupled Relational Database:**
   - `UserTaxonomy` (1:1 with `User`), `TeamTaxonomy` (1:1 with `Team`), and `UserPreferences` (1:1 with `User`).
   - `Organization`, `OrganizationMembership`, `Organizer`, `OrganizerMember`, and `TeamApplication` models.
