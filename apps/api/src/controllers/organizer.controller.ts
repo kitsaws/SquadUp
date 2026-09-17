@@ -9,7 +9,7 @@ import {
   OrganizerResponse,
   OrganizationResponse,
 } from "@squadup/shared";
-import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
+import { getOrCreateUserByClerkId, linkUserToOrganization } from "../utils/auth.utils.js";
 
 const prisma = new PrismaClient();
 
@@ -145,36 +145,19 @@ export const selectUniversity = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "University organization not found." });
     }
 
-    // Upsert membership
-    const membership = await prisma.organizationMembership.upsert({
-      where: {
-        organizationId_userId: {
-          organizationId: org.id,
-          userId: userInDb.id,
-        },
-      },
-      update: {
-        role: "org:member",
-      },
-      create: {
-        organizationId: org.id,
-        userId: userInDb.id,
-        role: "org:member",
-      },
-    });
+    const { membership, profile } = await linkUserToOrganization(
+      userInDb.id,
+      userInDb.clerkId,
+      org
+    );
 
-    // Update Profile.university
-    const profile = await prisma.profile.upsert({
-      where: { userId: userInDb.id },
-      update: {
-        university: org.name,
-      },
-      create: {
-        userId: userInDb.id,
-        university: org.name,
-        skills: [],
-      },
-    });
+    // Invalidate cached profile on university selection
+    try {
+      const { CacheService } = await import("../services/cache.service.js");
+      await CacheService.del(`profile:${userInDb.id}`);
+    } catch {
+      // ignore
+    }
 
     return res.json({
       success: true,

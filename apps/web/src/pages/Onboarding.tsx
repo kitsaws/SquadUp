@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useClerk } from "@clerk/react";
 import { useUserContext } from "../contexts/UserContext";
 import { organizersApi, profileApi, resumeApi, OrganizationItem } from "../services/api";
 import { UniversitySearchSelect } from "../components/onboarding/UniversitySearchSelect";
@@ -11,6 +12,7 @@ import { OnboardingCompletedModal } from "../components/onboarding/OnboardingCom
 export function Onboarding() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { setActive } = useClerk();
   const { user, profile, refreshProfile, isSignedIn, isLoaded } = useUserContext();
 
   // Navigation steps: 1 = University, 2 = Profile Choice, 3 = Resume Processing Success
@@ -93,6 +95,13 @@ export function Onboarding() {
       // 2. Commit university selection to backend upon completion of onboarding
       if (selectedUniversity?.clerkOrgId) {
         await organizersApi.selectUniversity(selectedUniversity.clerkOrgId);
+        if (setActive) {
+          try {
+            await setActive({ organization: selectedUniversity.clerkOrgId });
+          } catch (activeErr) {
+            console.warn("[Onboarding] Could not set active organization in Clerk session:", activeErr);
+          }
+        }
       } else if (isIndependent) {
         await profileApi.updateProfile({ university: undefined });
       }
@@ -102,8 +111,8 @@ export function Onboarding() {
         localStorage.setItem(`squadup_onboarding_done_${user.id}`, "true");
       }
 
-      // 4. Refresh UserContext
-      await refreshProfile();
+      // 4. Refresh UserContext bypassing cache
+      await refreshProfile(true);
 
       // 5. Open Onboarding Completed celebration modal & transition to Step 3
       setCompletionMethod("resume");
@@ -137,6 +146,13 @@ export function Onboarding() {
       // 2. If institutional university selected, link Organization
       if (selectedUniversity?.clerkOrgId) {
         await organizersApi.selectUniversity(selectedUniversity.clerkOrgId);
+        if (setActive) {
+          try {
+            await setActive({ organization: selectedUniversity.clerkOrgId });
+          } catch (activeErr) {
+            console.warn("[Onboarding] Could not set active organization in Clerk session:", activeErr);
+          }
+        }
       }
 
       // 3. Mark onboarding complete in local storage
@@ -144,8 +160,8 @@ export function Onboarding() {
         localStorage.setItem(`squadup_onboarding_done_${user.id}`, "true");
       }
 
-      // 4. Refresh UserContext
-      await refreshProfile();
+      // 4. Refresh UserContext bypassing cache
+      await refreshProfile(true);
 
       // 5. Open Onboarding Completed celebration modal & transition to Step 3
       setCompletionMethod("manual");

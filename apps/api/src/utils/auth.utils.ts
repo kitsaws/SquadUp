@@ -69,6 +69,86 @@ export async function syncUserOrganizationsFromClerk(userId: string, clerkId: st
   }
 }
 
+export async function linkUserToOrganization(
+  userId: string,
+  clerkUserId: string,
+  organization: { id: string; clerkOrgId: string; name: string }
+) {
+  let clerkMemberId: string | null = null;
+
+  if (organization.clerkOrgId && clerkUserId) {
+    try {
+      const { clerkClient } = await import("@clerk/express");
+      try {
+        const clerkMembership = await clerkClient.organizations.createOrganizationMembership({
+          organizationId: organization.clerkOrgId,
+          userId: clerkUserId,
+          role: "org:member",
+        });
+        if (clerkMembership?.id) {
+          clerkMemberId = clerkMembership.id;
+          console.log(`[Auth Utils] Created Clerk membership ${clerkMemberId} for user ${clerkUserId} in org ${organization.clerkOrgId}`);
+        }
+      } catch (clerkCreateErr: any) {
+        console.warn(`[Auth Utils] Clerk createOrganizationMembership notice: ${clerkCreateErr?.message || clerkCreateErr}. Querying existing memberships...`);
+        const existingList = await clerkClient.users.getOrganizationMembershipList({
+          userId: clerkUserId,
+        });
+        const match = existingList.data?.find((m: any) => m.organization?.id === organization.clerkOrgId);
+        if (match?.id) {
+          clerkMemberId = match.id;
+          console.log(`[Auth Utils] Retrieved existing Clerk membership ID: ${clerkMemberId}`);
+        }
+      }
+    } catch (clerkErr) {
+      console.warn(`[Auth Utils] Non-fatal: Could not create organization membership in Clerk:`, clerkErr);
+    }
+  }
+
+  // Remove any previous conflicting organization memberships if user is switching university
+  await prisma.organizationMembership.deleteMany({
+    where: {
+      userId,
+      organizationId: { not: organization.id },
+    },
+  });
+
+  // Upsert membership
+  const membership = await prisma.organizationMembership.upsert({
+    where: {
+      organizationId_userId: {
+        organizationId: organization.id,
+        userId: userId,
+      },
+    },
+    update: {
+      role: "org:member",
+      ...(clerkMemberId ? { clerkMemberId } : {}),
+    },
+    create: {
+      clerkMemberId: clerkMemberId || null,
+      organizationId: organization.id,
+      userId: userId,
+      role: "org:member",
+    },
+  });
+
+  // Synchronize user profile university
+  const profile = await prisma.profile.upsert({
+    where: { userId },
+    update: {
+      university: organization.name,
+    },
+    create: {
+      userId,
+      university: organization.name,
+      skills: [],
+    },
+  });
+
+  return { membership, profile, clerkMemberId };
+}
+
 /**
  * Looks up the internal database User by their Clerk ID.
  * If the user doesn't exist (e.g., local development without webhooks), 
