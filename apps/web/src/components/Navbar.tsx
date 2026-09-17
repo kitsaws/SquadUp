@@ -61,8 +61,8 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isSignedIn } = useUserContext();
-  const { themeMode, toggleThemeMode } = usePalette();
+  const { user, profile, isSignedIn } = useUserContext();
+  const { themeMode, toggleThemeMode, isDark } = usePalette();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
@@ -80,6 +80,18 @@ export function Navbar() {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Global Ctrl+K / Cmd+K shortcut listener to toggle Search Modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const markAllAsRead = () => {
@@ -301,14 +313,12 @@ export function Navbar() {
             <button
               onClick={toggleThemeMode}
               className="p-2 text-text-muted hover:text-text-main rounded-lg hover:bg-surface-dim transition-colors cursor-pointer"
-              title={`Theme: ${themeMode.charAt(0).toUpperCase() + themeMode.slice(1)} (Click to switch)`}
+              title={`Theme: ${isDark ? "Dark" : "Light"} (Click to switch)`}
             >
-              {themeMode === "dark" ? (
+              {isDark ? (
                 <Moon className="w-4 h-4 text-primary-action" />
-              ) : themeMode === "light" ? (
-                <Sun className="w-4 h-4 text-amber-500" />
               ) : (
-                <Monitor className="w-4 h-4 text-text-muted" />
+                <Sun className="w-4 h-4 text-amber-500" />
               )}
             </button>
 
@@ -405,9 +415,12 @@ export function Navbar() {
                   )}
                 </div>
 
-                {/* User Profile Avatar (Navigates directly to /profile) */}
+                {/* User Profile Avatar (Navigates directly to /profile/:id) */}
                 <button
-                  onClick={() => navigate("/profile")}
+                  onClick={() => {
+                    const targetId = profile?.userId || profile?.id || user?.id;
+                    navigate(targetId ? `/profile/${targetId}` : "/profile");
+                  }}
                   className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-primary-action/30 transition-all cursor-pointer group"
                   title="View your SquadUp Profile"
                 >

@@ -128,24 +128,33 @@ export function EventDetailPage() {
           }
         }
 
-        const mappedTeams: TeamCardData[] = (teamsData.teams || []).map((t: TeamItem) => ({
-          id: t.id,
-          name: t.name,
-          eventId: t.eventId,
-          eventTitle: mappedEvent.title,
-          university: t.university || mappedEvent.location,
-          requirements: t.requirements || [],
-          neededRequirement: t.requirements?.[0] || "Specialist",
-          members: (t.members || []).map((m) => ({
-            id: m.id,
-            name: m.name,
-            role: m.role,
-          })),
-          maxCapacity: t.maxCapacity || 4,
-          taxonomyScore: recMap[t.id]?.score,
-          category: recMap[t.id]?.category,
-          description: t.description || `Formed for ${mappedEvent.title}.`,
-        }));
+        const mappedTeams: TeamCardData[] = (teamsData.teams || []).map((t: TeamItem) => {
+          const memberList = (t.members || []).map((m: any) => ({
+            id: m.id || m.userId,
+            name: m.name || m.user?.name || "Member",
+            role: m.role || "Member",
+            avatarUrl: m.avatarUrl || m.profilePicture || m.user?.profilePicture || m.user?.avatarUrl,
+            profilePicture: m.profilePicture || m.avatarUrl || m.user?.profilePicture || m.user?.avatarUrl,
+          }));
+
+          return {
+            id: t.id,
+            name: t.name,
+            eventId: t.eventId || mappedEvent.id,
+            eventTitle: mappedEvent.title,
+            university: t.university || mappedEvent.location,
+            isGlobal: mappedEvent.isGlobal,
+            requirements: t.requirements || [],
+            neededRequirement: t.requirements?.[0] || "Specialist",
+            members: memberList,
+            maxCapacity: t.maxCapacity || 4,
+            taxonomyScore: recMap[t.id]?.score,
+            category: recMap[t.id]?.category,
+            description: t.description || `Formed for ${mappedEvent.title}.`,
+            isUserLeader: t.isLeader,
+            isUserMember: t.isMember,
+          };
+        });
 
         setEventTeams(mappedTeams);
       } catch (err: any) {
@@ -392,7 +401,11 @@ export function EventDetailPage() {
                 <TeamCard
                   key={team.id}
                   team={team}
-                  onInspect={() => navigate(`/team/${team.id}`)}
+                  onInspect={() =>
+                    navigate(`/team/${team.id}`, {
+                      state: { fromEventId: event.id, fromEventTitle: event.title },
+                    })
+                  }
                 />
               ))}
             </div>
@@ -402,7 +415,11 @@ export function EventDetailPage() {
                 <TeamTile
                   key={team.id}
                   team={team}
-                  onInspect={() => navigate(`/team/${team.id}`)}
+                  onInspect={() =>
+                    navigate(`/team/${team.id}`, {
+                      state: { fromEventId: event.id, fromEventTitle: event.title },
+                    })
+                  }
                 />
               ))}
             </div>

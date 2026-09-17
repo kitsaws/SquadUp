@@ -5,11 +5,8 @@ import { ArrowRight, Sparkles, CheckCircle2, Shield, Users, Calendar, Loader2 } 
 import { useUserContext } from "../contexts/UserContext";
 import { CategoryLegend } from "../components/CategoryLegend";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
-import { TeamTile } from "../components/TeamTile";
 import { EventCard, EventCardData } from "../components/EventCard";
-import { EventTile } from "../components/EventTile";
 import { ApplyTeamModal } from "../components/ApplyTeamModal";
-import { ViewModeToggle, ViewMode } from "../components/ViewModeToggle";
 import {
   eventsApi,
   teamsApi,
@@ -32,9 +29,6 @@ export function HomeDashboard() {
   const [selectedTeamForApply, setSelectedTeamForApply] = useState<TeamCardData | null>(null);
   const [appliedTeamIds, setAppliedTeamIds] = useState<string[]>([]);
   const [notificationToast, setNotificationToast] = useState<string | null>(null);
-
-  const [teamsViewMode, setTeamsViewMode] = useState<ViewMode>("cards");
-  const [eventsViewMode, setEventsViewMode] = useState<ViewMode>("cards");
 
   useEffect(() => {
     let isMounted = true;
@@ -208,6 +202,17 @@ export function HomeDashboard() {
 
   const displayName = user?.firstName || userProfile?.name?.split(" ")[0] || "there";
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) {
+      return "Good morning";
+    } else if (hour >= 12 && hour < 17) {
+      return "Good afternoon";
+    } else {
+      return "Good evening";
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12 bg-canvas text-text-main">
       {/* Hero Greeting Section */}
@@ -215,7 +220,7 @@ export function HomeDashboard() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl sm:text-4xl font-black text-text-main tracking-tight font-heading">
-              {isSignedIn ? `Good morning, ${displayName}.` : "Welcome to SquadUp."}
+              {isSignedIn ? `${getGreeting()}, ${displayName}.` : "Welcome to SquadUp."}
             </h1>
             <p className="text-base text-text-muted font-medium mt-1">
               {isSignedIn ? "Find your next squad." : "Find your next collegiate hackathon and project squad."}
@@ -240,7 +245,6 @@ export function HomeDashboard() {
 
           <div className="flex items-center gap-3">
             {isSignedIn && <CategoryLegend />}
-            <ViewModeToggle mode={teamsViewMode} onChange={setTeamsViewMode} size="sm" />
             <Link
               to="/teams"
               className="inline-flex items-center gap-1 text-xs font-bold text-primary-action hover:text-primary-hover transition-colors cursor-pointer shrink-0"
@@ -262,29 +266,16 @@ export function HomeDashboard() {
             ))}
           </div>
         ) : recommendedTeams.length > 0 ? (
-          teamsViewMode === "cards" ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {recommendedTeams.map((team) => (
-                <TeamCard
-                  key={team.id}
-                  team={team}
-                  onInspect={() => navigate(`/team/${team.id}`)}
-                  onApply={() => navigate(`/team/${team.id}`)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col space-y-3">
-              {recommendedTeams.map((team) => (
-                <TeamTile
-                  key={team.id}
-                  team={team}
-                  onInspect={() => navigate(`/team/${team.id}`)}
-                  onApply={() => navigate(`/team/${team.id}`)}
-                />
-              ))}
-            </div>
-          )
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {recommendedTeams.map((team) => (
+              <TeamCard
+                key={team.id}
+                team={team}
+                onInspect={() => navigate(`/team/${team.id}`)}
+                onApply={() => navigate(`/team/${team.id}`)}
+              />
+            ))}
+          </div>
         ) : (
           <div className="p-8 rounded-xl border border-dashed border-border-main bg-surface shadow-2xs text-center space-y-2">
             <p className="text-sm font-semibold text-text-main">No squads available right now.</p>
@@ -308,7 +299,6 @@ export function HomeDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            <ViewModeToggle mode={eventsViewMode} onChange={setEventsViewMode} size="sm" />
             <Link
               to="/events"
               className="inline-flex items-center gap-1 text-xs font-bold text-primary-action hover:text-primary-hover transition-colors cursor-pointer shrink-0"
@@ -330,27 +320,15 @@ export function HomeDashboard() {
             ))}
           </div>
         ) : upcomingEvents.length > 0 ? (
-          eventsViewMode === "cards" ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {upcomingEvents.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  onSelect={() => navigate(`/event/${event.id}`)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col space-y-3">
-              {upcomingEvents.map((event) => (
-                <EventTile
-                  key={event.id}
-                  event={event}
-                  onSelect={() => navigate(`/event/${event.id}`)}
-                />
-              ))}
-            </div>
-          )
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {upcomingEvents.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                onSelect={() => navigate(`/event/${event.id}`)}
+              />
+            ))}
+          </div>
         ) : (
           <div className="p-8 rounded-xl border border-dashed border-border-main bg-surface shadow-2xs text-center">
             <p className="text-sm text-text-muted">No upcoming events listed at this time.</p>
