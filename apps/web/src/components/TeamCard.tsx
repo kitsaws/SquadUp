@@ -7,6 +7,7 @@ export interface TeamMemberPreview {
   id: string;
   name: string;
   avatarUrl?: string;
+  profilePicture?: string;
   role?: string;
 }
 
@@ -17,12 +18,21 @@ export interface TeamCardData {
   eventTitle: string;
   university?: string;
   requirements: string[];
+  requirementBreakdown?: Array<{
+    requirementNodeId?: string;
+    requirementName: string;
+    bestUserSkillName?: string | null;
+    score: number;
+    explanationText?: string;
+    isStrong?: boolean;
+  }>;
   neededRequirement?: string;
   members: TeamMemberPreview[];
   maxCapacity?: number;
   taxonomyScore?: number;
   category?: RecommendationTier;
   isEligible?: boolean;
+  isGlobal?: boolean;
   description?: string;
   isUserLeader?: boolean;
   isUserMember?: boolean;
@@ -34,6 +44,25 @@ interface TeamCardProps {
   isSelected?: boolean;
   onApply?: (team: TeamCardData) => void;
   hasApplied?: boolean;
+}
+
+const AVATAR_VIBRANT_STYLES = [
+  "bg-indigo-600 text-white",
+  "bg-cyan-600 text-white",
+  "bg-emerald-600 text-white",
+  "bg-amber-600 text-white",
+  "bg-rose-600 text-white",
+  "bg-fuchsia-600 text-white",
+  "bg-violet-600 text-white",
+  "bg-teal-600 text-white",
+];
+
+function getAvatarVibrantStyle(name: string, idx: number): string {
+  let hash = idx;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash << 5) - hash + name.charCodeAt(i);
+  }
+  return AVATAR_VIBRANT_STYLES[Math.abs(hash) % AVATAR_VIBRANT_STYLES.length];
 }
 
 export function TeamCard({
@@ -131,20 +160,14 @@ export function TeamCard({
           Needs/Requirements:
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {team.requirements.map((req, i) => {
-            const isMet =
-              isSignedIn &&
-              userVerifiedSkills.some(
-                (s) => s.trim().toLowerCase() === req.trim().toLowerCase()
-              );
-            return (
-              <SkillTag
-                key={i}
-                skill={req}
-                isMatched={isMet}
-              />
-            );
-          })}
+          {team.requirements.map((req, i) => (
+            <SkillTag
+              key={i}
+              skill={req}
+              breakdown={team.requirementBreakdown}
+              userSkills={isSignedIn ? userVerifiedSkills : undefined}
+            />
+          ))}
         </div>
       </div>
 
@@ -153,19 +176,41 @@ export function TeamCard({
         {/* Member Avatars & Spots */}
         <div className="flex items-center gap-2">
           <div className="flex -space-x-1.5">
-            {team.members.map((m, idx) => (
-              <div
-                key={m.id || idx}
-                className="w-7 h-7 rounded-full bg-surface-dim border-2 border-surface flex items-center justify-center text-[10px] font-bold text-text-main overflow-hidden shadow-2xs"
-                title={m.name}
-              >
-                {m.avatarUrl ? (
-                  <img src={m.avatarUrl} alt={m.name} className="w-full h-full object-cover" />
-                ) : (
-                  m.name[0]
-                )}
-              </div>
-            ))}
+            {team.members.map((m, idx) => {
+              const picture = m.profilePicture || m.avatarUrl;
+              const initials =
+                (m.name || "Member")
+                  .split(" ")
+                  .filter(Boolean)
+                  .map((n) => n[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase() || "M";
+              const vibrantStyle = getAvatarVibrantStyle(m.name || "", idx);
+
+              return (
+                <div
+                  key={m.id || idx}
+                  className={`w-7 h-7 rounded-full border-2 border-surface flex items-center justify-center text-[10px] font-black overflow-hidden shadow-2xs shrink-0 ${
+                    picture ? "bg-surface-dim" : vibrantStyle
+                  }`}
+                  title={m.name}
+                >
+                  {picture ? (
+                    <img
+                      src={picture}
+                      alt={m.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <span className="tracking-tighter">{initials}</span>
+                  )}
+                </div>
+              );
+            })}
             {!isFull && (
               <div className="w-7 h-7 rounded-full bg-surface border-2 border-dashed border-border-main flex items-center justify-center text-[10px] text-text-muted">
                 +1

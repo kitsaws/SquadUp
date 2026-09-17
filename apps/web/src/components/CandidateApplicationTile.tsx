@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronUp, ExternalLink, Check, X, FileText, Building, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { SkillTag } from "./Badges";
+import { RecommendationBadge, RecommendationTier, SkillTag } from "./Badges";
 
 export interface CandidateApplicationData {
   id: string;
@@ -17,6 +17,7 @@ export interface CandidateApplicationData {
   coverNote: string;
   skills: { name: string; provenance: string; score: number }[];
   status: "PENDING" | "ACCEPTED" | "REJECTED";
+  category?: RecommendationTier;
 }
 
 interface CandidateApplicationTileProps {
@@ -36,12 +37,32 @@ export function CandidateApplicationTile({
 
   const percentScore = Math.round(application.matchScore * 100);
 
+  // Category theme mapping
+  let accentBorder = "border-border-main hover:border-border-main";
+  let leftAccentColor = "";
+
+  if (application.category === "BEST") {
+    leftAccentColor = "bg-best-fit";
+    accentBorder = "border-best-fit/50 hover:border-best-fit shadow-xs";
+  } else if (application.category === "GOOD_DIFFERENT_UNIVERSITY") {
+    leftAccentColor = "bg-cross-campus";
+    accentBorder = "border-cross-campus/50 hover:border-cross-campus shadow-xs";
+  } else if (application.category === "SAME_UNIVERSITY_LOWER_SCORE") {
+    leftAccentColor = "bg-campus-explorer";
+    accentBorder = "border-campus-explorer/50 hover:border-campus-explorer shadow-xs";
+  }
+
   return (
-    <div className="bg-surface rounded-xl border border-border-main shadow-2xs hover:border-border-main transition-all overflow-hidden">
+    <div className={`relative bg-surface rounded-xl border ${accentBorder} transition-all overflow-hidden`}>
+      {/* Left Highlight Strip for Recommendation Tier */}
+      {leftAccentColor && (
+        <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${leftAccentColor}`} />
+      )}
+
       {/* Default Collapsed Row / Header */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        className="p-4 flex items-center justify-between gap-4 cursor-pointer select-none hover:bg-surface-dim/50 transition-colors"
+        className="p-4 flex items-center justify-between gap-4 cursor-pointer select-none hover:bg-surface-dim/50 transition-colors pl-4.5"
       >
         {/* Left: Avatar & Candidate Info */}
         <div className="flex items-center gap-3.5 min-w-0">
@@ -79,17 +100,15 @@ export function CandidateApplicationTile({
         </div>
 
         {/* Right: Badges & Expand Affordance */}
-        <div className="flex items-center gap-3 shrink-0">
-          {/* Match Score Badge */}
-          <span
-            className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
-              percentScore >= 80
-                ? "bg-best-fit-light text-best-fit-dark border-best-fit"
-                : "bg-surface-dim text-text-muted border-border-main"
-            }`}
-          >
-            {percentScore}% Match
-          </span>
+        <div className="flex items-center gap-2.5 shrink-0">
+          {/* Match / Recommendation Badge */}
+          {application.category ? (
+            <RecommendationBadge category={application.category} score={application.matchScore} />
+          ) : (
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border bg-surface-dim text-text-muted border-border-main">
+              {percentScore}% Match
+            </span>
+          )}
 
           {/* Campus Match Badge */}
           {application.isCampusMatch && (
@@ -189,16 +208,17 @@ export function CandidateApplicationTile({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onDecline?.(application.id)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-text-muted hover:text-rose-600 hover:bg-rose-500/10 transition-colors border border-border-main cursor-pointer"
+                  className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg text-xs font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 transition-all shadow-2xs cursor-pointer"
                 >
-                  Decline
+                  <X className="w-3.5 h-3.5" />
+                  <span>Decline</span>
                 </button>
                 <button
                   onClick={() => onAccept?.(application.id)}
                   className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  Accept to Squad
+                  <span>Accept to Squad</span>
                 </button>
               </div>
             </div>

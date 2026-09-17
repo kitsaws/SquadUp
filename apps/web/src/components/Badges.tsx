@@ -69,33 +69,162 @@ export function ScopeBadge({
   );
 }
 
+export type SkillMatchType = "perfect" | "partial" | "none";
+
+/**
+ * Evaluates skill match status based on exact taxonomy recommendation scores or user profile skills:
+ * - score = 1.0 (or score >= 0.99): "perfect" -> Green
+ * - 0 < score < 1.0: "partial" -> Yellow
+ * - score = 0 (or no match): "none" -> Grey
+ */
+export function getSkillMatchType(
+  requirement: string,
+  userSkills?: string[] | undefined | null,
+  breakdown?: Array<{ requirementName?: string; score?: number }> | null
+): SkillMatchType {
+  if (!requirement) return "none";
+
+  const reqNorm = requirement.toLowerCase().trim();
+  const reqClean = reqNorm.replace(/[^a-z0-9]/g, "");
+  if (!reqNorm) return "none";
+
+  // 1. If recommendation engine breakdown is available, use exact taxonomy match score
+  if (breakdown && breakdown.length > 0) {
+    const item = breakdown.find((b) => {
+      if (!b.requirementName) return false;
+      const bNorm = b.requirementName.toLowerCase().trim();
+      const bClean = bNorm.replace(/[^a-z0-9]/g, "");
+      return (
+        reqNorm === bNorm ||
+        (reqClean.length > 0 && reqClean === bClean) ||
+        reqNorm.includes(bNorm) ||
+        bNorm.includes(reqNorm)
+      );
+    });
+
+    if (item && item.score !== undefined) {
+      if (item.score >= 0.99) return "perfect"; // 100% match (score = 1.0) -> Green
+      if (item.score > 0) return "partial";      // 0 < score < 1.0 -> Yellow
+      return "none";                             // score = 0 -> Grey
+    }
+  }
+
+  // 2. Direct string matching against user verified skills
+  if (!userSkills || userSkills.length === 0) return "none";
+
+  // Check all user skills for exact/normalized match first
+  for (const rawSkill of userSkills) {
+    if (!rawSkill) continue;
+    const skillNorm = rawSkill.toLowerCase().trim();
+    const skillClean = skillNorm.replace(/[^a-z0-9]/g, "");
+
+    if (reqNorm === skillNorm || (reqClean.length > 0 && reqClean === skillClean)) {
+      return "perfect";
+    }
+  }
+
+  // Check for substring or token-level overlap
+  const reqTokens = reqNorm
+    .split(/[\s,/\-_+&()|:]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+
+  for (const rawSkill of userSkills) {
+    if (!rawSkill) continue;
+    const skillNorm = rawSkill.toLowerCase().trim();
+
+    if (
+      (skillNorm.length >= 3 && reqNorm.includes(skillNorm)) ||
+      (reqNorm.length >= 3 && skillNorm.includes(reqNorm))
+    ) {
+      return "partial";
+    }
+
+    const skillTokens = skillNorm
+      .split(/[\s,/\-_+&()|:]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+    for (const sToken of skillTokens) {
+      for (const rToken of reqTokens) {
+        if (sToken === rToken) return "partial";
+        const sTokenClean = sToken.replace(/[^a-z0-9]/g, "");
+        const rTokenClean = rToken.replace(/[^a-z0-9]/g, "");
+        if (sTokenClean.length > 0 && sTokenClean === rTokenClean) {
+          return "partial";
+        }
+      }
+    }
+  }
+
+  return "none";
+}
+
 export function SkillTag({
   skill,
   provenance,
   isNeeded = false,
   isMatched = false,
+  score,
+  breakdown,
+  matchType,
+  userSkills,
 }: {
   skill: string;
   provenance?: string;
   isNeeded?: boolean;
   isMatched?: boolean;
+  score?: number;
+  breakdown?: Array<{ requirementName?: string; score?: number }>;
+  matchType?: SkillMatchType;
+  userSkills?: string[];
 }) {
+  let resolvedMatchType: SkillMatchType;
+
+  if (score !== undefined) {
+    if (score >= 0.99) resolvedMatchType = "perfect";
+    else if (score > 0) resolvedMatchType = "partial";
+    else resolvedMatchType = "none";
+  } else if (matchType) {
+    resolvedMatchType = matchType;
+  } else if (breakdown || userSkills) {
+    resolvedMatchType = getSkillMatchType(skill, userSkills, breakdown);
+  } else if (isMatched) {
+    resolvedMatchType = "perfect";
+  } else {
+    resolvedMatchType = "none";
+  }
+
   if (isNeeded) {
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-500/10 text-amber-600 border border-dashed border-amber-500/30">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-campus-explorer-light text-campus-explorer-dark border border-dashed border-campus-explorer/40">
+        <span className="w-1.5 h-1.5 rounded-full bg-campus-explorer-dark animate-pulse" />
         {skill} (Needed)
       </span>
     );
   }
 
-  if (isMatched) {
+  if (resolvedMatchType === "perfect") {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">
-        <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-best-fit-light text-best-fit-dark border border-best-fit/50 shadow-2xs">
+        <CheckCircle2 className="w-3 h-3 text-best-fit-dark shrink-0" />
         <span>{skill}</span>
         {provenance && (
-          <span className="text-[10px] px-1 py-0.2 rounded bg-surface text-emerald-600 border border-emerald-500/20">
+          <span className="text-[10px] px-1 py-0.2 rounded bg-surface/80 text-best-fit-dark border border-best-fit/30">
+            {provenance}
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  if (resolvedMatchType === "partial") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-campus-explorer-light text-campus-explorer-dark border border-campus-explorer/50 shadow-2xs">
+        <Sparkles className="w-3 h-3 text-campus-explorer-dark shrink-0" />
+        <span>{skill}</span>
+        {provenance && (
+          <span className="text-[10px] px-1 py-0.2 rounded bg-surface/80 text-campus-explorer-dark border border-campus-explorer/30">
             {provenance}
           </span>
         )}

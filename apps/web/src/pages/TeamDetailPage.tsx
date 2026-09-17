@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { SignInButton } from "@clerk/react";
 import {
   ArrowLeft,
@@ -18,6 +18,8 @@ import {
   UserMinus,
   Send,
   ArrowRight,
+  Lock,
+  User,
 } from "lucide-react";
 import { useUserContext } from "../contexts/UserContext";
 import {
@@ -31,7 +33,7 @@ import {
   IncomingApplicationItem,
   RecommendationItem,
 } from "../services/api";
-import { RecommendationBadge, SkillTag } from "../components/Badges";
+import { RecommendationBadge, RecommendationTier, SkillTag } from "../components/Badges";
 import { SmartRecommendationPanel } from "../components/SmartRecommendationPanel";
 import { ApplyTeamModal } from "../components/ApplyTeamModal";
 import {
@@ -42,7 +44,11 @@ import {
 export function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isSignedIn, userVerifiedSkills, profile: contextProfile } = useUserContext();
+  const location = useLocation();
+  const locationState = location.state as { fromEventId?: string; fromEventTitle?: string; from?: string } | null;
+  const fromEventId = locationState?.fromEventId;
+  const fromEventTitle = locationState?.fromEventTitle;
+  const { isSignedIn, userVerifiedSkills, profile: contextProfile, userUniversity } = useUserContext();
 
   const [team, setTeam] = useState<TeamItem | null>(null);
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
@@ -106,21 +112,37 @@ export function TeamDetailPage() {
           try {
             const appsRes = await applicationsApi.getIncomingApplications({ teamId: teamData.id });
             if (isMounted) {
-              const mappedApps: CandidateApplicationData[] = (appsRes.applications || []).map((app: IncomingApplicationItem) => ({
-                id: app.id,
-                candidateId: app.candidateId,
-                name: app.name,
-                avatarUrl: app.avatarUrl || undefined,
-                university: app.university,
-                year: app.year || "Student",
-                appliedRole: app.appliedRole,
-                matchScore: app.matchScore,
-                isCampusMatch: app.isCampusMatch,
-                appliedTimeAgo: app.appliedTimeAgo || "Recently",
-                coverNote: app.coverNote || "Interested in joining your team.",
-                skills: app.skills || [],
-                status: app.status,
-              }));
+              const mappedApps: CandidateApplicationData[] = (appsRes.applications || [])
+                .filter((app: IncomingApplicationItem) => !app.status || app.status === "PENDING")
+                .map((app: IncomingApplicationItem) => {
+                  let category: RecommendationTier | undefined;
+                  const score = app.matchScore || 0;
+                  if (app.isCampusMatch && score >= 0.7) {
+                    category = "BEST";
+                  } else if (!app.isCampusMatch && score >= 0.65) {
+                    category = "GOOD_DIFFERENT_UNIVERSITY";
+                  } else if (app.isCampusMatch) {
+                    category = "SAME_UNIVERSITY_LOWER_SCORE";
+                  }
+
+                  return {
+                    id: app.id,
+                    candidateId: app.candidateId,
+                    name: app.name,
+                    avatarUrl: app.avatarUrl || undefined,
+                    university: app.university,
+                    year: app.year || "Student",
+                    appliedRole: app.appliedRole,
+                    matchScore: score,
+                    isCampusMatch: app.isCampusMatch,
+                    appliedTimeAgo: app.appliedTimeAgo || "Recently",
+                    coverNote: app.coverNote || "Interested in joining your team.",
+                    skills: app.skills || [],
+                    status: app.status || "PENDING",
+                    category,
+                  };
+                })
+                .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
               setApplications(mappedApps);
             }
           } catch (e) {
@@ -192,10 +214,8 @@ export function TeamDetailPage() {
   const handleAcceptApplicant = async (appId: string) => {
     try {
       await applicationsApi.acceptApplication(appId);
-      setApplications((prev) =>
-        prev.map((a) => (a.id === appId ? { ...a, status: "ACCEPTED" } : a))
-      );
       const candidate = applications.find((a) => a.id === appId);
+      setApplications((prev) => prev.filter((a) => a.id !== appId));
       setToastMessage(`✓ ${candidate?.name || "Candidate"} accepted to your squad!`);
       setTimeout(() => setToastMessage(null), 4000);
       // Refresh team data to show updated member in roster
@@ -212,10 +232,8 @@ export function TeamDetailPage() {
   const handleDeclineApplicant = async (appId: string) => {
     try {
       await applicationsApi.rejectApplication(appId);
-      setApplications((prev) =>
-        prev.map((a) => (a.id === appId ? { ...a, status: "REJECTED" } : a))
-      );
       const candidate = applications.find((a) => a.id === appId);
+      setApplications((prev) => prev.filter((a) => a.id !== appId));
       setToastMessage(`Application from ${candidate?.name || "Candidate"} declined.`);
       setTimeout(() => setToastMessage(null), 4000);
     } catch (err: any) {
@@ -297,10 +315,10 @@ export function TeamDetailPage() {
           <h2 className="text-xl font-bold text-text-main font-heading">Squad Not Found</h2>
           <p className="text-xs text-text-muted">{error || "The squad you requested does not exist or may have disbanded."}</p>
           <Link
-            to="/teams"
+            to={fromEventId ? `/event/${fromEventId}` : "/teams"}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary-action hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Teams Directory
+            <ArrowLeft className="w-3.5 h-3.5" /> {fromEventId ? `Back to ${fromEventTitle || "Event"}` : "Back to Teams Directory"}
           </Link>
         </div>
       </div>
@@ -313,10 +331,22 @@ export function TeamDetailPage() {
   const taxonomyScore = recommendation?.taxonomyScore;
   const fulfilledCount = team.requirements.filter((r) => userVerifiedSkills.includes(r)).length;
   const totalSpots = team.maxCapacity || 4;
+  const userUni = profile?.university || contextProfile?.university || userUniversity || "";
+  const teamUni = team.university || team.event?.university || team.event?.location || "";
   const isRestrictedEvent = Boolean(
-    team.event && !team.event.isGlobal && profile?.university && team.university &&
-    profile.university.toLowerCase() !== team.university.toLowerCase()
+    team.event &&
+    !team.event.isGlobal &&
+    (!userUni || !teamUni || userUni.toLowerCase().trim() !== teamUni.toLowerCase().trim())
   );
+
+  // Sort squad members so Leader is always the first person in the roster
+  const sortedMembers = [...(team.members || [])].sort((a, b) => {
+    const isALeader = a.role === "Leader" || a.role?.toLowerCase() === "leader";
+    const isBLeader = b.role === "Leader" || b.role?.toLowerCase() === "leader";
+    if (isALeader && !isBLeader) return -1;
+    if (!isALeader && isBLeader) return 1;
+    return 0;
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-200">
@@ -330,13 +360,23 @@ export function TeamDetailPage() {
 
       {/* Top Navigation Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border-main">
-        <Link
-          to="/teams"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-text-muted hover:text-text-main transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Teams Directory</span>
-        </Link>
+        {fromEventId ? (
+          <Link
+            to={`/event/${fromEventId}`}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-text-muted hover:text-text-main transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to {fromEventTitle || "Event"}</span>
+          </Link>
+        ) : (
+          <Link
+            to="/teams"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-text-muted hover:text-text-main transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Teams Directory</span>
+          </Link>
+        )}
 
         <div className="flex items-center gap-2">
           {isUserLeader && (
@@ -437,8 +477,8 @@ export function TeamDetailPage() {
           </div>
 
           {/* Incoming Applications List */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-black text-text-main font-heading">
                   Incoming Applications & Candidate Review
@@ -448,7 +488,7 @@ export function TeamDetailPage() {
                 </p>
               </div>
 
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface-dim text-text-muted border border-border-main">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface-dim text-text-muted border border-border-main self-start sm:self-auto shrink-0">
                 {applications.length} Candidates
               </span>
             </div>
@@ -466,7 +506,7 @@ export function TeamDetailPage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-surface rounded-2xl border border-border-main p-8 text-center space-y-2">
+              <div className="bg-surface-dim rounded-xl border border-border-main p-8 text-center space-y-2">
                 <Users className="w-8 h-8 text-text-muted mx-auto opacity-50" />
                 <p className="text-sm font-bold text-text-main">No applications received yet</p>
                 <p className="text-xs text-text-muted">Candidates applying to your squad will appear here with live skill compatibility scores.</p>
@@ -511,49 +551,78 @@ export function TeamDetailPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {team.members.map((member) => (
-                <div
-                  key={member.id}
-                  className="p-3.5 rounded-xl border border-border-main bg-surface-dim flex items-center justify-between gap-3 shadow-2xs"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-action to-cross-campus text-white font-bold flex items-center justify-center text-sm shrink-0">
-                      {(member.name || "U")
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .slice(0, 2)
-                        .toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-text-main truncate">
-                          {member.name || "Teammate"}
-                        </h4>
-                        {member.role === "Leader" && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary-light text-primary-action">
-                            Leader
-                          </span>
+              {sortedMembers.map((member) => {
+                const isCurrentMember = member.userId === profile?.id || member.id === profile?.id;
+                return (
+                  <div
+                    key={member.id}
+                    className="p-3.5 rounded-xl border border-border-main bg-surface-dim flex items-center justify-between gap-3 shadow-2xs"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-action to-cross-campus text-white font-bold flex items-center justify-center text-sm shrink-0 overflow-hidden">
+                        {member.avatarUrl ? (
+                          <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
+                        ) : (
+                          (member.name || "U")
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .slice(0, 2)
+                            .toUpperCase()
                         )}
                       </div>
-                      <p className="text-xs text-text-muted truncate">{member.title || member.role || "Member"}</p>
-                      {member.university && (
-                        <p className="text-[11px] text-text-muted truncate">{member.university}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-text-main truncate">
+                            {member.name || "Teammate"}
+                          </h4>
+                          {member.role === "Leader" && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary-light text-primary-action shrink-0">
+                              Leader
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-text-muted truncate">{member.title || member.role || "Member"}</p>
+                        {member.university && (
+                          <p className="text-[11px] text-text-muted truncate">{member.university}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Leader View: View Profile and Kick/Remove or Leave stacked (flex-col) */}
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <Link
+                        to={member.userId ? `/profile/${member.userId}` : `/profile`}
+                        className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-bold text-primary-action hover:text-white bg-primary-light hover:bg-primary-action border border-primary-border rounded-lg transition-all cursor-pointer w-full text-center"
+                        title={`View ${member.name}'s profile`}
+                      >
+                        <User className="w-3 h-3" />
+                        <span>View Profile</span>
+                      </Link>
+
+                      {isCurrentMember ? (
+                        <button
+                          onClick={handleLeaveTeam}
+                          className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 rounded-lg transition-all cursor-pointer w-full"
+                          title="Leave this squad"
+                        >
+                          <LogOut className="w-3 h-3" />
+                          <span>Leave</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleRemoveMember(member.userId || member.id, member.name)}
+                          className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 rounded-lg transition-all cursor-pointer w-full"
+                          title={`Remove ${member.name} from squad`}
+                        >
+                          <UserMinus className="w-3 h-3" />
+                          <span>Kick/Remove</span>
+                        </button>
                       )}
                     </div>
                   </div>
-
-                  {member.userId !== profile?.id && (
-                    <button
-                      onClick={() => handleRemoveMember(member.userId, member.name)}
-                      className="p-2 text-text-muted hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer shrink-0"
-                      title={`Remove ${member.name} from squad`}
-                    >
-                      <UserMinus className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -598,8 +667,8 @@ export function TeamDetailPage() {
 
               {isRestrictedEvent && (
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 flex items-center gap-2.5 text-xs text-amber-600 font-medium">
-                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-                  <span>This squad belongs to an institution-restricted event ({team.university || "Campus-only"}). Cross-campus applications may be rejected by the server.</span>
+                  <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>This squad belongs to an institution-restricted event ({team.university || "Campus-only"}). Applications are restricted to students of this institution.</span>
                 </div>
               )}
 
@@ -622,12 +691,8 @@ export function TeamDetailPage() {
                     <SkillTag
                       key={req}
                       skill={req}
-                      isMatched={
-                        isSignedIn &&
-                        userVerifiedSkills.some(
-                          (s) => s.trim().toLowerCase() === req.trim().toLowerCase()
-                        )
-                      }
+                      breakdown={recommendation?.requirementBreakdown || (team as any).requirementBreakdown}
+                      userSkills={isSignedIn ? userVerifiedSkills : undefined}
                     />
                   ))}
                 </div>
@@ -666,39 +731,71 @@ export function TeamDetailPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {team.members.map((member) => (
-                  <div
-                    key={member.id}
-                    className="p-3.5 rounded-xl border border-border-main bg-surface-dim flex items-center gap-3 shadow-2xs"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-action to-cross-campus text-white font-bold flex items-center justify-center text-sm shrink-0">
-                      {(member.name || "U")
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .slice(0, 2)
-                        .toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-text-main truncate">
-                          {member.name || "Teammate"}
-                        </h4>
-                        {member.role === "Leader" && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary-light text-primary-action">
-                            Leader
-                          </span>
+                {sortedMembers.map((member) => {
+                  const isCurrentMember = member.userId === profile?.id || member.id === profile?.id;
+                  return (
+                    <div
+                      key={member.id}
+                      className="p-3.5 rounded-xl border border-border-main bg-surface-dim flex items-center justify-between gap-3 shadow-2xs"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-action to-cross-campus text-white font-bold flex items-center justify-center text-sm shrink-0 overflow-hidden">
+                          {member.avatarUrl ? (
+                            <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (member.name || "U")
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .slice(0, 2)
+                              .toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-bold text-text-main truncate">
+                              {member.name || "Teammate"}
+                            </h4>
+                            {member.role === "Leader" && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary-light text-primary-action shrink-0">
+                                Leader
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-text-muted truncate">
+                            {member.title || member.role || "Member"}
+                          </p>
+                          {member.university && (
+                            <p className="text-[11px] text-text-muted truncate">{member.university}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* General / Candidate View Action Buttons */}
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
+                        <Link
+                          to={member.userId ? `/profile/${member.userId}` : `/profile`}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-primary-action hover:text-white bg-primary-light hover:bg-primary-action border border-primary-border rounded-xl transition-all cursor-pointer shrink-0"
+                          title={`View ${member.name}'s profile`}
+                        >
+                          <User className="w-3.5 h-3.5" />
+                          <span>View Profile</span>
+                        </Link>
+
+                        {isCurrentMember && (
+                          <button
+                            onClick={handleLeaveTeam}
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 rounded-xl transition-all cursor-pointer shrink-0"
+                            title="Leave this squad"
+                          >
+                            <LogOut className="w-3.5 h-3.5" />
+                            <span>Leave</span>
+                          </button>
                         )}
                       </div>
-                      <p className="text-xs text-text-muted truncate">
-                        {member.title || member.role || "Member"}
-                      </p>
-                      {member.university && (
-                        <p className="text-[11px] text-text-muted truncate">{member.university}</p>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -722,6 +819,11 @@ export function TeamDetailPage() {
                   <span className="w-full block py-2.5 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-xl border border-border-main">
                     Squad Full • No Open Spots Left
                   </span>
+                ) : isRestrictedEvent ? (
+                  <div className="w-full py-2.5 px-3 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-xl border border-border-main flex items-center justify-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-text-muted" />
+                    <span>Campus Restricted • {team.university || "Campus-only"}</span>
+                  </div>
                 ) : (
                   <SignInButton mode="modal">
                     <button className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer">
@@ -742,9 +844,9 @@ export function TeamDetailPage() {
                   teamLeadName: team.members.find((m) => m.role === "Leader")?.name || team.members[0]?.name || "Team Lead",
                   teamLeadUniversity: team.university,
                   sameUniversity: Boolean(
-                    profile?.university &&
-                    team.university &&
-                    profile.university.toLowerCase() === team.university.toLowerCase()
+                    userUni &&
+                    teamUni &&
+                    userUni.toLowerCase().trim() === teamUni.toLowerCase().trim()
                   ),
                   requirements: team.requirements,
                   userVerifiedSkills: userVerifiedSkills,
@@ -758,7 +860,12 @@ export function TeamDetailPage() {
                 }}
                 isRecommended={Boolean(category && taxonomyScore !== undefined)}
                 isFull={team.members.length >= totalSpots}
-                onApply={() => setIsApplyModalOpen(true)}
+                isRestricted={isRestrictedEvent}
+                onApply={() => {
+                  if (!isRestrictedEvent) {
+                    setIsApplyModalOpen(true);
+                  }
+                }}
                 onWithdraw={handleWithdrawApplication}
                 hasApplied={applied}
               />
@@ -768,7 +875,7 @@ export function TeamDetailPage() {
       )}
 
       {/* Apply Team Modal */}
-      {!isUserLeader && isSignedIn && team.members.length < totalSpots && (
+      {!isUserLeader && !isRestrictedEvent && isSignedIn && team.members.length < totalSpots && (
         <ApplyTeamModal
           isOpen={isApplyModalOpen}
           onClose={() => setIsApplyModalOpen(false)}

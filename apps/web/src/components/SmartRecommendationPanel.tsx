@@ -13,9 +13,10 @@ import {
   Loader2,
   HelpCircle,
   Shield,
+  Lock,
 } from "lucide-react";
 import { CompatibilityScoreRing } from "./CompatibilityScoreRing";
-import { RecommendationTier, RecommendationBadge } from "./Badges";
+import { RecommendationTier, RecommendationBadge, getSkillMatchType } from "./Badges";
 
 export interface RequirementBreakdownItem {
   requirementName: string;
@@ -45,6 +46,7 @@ interface SmartRecommendationPanelProps {
   recommendation: SmartRecommendationData;
   isRecommended?: boolean;
   isFull?: boolean;
+  isRestricted?: boolean;
   onApply?: () => void;
   onMessage?: () => void;
   onWithdraw?: () => void;
@@ -55,6 +57,7 @@ export function SmartRecommendationPanel({
   recommendation,
   isRecommended,
   isFull = false,
+  isRestricted = false,
   onApply,
   onMessage,
   onWithdraw,
@@ -315,26 +318,36 @@ export function SmartRecommendationPanel({
           <div className="space-y-2">
             {(recommendation.requirements || []).length > 0 ? (
               (recommendation.requirements || []).map((req, idx) => {
-                const isMet = userSkills.some(
-                  (s) => s.trim().toLowerCase() === req.trim().toLowerCase()
-                );
+                const matchType = getSkillMatchType(req, userSkills);
                 return (
                   <div
                     key={idx}
-                    className="p-3 rounded-lg border border-border-main bg-surface flex items-center justify-between text-xs shadow-2xs"
+                    className={`p-3 rounded-lg border flex items-center justify-between text-xs shadow-2xs ${
+                      matchType === "perfect"
+                        ? "bg-best-fit-light border-best-fit/50 text-best-fit-dark"
+                        : matchType === "partial"
+                        ? "bg-campus-explorer-light border-campus-explorer/50 text-campus-explorer-dark"
+                        : "bg-surface border-border-main text-text-main"
+                    }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      {isMet ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      {matchType === "perfect" ? (
+                        <CheckCircle2 className="w-4 h-4 text-best-fit-dark shrink-0" />
+                      ) : matchType === "partial" ? (
+                        <Sparkles className="w-4 h-4 text-campus-explorer-dark shrink-0" />
                       ) : (
                         <Clock className="w-4 h-4 text-text-muted shrink-0" />
                       )}
-                      <span className="font-bold text-text-main">{req}</span>
+                      <span className="font-bold">{req}</span>
                     </div>
 
-                    {isMet ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">
-                        Matched in your profile
+                    {matchType === "perfect" ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface/80 text-best-fit-dark border border-best-fit/30">
+                        Exact match in your profile
+                      </span>
+                    ) : matchType === "partial" ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface/80 text-campus-explorer-dark border border-campus-explorer/30">
+                        Partial skill match
                       </span>
                     ) : (
                       <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-surface-dim text-text-muted border border-border-main">
@@ -378,6 +391,11 @@ export function SmartRecommendationPanel({
                 Withdraw Application
               </button>
             )}
+          </div>
+        ) : isRestricted ? (
+          <div className="w-full py-2.5 px-3 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-lg border border-border-main flex items-center justify-center gap-2">
+            <Lock className="w-3.5 h-3.5 text-text-muted shrink-0" />
+            <span>Campus Locked • Applications restricted to {recommendation.teamLeadUniversity || "host university"}</span>
           </div>
         ) : (
           <>

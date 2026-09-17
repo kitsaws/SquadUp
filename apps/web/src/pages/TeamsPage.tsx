@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCw,
+  Lock,
 } from "lucide-react";
 import { useUserContext } from "../contexts/UserContext";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
@@ -232,15 +233,19 @@ export function TeamsPage() {
         eventId: t.eventId,
         eventTitle: t.event?.title || "Collegiate Hackathon",
         university: t.university || t.event?.university || t.event?.location || "External Campus",
+        isGlobal: t.event?.isGlobal ?? (t as any).isGlobal ?? true,
         requirements: t.requirements || [],
+        requirementBreakdown: t.requirementBreakdown,
         neededRequirement: t.requirements?.[0],
         taxonomyScore: t.taxonomyScore,
         category: t.category,
         description: t.description || t.event?.description || "",
-        members: (t.members || []).map((m) => ({
+        members: (t.members || []).map((m: any) => ({
           id: m.id || m.userId,
           name: m.name || "Member",
           role: m.role || "Member",
+          avatarUrl: m.avatarUrl || m.profilePicture,
+          profilePicture: m.profilePicture || m.avatarUrl,
         })),
         maxCapacity: t.maxCapacity || 4,
         isUserLeader: t.isLeader || false,
@@ -308,8 +313,7 @@ export function TeamsPage() {
       setToastMessage("✓ Application submitted! Squad leaders have received your dossier.");
       loadTeams(true);
     } catch (err: any) {
-      setToastMessage(err?.message || "Application submitted.");
-      setAppliedTeamIds((prev) => [...prev, teamId]);
+      setToastMessage(err?.message || "Failed to submit application.");
       setIsApplyModalOpen(false);
     }
     setTimeout(() => setToastMessage(null), 4000);
@@ -324,6 +328,11 @@ export function TeamsPage() {
 
   // Reusable inspection details panel (used inline in Tiles view, and right-column in Cards view)
   const renderInspectionPanel = (team: TeamCardData, isInline = false) => {
+    const isCampusRestricted = Boolean(
+      team.isGlobal === false &&
+      (!myCampus || !team.university || myCampus.toLowerCase().trim() !== team.university.toLowerCase().trim())
+    );
+
     return (
       <div
         key={team.id}
@@ -449,9 +458,8 @@ export function TeamsPage() {
                   <SkillTag
                     key={req}
                     skill={req}
-                    isMatched={userVerifiedSkills.some(
-                      (s) => s.trim().toLowerCase() === req.trim().toLowerCase()
-                    )}
+                    breakdown={team.requirementBreakdown}
+                    userSkills={userVerifiedSkills}
                   />
                 ))}
               </div>
@@ -527,6 +535,7 @@ export function TeamsPage() {
               </span>
               <Link
                 to={`/team/${team.id}`}
+                state={{ from: "teams" }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
               >
                 <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
@@ -535,6 +544,7 @@ export function TeamsPage() {
           ) : team.isUserLeader ? (
             <Link
               to={`/team/${team.id}`}
+              state={{ from: "teams" }}
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
             >
               <Crown className="w-4 h-4" /> Manage Applications & Roster →
@@ -543,6 +553,24 @@ export function TeamsPage() {
             <div className="w-full text-center py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold">
               ⏳ Application submitted • Pending leader review
             </div>
+          ) : isCampusRestricted ? (
+            <>
+              <div
+                className="flex-1 py-2.5 px-3 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-xl border border-border-main flex items-center justify-center gap-1.5"
+                title={`This squad belongs to an institution-restricted event (${team.university || "Campus-only"}). Cross-campus applications are restricted.`}
+              >
+                <Lock className="w-3.5 h-3.5 text-text-muted" />
+                <span>Campus Locked • Restricted Event</span>
+              </div>
+
+              <Link
+                to={`/team/${team.id}`}
+                state={{ from: "teams" }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
+              </Link>
+            </>
           ) : !isSignedIn ? (
             <>
               <SignInButton mode="modal">
@@ -553,6 +581,7 @@ export function TeamsPage() {
 
               <Link
                 to={`/team/${team.id}`}
+                state={{ from: "teams" }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
               >
                 <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
@@ -573,6 +602,7 @@ export function TeamsPage() {
 
               <Link
                 to={`/team/${team.id}`}
+                state={{ from: "teams" }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-main font-semibold text-xs transition-colors cursor-pointer"
               >
                 <ExternalLink className="w-3.5 h-3.5" /> Full Dossier ↗
@@ -952,27 +982,37 @@ export function TeamsPage() {
                 inspectedTeam ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
               }`}
             >
-              {teams.map((team) => (
-                <div key={team.id} id={`team-card-${team.id}`} className="h-full scroll-mt-24">
-                  <TeamCard
-                    team={team}
-                    isSelected={inspectedTeam?.id === team.id}
-                    hasApplied={appliedTeamIds.includes(team.id)}
-                    onInspect={() => handleInspectToggle(team)}
-                    onApply={() => {
-                      handleInspectToggle(team);
-                      if (!team.isUserLeader) {
-                        setIsApplyModalOpen(true);
-                      }
-                    }}
-                  />
-                </div>
-              ))}
+              {teams.map((team) => {
+                const isRestricted = Boolean(
+                  team.isGlobal === false &&
+                  (!myCampus || !team.university || myCampus.toLowerCase().trim() !== team.university.toLowerCase().trim())
+                );
+                return (
+                  <div key={team.id} id={`team-card-${team.id}`} className="h-full scroll-mt-24">
+                    <TeamCard
+                      team={team}
+                      isSelected={inspectedTeam?.id === team.id}
+                      hasApplied={appliedTeamIds.includes(team.id)}
+                      onInspect={() => handleInspectToggle(team)}
+                      onApply={() => {
+                        handleInspectToggle(team);
+                        if (!team.isUserLeader && !isRestricted) {
+                          setIsApplyModalOpen(true);
+                        }
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="flex flex-col space-y-3 w-full">
               {teams.map((team) => {
                 const isSelected = inspectedTeam?.id === team.id;
+                const isRestricted = Boolean(
+                  team.isGlobal === false &&
+                  (!myCampus || !team.university || myCampus.toLowerCase().trim() !== team.university.toLowerCase().trim())
+                );
                 return (
                   <div key={team.id} id={`team-tile-${team.id}`} className="w-full scroll-mt-24">
                     <TeamTile
@@ -982,7 +1022,7 @@ export function TeamsPage() {
                       onInspect={() => handleInspectToggle(team)}
                       onApply={() => {
                         handleInspectToggle(team);
-                        if (!team.isUserLeader) {
+                        if (!team.isUserLeader && !isRestricted) {
                           setIsApplyModalOpen(true);
                         }
                       }}

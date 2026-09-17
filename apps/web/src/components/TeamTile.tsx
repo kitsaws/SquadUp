@@ -19,10 +19,15 @@ export function TeamTile({
   onApply,
   hasApplied = false,
 }: TeamTileProps) {
-  const { isSignedIn, userVerifiedSkills } = useUserContext();
+  const { isSignedIn, userVerifiedSkills, userUniversity } = useUserContext();
   const maxCapacity = team.maxCapacity || 4;
   const currentCount = team.members.length;
   const isFull = currentCount >= maxCapacity;
+
+  const isCampusRestricted = Boolean(
+    team.isGlobal === false &&
+    (!userUniversity || !team.university || userUniversity.toLowerCase().trim() !== team.university.toLowerCase().trim())
+  );
 
   // Accent colors based on recommendation tier
   let accentBorder = "border-border-main";
@@ -87,19 +92,19 @@ export function TeamTile({
         </div>
       </div>
 
-      {/* Skills & Needed Role Preview */}
       <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0 py-1 lg:py-0">
-        {team.neededRequirement && (
-          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20 shadow-2xs shrink-0">
-            <Sparkles className="w-2.5 h-2.5 text-amber-500" />
-            <span>Seeking: {team.neededRequirement}</span>
-          </div>
-        )}
+        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20 shadow-2xs shrink-0">
+          <span>Requirements:</span>
+        </div>
 
-        {team.requirements.slice(0, 3).map((req, idx) => {
-          const isMatched = userVerifiedSkills.includes(req.toLowerCase().trim());
-          return <SkillTag key={idx} skill={req} isMatched={isMatched} />;
-        })}
+        {team.requirements.slice(0, 3).map((req, idx) => (
+          <SkillTag
+            key={idx}
+            skill={req}
+            breakdown={team.requirementBreakdown}
+            userSkills={isSignedIn ? userVerifiedSkills : undefined}
+          />
+        ))}
 
         {team.requirements.length > 3 && (
           <span className="text-[10px] text-text-muted font-semibold">
@@ -130,34 +135,43 @@ export function TeamTile({
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
           {onApply && !team.isUserLeader && !team.isUserMember && (
-            <button
-              type="button"
-              disabled={isFull || hasApplied}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!isFull && !hasApplied) {
-                  onApply(team);
-                }
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1 ${
-                hasApplied
-                  ? "bg-surface-dim text-emerald-600 border border-emerald-500/30"
-                  : isFull
-                  ? "bg-surface-dim text-text-muted cursor-not-allowed opacity-50"
-                  : "bg-primary-action text-white hover:bg-primary-hover"
-              }`}
-            >
-              {hasApplied ? (
-                <>
-                  <Check className="w-3 h-3 text-emerald-500" />
-                  <span>Applied</span>
-                </>
-              ) : isFull ? (
-                <span>Full</span>
-              ) : (
-                <span>Apply</span>
-              )}
-            </button>
+            isCampusRestricted ? (
+              <span
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-surface-dim text-text-muted border border-border-main"
+                title="This squad belongs to an institution-restricted event for another university."
+              >
+                Campus Locked
+              </span>
+            ) : (
+              <button
+                type="button"
+                disabled={isFull || hasApplied}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!isFull && !hasApplied) {
+                    onApply(team);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1 ${
+                  hasApplied
+                    ? "bg-surface-dim text-emerald-600 border border-emerald-500/30"
+                    : isFull
+                    ? "bg-surface-dim text-text-muted cursor-not-allowed opacity-50"
+                    : "bg-primary-action text-white hover:bg-primary-hover"
+                }`}
+              >
+                {hasApplied ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-500" />
+                    <span>Applied</span>
+                  </>
+                ) : isFull ? (
+                  <span>Full</span>
+                ) : (
+                  <span>Apply</span>
+                )}
+              </button>
+            )
           )}
 
           <button
