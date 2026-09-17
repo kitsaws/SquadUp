@@ -153,11 +153,26 @@ model Team {
   invites        TeamInvite[]
   applications   TeamApplication[]
   requirements   String[]          // e.g., ["React Developer", "UI Designer"]
+  roles          TeamRole[]
   university     String?
   taxonomy       TeamTaxonomy?
 
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
+}
+
+model TeamRole {
+  id           String      @id @default(cuid())
+  teamId       String
+  team         Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  title        String      // e.g. "Frontend Developer", "AI / ML Specialist"
+  skills       String[]    // e.g. ["NextJS", "Tailwindcss", "TypeScript"]
+  spots        Int         @default(1)
+  assignedToId String?     // User ID of member who filled this role (if filled)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([teamId])
 }
 
 model TeamTaxonomy {
@@ -166,6 +181,7 @@ model TeamTaxonomy {
   team               Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   requirementNodeIds String[] @default([])
   rawRequirements    String[] @default([])
+  roleTaxonomies     Json?    // Array of { roleId, roleTitle, requirementNodeIds, rawSkills }
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

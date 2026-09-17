@@ -84,6 +84,45 @@ export class TaxonomyService {
   }
 
   /**
+   * Resolves structured team roles to canonical requirement node IDs per role
+   * and aggregates all unique canonical requirement node IDs for the team.
+   */
+  static resolveTeamRoles(
+    rolesOrTeamId:
+      | string
+      | Array<{ id?: string; title: string; skills: string[]; spots?: number; assignedToId?: string | null }>,
+    maybeRoles?: Array<{ id?: string; title: string; skills: string[]; spots?: number; assignedToId?: string | null }>
+  ): {
+    requirementNodeIds: string[];
+    roleTaxonomies: Array<{
+      roleId?: string;
+      roleTitle: string;
+      requirementNodeIds: string[];
+      rawSkills: string[];
+    }>;
+  } {
+    const roles = Array.isArray(rolesOrTeamId) ? rolesOrTeamId : (maybeRoles || []);
+    const allNodeIds = new Set<string>();
+    const roleTaxonomies = (roles || []).map((role) => {
+      const resolved = taxonomyResolver.resolveList(role.skills || [], role.title);
+      const nodeIds = resolved.filter((r) => r.resolved && r.node_id).map((r) => r.node_id as string);
+      for (const nid of nodeIds) allNodeIds.add(nid);
+
+      return {
+        roleId: role.id,
+        roleTitle: role.title,
+        requirementNodeIds: nodeIds,
+        rawSkills: role.skills || [],
+      };
+    });
+
+    return {
+      requirementNodeIds: Array.from(allNodeIds),
+      roleTaxonomies,
+    };
+  }
+
+  /**
    * Computes V2 pure taxonomy recommendations for a user given candidate teams.
    */
   static getRecommendations(payload: {

@@ -207,9 +207,32 @@ async function main() {
     });
   } else {
     // Preserve existing profile, ensure university matches TIET
-    await prisma.profile.update({
+    const updatedProfile = await prisma.profile.update({
       where: { userId: presenterUser.id },
       data: { university: tietOrg.name },
+    });
+
+    // Re-resolve and update presenter user's taxonomy with the calibrated taxonomy tree
+    const taxRes = TaxonomyService.resolveUserTaxonomy(presenterUser.id, {
+      skills: updatedProfile.skills,
+      projects: (updatedProfile.projects as any) || [],
+      experience: (updatedProfile.experience as any) || [],
+      achievements: (updatedProfile.achievements as any) || [],
+    });
+
+    await prisma.userTaxonomy.upsert({
+      where: { userId: presenterUser.id },
+      update: {
+        taxonomyNodeIds: taxRes.taxonomy_node_ids,
+        rawSkills: taxRes.raw_skills,
+        evidence: taxRes.evidence as any,
+      },
+      create: {
+        userId: presenterUser.id,
+        taxonomyNodeIds: taxRes.taxonomy_node_ids,
+        rawSkills: taxRes.raw_skills,
+        evidence: taxRes.evidence as any,
+      },
     });
   }
 
@@ -976,6 +999,7 @@ async function main() {
   await prisma.teamApplication.deleteMany({});
   await prisma.teamInvite.deleteMany({});
   await prisma.teamMember.deleteMany({});
+  await prisma.teamRole.deleteMany({});
   await prisma.teamTaxonomy.deleteMany({});
   await prisma.team.deleteMany({});
   await prisma.event.deleteMany({});
@@ -993,43 +1017,188 @@ async function main() {
   // =========================================================================
   // 6. 65+ TEAMS WITH SYSTEM-GENERATED TAXONOMIES (via TaxonomyService)
   // =========================================================================
-  console.log("\n⚔️ Creating 65+ Teams with System-Generated Requirements & Taxonomies...");
+  console.log("\n⚔️ Creating 65+ Teams with Structured Roles & System-Generated Taxonomies...");
 
-  // Curated list of realistic team templates with diverse skill requirements
+  // Curated list of realistic team templates with diverse structured roles
   const teamTemplates = [
     // Fullstack & Web
-    { name: "CodeCrafters", reqs: ["React", "FastAPI", "UI/UX Design"] },
-    { name: "Nexus Web Guild", reqs: ["Next.js", "Node.js", "PostgreSQL"] },
-    { name: "PixelPioneers", reqs: ["React", "TypeScript", "Tailwind CSS"] },
-    { name: "FullStack Titans", reqs: ["Vue", "FastAPI", "MongoDB"] },
-    { name: "API Architects", reqs: ["Node.js", "Express", "PostgreSQL", "Docker"] },
-    { name: "UI Vanguard", reqs: ["Frontend Development", "UI/UX Design", "React"] },
+    {
+      name: "CodeCrafters",
+      roles: [
+        { title: "Frontend Developer", skills: ["React", "TypeScript", "Tailwind CSS"], spots: 1 },
+        { title: "Backend Developer", skills: ["FastAPI", "Python", "PostgreSQL"], spots: 1 },
+        { title: "UI/UX Designer", skills: ["UI/UX Design", "Frontend Development"], spots: 1 },
+      ],
+    },
+    {
+      name: "Nexus Web Guild",
+      roles: [
+        { title: "Full Stack Engineer", skills: ["Next.js", "React", "TypeScript"], spots: 1 },
+        { title: "Backend Specialist", skills: ["Node.js", "Express", "PostgreSQL"], spots: 1 },
+      ],
+    },
+    {
+      name: "PixelPioneers",
+      roles: [
+        { title: "Frontend Lead", skills: ["React", "TypeScript", "Tailwind CSS"], spots: 1 },
+        { title: "Design Technologist", skills: ["UI/UX Design", "CSS", "React"], spots: 1 },
+      ],
+    },
+    {
+      name: "FullStack Titans",
+      roles: [
+        { title: "Frontend Developer", skills: ["Vue", "TypeScript"], spots: 1 },
+        { title: "Backend Engineer", skills: ["FastAPI", "Python", "MongoDB"], spots: 1 },
+      ],
+    },
+    {
+      name: "API Architects",
+      roles: [
+        { title: "API Engineer", skills: ["Node.js", "Express", "PostgreSQL"], spots: 1 },
+        { title: "DevOps Engineer", skills: ["Docker", "Linux", "Cloud Computing"], spots: 1 },
+      ],
+    },
+    {
+      name: "UI Vanguard",
+      roles: [
+        { title: "UI Architect", skills: ["Frontend Development", "React", "CSS"], spots: 1 },
+        { title: "Product Designer", skills: ["UI/UX Design", "Figma"], spots: 1 },
+      ],
+    },
 
     // AI & Machine Learning
-    { name: "NeuralSync AI", reqs: ["PyTorch", "Python", "FastAPI"] },
-    { name: "DeepVision Squad", reqs: ["Computer Vision", "Python", "PyTorch"] },
-    { name: "PromptEngineers", reqs: ["Generative AI", "Python", "React"] },
-    { name: "NLP Navigators", reqs: ["Natural Language Processing", "Python", "PyTorch"] },
-    { name: "AgentForge", reqs: ["Python", "FastAPI", "Docker", "Machine Learning"] },
-    { name: "TensorTribe", reqs: ["TensorFlow", "Deep Learning", "Python"] },
+    {
+      name: "NeuralSync AI",
+      roles: [
+        { title: "AI/ML Engineer", skills: ["PyTorch", "Python", "Deep Learning"], spots: 1 },
+        { title: "Backend & ML Pipeline", skills: ["FastAPI", "Python", "Docker"], spots: 1 },
+      ],
+    },
+    {
+      name: "DeepVision Squad",
+      roles: [
+        { title: "Vision Researcher", skills: ["Computer Vision", "PyTorch", "Python"], spots: 1 },
+        { title: "Deployment Engineer", skills: ["C++", "Python", "Docker"], spots: 1 },
+      ],
+    },
+    {
+      name: "PromptEngineers",
+      roles: [
+        { title: "GenAI Specialist", skills: ["Generative AI", "Python", "Natural Language Processing"], spots: 1 },
+        { title: "Full Stack AI UI", skills: ["React", "TypeScript", "FastAPI"], spots: 1 },
+      ],
+    },
+    {
+      name: "NLP Navigators",
+      roles: [
+        { title: "NLP Engineer", skills: ["Natural Language Processing", "Python", "PyTorch"], spots: 1 },
+        { title: "Data Pipeline Lead", skills: ["Python", "PostgreSQL", "Docker"], spots: 1 },
+      ],
+    },
+    {
+      name: "AgentForge",
+      roles: [
+        { title: "Agentic Systems Architect", skills: ["Python", "Generative AI", "Machine Learning"], spots: 1 },
+        { title: "Backend Engineer", skills: ["FastAPI", "Docker", "Redis"], spots: 1 },
+      ],
+    },
+    {
+      name: "TensorTribe",
+      roles: [
+        { title: "Deep Learning Engineer", skills: ["TensorFlow", "Python", "Deep Learning"], spots: 1 },
+        { title: "MLOps Lead", skills: ["Docker", "Python", "Cloud Computing"], spots: 1 },
+      ],
+    },
 
     // Cloud, DevOps & Distributed Systems
-    { name: "CloudSurfers", reqs: ["Docker", "Kubernetes", "AWS"] },
-    { name: "ByteForce Systems", reqs: ["Rust", "Distributed Systems", "Docker"] },
-    { name: "Kubernetes Knights", reqs: ["DevOps", "Kubernetes", "Go"] },
-    { name: "GopherSquad", reqs: ["Go", "PostgreSQL", "Docker"] },
-    { name: "ScaleMasters", reqs: ["Backend Development", "PostgreSQL", "Redis"] },
+    {
+      name: "CloudSurfers",
+      roles: [
+        { title: "Cloud Architect", skills: ["Docker", "Kubernetes", "AWS"], spots: 1 },
+        { title: "DevOps Engineer", skills: ["Linux", "DevOps", "Docker"], spots: 1 },
+      ],
+    },
+    {
+      name: "ByteForce Systems",
+      roles: [
+        { title: "Systems Engineer", skills: ["Rust", "C++", "Linux"], spots: 1 },
+        { title: "Distributed Systems Lead", skills: ["Distributed Systems", "Go", "Docker"], spots: 1 },
+      ],
+    },
+    {
+      name: "Kubernetes Knights",
+      roles: [
+        { title: "Kubernetes Engineer", skills: ["Kubernetes", "Docker", "Go"], spots: 1 },
+        { title: "Infrastructure SRE", skills: ["DevOps", "Linux", "Cloud Computing"], spots: 1 },
+      ],
+    },
+    {
+      name: "GopherSquad",
+      roles: [
+        { title: "Go Microservices Lead", skills: ["Go", "PostgreSQL", "Docker"], spots: 1 },
+        { title: "Distributed Storage Engineer", skills: ["Go", "Redis", "Linux"], spots: 1 },
+      ],
+    },
+    {
+      name: "ScaleMasters",
+      roles: [
+        { title: "Backend Scalability Engineer", skills: ["Backend Development", "PostgreSQL", "Redis"], spots: 1 },
+        { title: "Database Architect", skills: ["PostgreSQL", "Distributed Systems", "Docker"], spots: 1 },
+      ],
+    },
 
     // Mobile Development
-    { name: "FlutterFlow", reqs: ["Flutter", "Dart", "Firebase"] },
-    { name: "AppVenturers", reqs: ["React Native", "TypeScript", "Node.js"] },
-    { name: "NativePulse", reqs: ["Android", "Kotlin", "FastAPI"] },
+    {
+      name: "FlutterFlow",
+      roles: [
+        { title: "Flutter Developer", skills: ["Flutter", "Dart", "Firebase"], spots: 1 },
+        { title: "Mobile UI Designer", skills: ["UI/UX Design", "Flutter"], spots: 1 },
+      ],
+    },
+    {
+      name: "AppVenturers",
+      roles: [
+        { title: "React Native Lead", skills: ["React Native", "TypeScript", "React"], spots: 1 },
+        { title: "Backend API Engineer", skills: ["Node.js", "Express", "PostgreSQL"], spots: 1 },
+      ],
+    },
+    {
+      name: "NativePulse",
+      roles: [
+        { title: "Android Specialist", skills: ["Android", "Kotlin"], spots: 1 },
+        { title: "Backend Developer", skills: ["FastAPI", "Python", "Docker"], spots: 1 },
+      ],
+    },
 
     // Security & Web3
-    { name: "CyberWardens", reqs: ["Cybersecurity", "Network Security", "Linux"] },
-    { name: "ZeroDay Hunters", reqs: ["Cybersecurity", "Python", "Linux"] },
-    { name: "BlockBuilders", reqs: ["Blockchain", "Solidity", "Rust"] },
-    { name: "DecentralSquad", reqs: ["Blockchain", "TypeScript", "React"] },
+    {
+      name: "CyberWardens",
+      roles: [
+        { title: "Security Analyst", skills: ["Cybersecurity", "Network Security", "Linux"], spots: 1 },
+        { title: "Reverse Engineer", skills: ["C++", "Cybersecurity", "Linux"], spots: 1 },
+      ],
+    },
+    {
+      name: "ZeroDay Hunters",
+      roles: [
+        { title: "Vulnerability Researcher", skills: ["Cybersecurity", "Python", "Linux"], spots: 1 },
+        { title: "SecOps Engineer", skills: ["Network Security", "Docker", "Linux"], spots: 1 },
+      ],
+    },
+    {
+      name: "BlockBuilders",
+      roles: [
+        { title: "Smart Contract Engineer", skills: ["Blockchain", "Solidity", "Ethereum"], spots: 1 },
+        { title: "Rust Protocol Developer", skills: ["Rust", "Blockchain", "Distributed Systems"], spots: 1 },
+      ],
+    },
+    {
+      name: "DecentralSquad",
+      roles: [
+        { title: "dApp Frontend Lead", skills: ["Blockchain", "React", "TypeScript"], spots: 1 },
+        { title: "Web3 Integration Engineer", skills: ["Solidity", "Node.js", "TypeScript"], spots: 1 },
+      ],
+    },
   ];
 
   let totalTeamsCreated = 0;
@@ -1062,19 +1231,32 @@ async function main() {
         ? `${template.name} [${currentEvent.title.split(" ")[0]}]`
         : `${template.name} #${t + 1}`;
 
+      const allReqs = [...new Set(template.roles.flatMap((r) => r.skills))];
+
+      // System-calculated role taxonomies and aggregated requirements
+      const resolvedRoleTax = TaxonomyService.resolveTeamRoles(template.roles);
+
       const team = await prisma.team.create({
         data: {
           name: teamName,
           eventId: currentEvent.id,
           orgId: currentEvent.orgId || null,
           organizationId: currentEvent.organizationId || null,
-          requirements: template.reqs,
+          requirements: allReqs,
           university: teamUni,
           members: {
             create: {
               userId: leader.id,
               role: "Leader",
             },
+          },
+          roles: {
+            create: template.roles.map((r, idx) => ({
+              title: r.title,
+              skills: r.skills,
+              spots: r.spots ?? 1,
+              assignedToId: idx === 0 ? leader.id : null,
+            })),
           },
         },
       });
@@ -1093,14 +1275,13 @@ async function main() {
         }
       }
 
-      // CRITICAL: Let our designed TaxonomyService generate the canonical requirement nodes deterministically!
-      const resolvedTax = TaxonomyService.resolveTeamRequirements(team.id, template.reqs);
-
+      // Save system-calculated TeamTaxonomy
       await prisma.teamTaxonomy.create({
         data: {
           teamId: team.id,
-          requirementNodeIds: resolvedTax.requirement_node_ids,
-          rawRequirements: resolvedTax.raw_requirements,
+          requirementNodeIds: resolvedRoleTax.requirementNodeIds,
+          rawRequirements: allReqs,
+          roleTaxonomies: resolvedRoleTax.roleTaxonomies as any,
         },
       });
 
@@ -1122,12 +1303,32 @@ async function main() {
 
   // 1. Assign Swastik as Leader of Makeathon Flagship Team ("NeuralSync AI Agents")
   if (presenterLeadTeam) {
+    const presenterRoles = [
+      { title: "AI Systems Lead", skills: ["Python", "PyTorch", "Generative AI"], spots: 1 },
+      { title: "Backend API Specialist", skills: ["FastAPI", "Docker", "PostgreSQL", "Node.js"], spots: 1 },
+      { title: "Frontend AI Interface", skills: ["React", "TypeScript", "Tailwind CSS"], spots: 1 },
+    ];
+    const presenterReqs = [...new Set(presenterRoles.flatMap((r) => r.skills))];
+    const resolvedPresenterTax = TaxonomyService.resolveTeamRoles(presenterRoles);
+
+    // Re-create presenter team roles
+    await prisma.teamRole.deleteMany({ where: { teamId: presenterLeadTeam.id } });
+    await prisma.teamRole.createMany({
+      data: presenterRoles.map((r, idx) => ({
+        teamId: presenterLeadTeam.id,
+        title: r.title,
+        skills: r.skills,
+        spots: r.spots ?? 1,
+        assignedToId: idx === 0 ? presenterUser.id : null,
+      })),
+    });
+
     // Update team name & set Swastik as Leader
     await prisma.team.update({
       where: { id: presenterLeadTeam.id },
       data: {
         name: "NeuralSync AI Agents",
-        requirements: ["React", "FastAPI", "Python", "Docker"],
+        requirements: presenterReqs,
       },
     });
 
@@ -1141,18 +1342,19 @@ async function main() {
       },
     });
 
-    // Re-resolve taxonomy via TaxonomyService
-    const resolvedReqs = TaxonomyService.resolveTeamRequirements(presenterLeadTeam.id, ["React", "FastAPI", "Python", "Docker"]);
+    // Save system-resolved taxonomy for presenter team
     await prisma.teamTaxonomy.upsert({
       where: { teamId: presenterLeadTeam.id },
       update: {
-        requirementNodeIds: resolvedReqs.requirement_node_ids,
-        rawRequirements: resolvedReqs.raw_requirements,
+        requirementNodeIds: resolvedPresenterTax.requirementNodeIds,
+        rawRequirements: presenterReqs,
+        roleTaxonomies: resolvedPresenterTax.roleTaxonomies as any,
       },
       create: {
         teamId: presenterLeadTeam.id,
-        requirementNodeIds: resolvedReqs.requirement_node_ids,
-        rawRequirements: resolvedReqs.raw_requirements,
+        requirementNodeIds: resolvedPresenterTax.requirementNodeIds,
+        rawRequirements: presenterReqs,
+        roleTaxonomies: resolvedPresenterTax.roleTaxonomies as any,
       },
     });
 
@@ -1175,7 +1377,7 @@ async function main() {
       },
     });
 
-    console.log(`   ✅ Presenter Leader Team: "NeuralSync AI Agents" (with 2 pending candidate applications)`);
+    console.log(`   ✅ Presenter Leader Team: "NeuralSync AI Agents" (with 3 structured roles & 2 pending candidate applications)`);
   }
 
   // 2. Add Swastik as an Accepted Member in a 2nd team

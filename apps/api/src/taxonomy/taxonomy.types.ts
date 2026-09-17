@@ -70,6 +70,22 @@ export interface RequirementMatch {
   structural_features?: StructuralFeatures | null;
 }
 
+export interface RoleTaxonomyInput {
+  role_id?: string;
+  role_title: string;
+  requirement_node_ids: string[];
+  raw_skills: string[];
+}
+
+export interface BestMatchingRoleResult {
+  role_id?: string;
+  role_title: string;
+  score: number;
+  fulfilled_count: number;
+  total_count: number;
+  skills: string[];
+}
+
 export interface CandidateTeamInput {
   team_id: string;
   team_name: string;
@@ -77,6 +93,7 @@ export interface CandidateTeamInput {
   description?: string | null;
   requirements: string[];
   requirement_node_ids: string[];
+  roles?: RoleTaxonomyInput[];
   is_global: boolean;
   is_eligible: boolean;
 }
@@ -84,7 +101,15 @@ export interface CandidateTeamInput {
 export interface RequirementExplanationItem {
   requirement_node_id: string;
   requirement_name: string;
+  requirement_depth?: number;
+  best_user_skill_id?: string | null;
   best_user_skill_name: string | null;
+  best_user_skill_depth?: number;
+  lca_node_id?: string | null;
+  lca_node_name?: string | null;
+  lca_depth?: number;
+  graph_distance?: number;
+  match_type?: "exact" | "ancestor" | "descendant" | "sibling" | "subdomain" | "domain" | "unmet";
   score: number;
   explanation_text: string;
   is_strong: boolean;
@@ -105,4 +130,5 @@ export interface RankedTeamRecommendation {
   fulfilled_requirements_count: number;
   total_requirements_count: number;
   requirement_breakdown: RequirementExplanationItem[];
+  best_matching_role?: BestMatchingRoleResult | null;
 }

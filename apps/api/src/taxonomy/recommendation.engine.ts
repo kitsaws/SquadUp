@@ -21,6 +21,14 @@ interface ScoredTeam {
   team: CandidateTeamInput;
   isEligible: boolean;
   reqMatches: Array<[string, number, string | null, StructuralFeatures | null]>;
+  bestMatchingRole?: {
+    role_id?: string;
+    role_title: string;
+    score: number;
+    fulfilled_count: number;
+    total_count: number;
+    skills: string[];
+  } | null;
 }
 
 export class V2RecommendationEngine {
@@ -87,6 +95,65 @@ export class V2RecommendationEngine {
       // Hard eligibility: A candidate is eligible if event is global OR if candidate belongs to the same university
       const isEligible = Boolean(team.is_global || (userUniClean && sameUni));
 
+      const hasStructuredRoles = Boolean(team.roles && team.roles.length > 0);
+
+      if (hasStructuredRoles && team.roles && team.roles.length > 0) {
+        // Evaluate fit per role
+        let bestRole: (typeof team.roles)[0] | null = null;
+        let bestRoleScore = -1;
+        let bestRoleStrongCnt = 0;
+        let bestRoleReqMatches: Array<[string, number, string | null, StructuralFeatures | null]> = [];
+
+        for (const role of team.roles) {
+          const roleReqIds = role.requirement_node_ids || [];
+          if (roleReqIds.length === 0) continue;
+
+          let roleScoreSum = 0.0;
+          let roleStrong = 0;
+          const matches: Array<[string, number, string | null, StructuralFeatures | null]> = [];
+
+          for (const rId of roleReqIds) {
+            const item = userVector[rId];
+            const scoreVal = item ? item.score : 0.0;
+            const bestSkill = item ? item.bestSkill : null;
+            const bestFeats = item ? item.bestFeats : null;
+
+            if (scoreVal >= strongThreshold) roleStrong += 1;
+            roleScoreSum += scoreVal;
+            matches.push([rId, scoreVal, bestSkill, bestFeats]);
+          }
+
+          const avgRoleScore = Number((roleScoreSum / roleReqIds.length).toFixed(4));
+          if (avgRoleScore > bestRoleScore) {
+            bestRoleScore = avgRoleScore;
+            bestRole = role;
+            bestRoleStrongCnt = roleStrong;
+            bestRoleReqMatches = matches;
+          }
+        }
+
+        if (bestRole && bestRoleScore >= 0) {
+          scoredTeams.push({
+            taxScore: bestRoleScore,
+            strongCnt: bestRoleStrongCnt,
+            totalReqs: bestRole.requirement_node_ids.length,
+            team,
+            isEligible,
+            reqMatches: bestRoleReqMatches,
+            bestMatchingRole: {
+              role_id: bestRole.role_id,
+              role_title: bestRole.role_title,
+              score: bestRoleScore,
+              fulfilled_count: bestRoleStrongCnt,
+              total_count: bestRole.requirement_node_ids.length,
+              skills: bestRole.raw_skills || [],
+            },
+          });
+          continue;
+        }
+      }
+
+      // Fallback to unified requirements
       const reqIds = team.requirement_node_ids || [];
       if (reqIds.length === 0) {
         scoredTeams.push({
@@ -96,6 +163,7 @@ export class V2RecommendationEngine {
           team,
           isEligible,
           reqMatches: [],
+          bestMatchingRole: null,
         });
         continue;
       }
@@ -126,6 +194,7 @@ export class V2RecommendationEngine {
         team,
         isEligible,
         reqMatches,
+        bestMatchingRole: null,
       });
     }
 
@@ -154,7 +223,7 @@ export class V2RecommendationEngine {
 
     for (let i = 0; i < topCandidates.length; i++) {
       const rank = i + 1;
-      const { taxScore, strongCnt, totalReqs, team, isEligible, reqMatches } = topCandidates[i];
+      const { taxScore, strongCnt, totalReqs, team, isEligible, reqMatches, bestMatchingRole } = topCandidates[i];
 
       const tUniClean = team.university ? team.university.trim().toLowerCase() : null;
       const sameUni = Boolean(userUniClean && tUniClean && userUniClean === tUniClean);
@@ -176,11 +245,28 @@ export class V2RecommendationEngine {
       for (const [rId, sVal, bestSkill, feats] of reqMatches) {
         const rNode = this.graph.getNode(rId);
         const rName = rNode?.canonical_name || rId;
+        const rDepth = rNode ? rNode.depth : (feats?.requirement_depth ?? 0);
 
         let uName: string | null = null;
+        let uDepth: number | undefined = undefined;
         if (bestSkill) {
           const uNode = this.graph.getNode(bestSkill);
           uName = uNode?.canonical_name || bestSkill;
+          uDepth = uNode ? uNode.depth : (feats?.user_depth ?? 0);
+        }
+
+        const lcaNode = feats?.lca ? this.graph.getNode(feats.lca) : null;
+        const lcaName = lcaNode?.canonical_name || feats?.lca || (feats?.exact_match ? rName : null);
+        const lcaDepth = lcaNode ? lcaNode.depth : (feats?.lca_depth ?? 0);
+
+        let matchType: "exact" | "ancestor" | "descendant" | "sibling" | "subdomain" | "domain" | "unmet" = "unmet";
+        if (feats && sVal > 0) {
+          if (feats.exact_match) matchType = "exact";
+          else if (feats.user_is_ancestor) matchType = "ancestor";
+          else if (feats.user_is_descendant) matchType = "descendant";
+          else if (feats.same_parent) matchType = "sibling";
+          else if (feats.lca_depth >= 2) matchType = "subdomain";
+          else if (feats.lca_depth === 1) matchType = "domain";
         }
 
         const expl = formatExplanation(this.graph, rId, bestSkill, sVal, feats);
@@ -188,7 +274,15 @@ export class V2RecommendationEngine {
         breakdown.push({
           requirement_node_id: rId,
           requirement_name: rName,
+          requirement_depth: rDepth,
+          best_user_skill_id: bestSkill,
           best_user_skill_name: uName,
+          best_user_skill_depth: uDepth,
+          lca_node_id: feats?.lca || (feats?.exact_match ? rId : null),
+          lca_node_name: lcaName,
+          lca_depth: lcaDepth,
+          graph_distance: feats?.graph_distance,
+          match_type: matchType,
           score: sVal,
           explanation_text: expl,
           is_strong: sVal >= strongThreshold,
@@ -210,6 +304,7 @@ export class V2RecommendationEngine {
         fulfilled_requirements_count: strongCnt,
         total_requirements_count: totalReqs,
         requirement_breakdown: breakdown,
+        best_matching_role: bestMatchingRole || null,
       });
     }
 

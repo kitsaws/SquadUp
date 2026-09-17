@@ -5,6 +5,7 @@ export class TaxonomyResolver {
   public caseSensitiveLookup: Record<string, string> = {};
   public canonicalLookup: Record<string, string> = {};
   public aliasLookup: Record<string, string> = {};
+  public aliasMultiLookup: Record<string, string[]> = {};
   public phraseLookup: Array<[string, string, number]> = []; // [normalized_phrase, node_id, length]
   public unresolvedLog: Array<{ raw_input: string; normalized: string; context: string }> = [];
 
@@ -19,6 +20,17 @@ export class TaxonomyResolver {
     s = s.replace(/[^\w\s\+#]/g, " ");
     s = s.replace(/\s+/g, " ").trim();
     return s;
+  }
+
+  private _addMultiAlias(term: string, nodeId: string): void {
+    const norm = this.normalize(term);
+    if (!norm) return;
+    if (!this.aliasMultiLookup[norm]) {
+      this.aliasMultiLookup[norm] = [];
+    }
+    if (!this.aliasMultiLookup[norm].includes(nodeId)) {
+      this.aliasMultiLookup[norm].push(nodeId);
+    }
   }
 
   private _buildIndexes(): void {
@@ -40,6 +52,9 @@ export class TaxonomyResolver {
       this.canonicalLookup[nid] = nid;
       this.canonicalLookup[node.id.toLowerCase()] = nid;
 
+      this._addMultiAlias(node.canonical_name, nid);
+      this._addMultiAlias(nid, nid);
+
       for (const alias of node.aliases || []) {
         const normAlias = this.normalize(alias);
         if (normAlias) {
@@ -50,6 +65,7 @@ export class TaxonomyResolver {
           } else {
             this.aliasLookup[normAlias] = nid;
           }
+          this._addMultiAlias(alias, nid);
         }
       }
     }
@@ -74,6 +90,69 @@ export class TaxonomyResolver {
     }
   }
 
+  /**
+   * Resolves a raw input string to one or more canonical node IDs.
+   * Disambiguates based on role/entity context when provided.
+   */
+  public resolveAll(rawInput: string, entityContext?: string): string[] {
+    if (!rawInput || !rawInput.trim()) return [];
+
+    const stripped = rawInput.trim();
+    const norm = this.normalize(rawInput);
+    const ctx = (entityContext || "").toLowerCase();
+
+    // 1. Direct Multi-Alias match
+    let candidateNodeIds: string[] = [];
+    if (this.aliasMultiLookup[norm] && this.aliasMultiLookup[norm].length > 0) {
+      candidateNodeIds = [...this.aliasMultiLookup[norm]];
+    } else if (this.canonicalLookup[norm]) {
+      candidateNodeIds = [this.canonicalLookup[norm]];
+    } else if (this.caseSensitiveLookup[stripped]) {
+      candidateNodeIds = [this.caseSensitiveLookup[stripped]];
+    } else {
+      // Word boundary match
+      const wordsInInput = ` ${norm} `;
+      for (const [phrase, nid] of this.phraseLookup) {
+        if (wordsInInput.includes(` ${phrase} `)) {
+          candidateNodeIds.push(nid);
+          break;
+        }
+      }
+    }
+
+    if (candidateNodeIds.length === 0) {
+      return [];
+    }
+
+    // If no context or only 1 node, return all candidates
+    if (!ctx || candidateNodeIds.length === 1) {
+      return candidateNodeIds;
+    }
+
+    // Role-contextual filtering
+    if (ctx.includes("front") || ctx.includes("ui") || ctx.includes("web") || ctx.includes("client")) {
+      const frontendMatches = candidateNodeIds.filter((nid) => nid.startsWith("frontend_") || nid === "react" || nid === "vue" || nid === "angular" || nid === "nextjs" || nid === "tailwindcss" || nid === "html" || nid === "css");
+      if (frontendMatches.length > 0) return frontendMatches;
+    }
+
+    if (ctx.includes("back") || ctx.includes("server") || ctx.includes("api") || ctx.includes("database")) {
+      const backendMatches = candidateNodeIds.filter((nid) => nid.startsWith("backend_") || nid === "nodejs" || nid === "fastapi" || nid === "express" || nid === "django" || nid === "postgresql");
+      if (backendMatches.length > 0) return backendMatches;
+    }
+
+    if (ctx.includes("ai") || ctx.includes("ml") || ctx.includes("machine learning") || ctx.includes("data science") || ctx.includes("deep learning") || ctx.includes("nlp") || ctx.includes("vision")) {
+      const aiMatches = candidateNodeIds.filter((nid) => nid.startsWith("ai_") || nid.startsWith("data_") || nid === "pytorch" || nid === "tensorflow" || nid === "scikit_learn");
+      if (aiMatches.length > 0) return aiMatches;
+    }
+
+    if (ctx.includes("system") || ctx.includes("embedded") || ctx.includes("low level") || ctx.includes("os") || ctx.includes("kernel")) {
+      const sysMatches = candidateNodeIds.filter((nid) => nid === "cpp" || nid === "c" || nid === "rust" || nid === "embedded_systems" || nid === "operating_systems");
+      if (sysMatches.length > 0) return sysMatches;
+    }
+
+    return candidateNodeIds;
+  }
+
   public resolve(rawInput: string, entityContext?: string): ResolutionResult {
     if (!rawInput || !rawInput.trim()) {
       return {
@@ -84,65 +163,20 @@ export class TaxonomyResolver {
       };
     }
 
-    const stripped = rawInput.trim();
-
-    // 0. Exact case-sensitive match
-    if (this.caseSensitiveLookup[stripped]) {
-      const nid = this.caseSensitiveLookup[stripped];
+    const resolvedIds = this.resolveAll(rawInput, entityContext);
+    if (resolvedIds.length > 0) {
+      const primaryId = resolvedIds[0];
       return {
         raw_input: rawInput,
         resolved: true,
-        node_id: nid,
-        canonical_name: this.tree.nodes[nid]?.canonical_name || nid,
+        node_id: primaryId,
+        canonical_name: this.tree.nodes[primaryId]?.canonical_name || primaryId,
         confidence: 1.0,
-        match_strategy: "exact_canonical",
+        match_strategy: "contextual_match",
       };
     }
 
     const norm = this.normalize(rawInput);
-
-    // 1. Exact canonical match
-    if (this.canonicalLookup[norm]) {
-      const nid = this.canonicalLookup[norm];
-      return {
-        raw_input: rawInput,
-        resolved: true,
-        node_id: nid,
-        canonical_name: this.tree.nodes[nid]?.canonical_name || nid,
-        confidence: 1.0,
-        match_strategy: "exact_canonical",
-      };
-    }
-
-    // 2. Exact alias match
-    if (this.aliasLookup[norm]) {
-      const nid = this.aliasLookup[norm];
-      return {
-        raw_input: rawInput,
-        resolved: true,
-        node_id: nid,
-        canonical_name: this.tree.nodes[nid]?.canonical_name || nid,
-        confidence: 0.98,
-        match_strategy: "exact_alias",
-      };
-    }
-
-    // 3. Word boundary / Substring phrase match
-    const wordsInInput = ` ${norm} `;
-    for (const [phrase, nid] of this.phraseLookup) {
-      if (wordsInInput.includes(` ${phrase} `)) {
-        return {
-          raw_input: rawInput,
-          resolved: true,
-          node_id: nid,
-          canonical_name: this.tree.nodes[nid]?.canonical_name || nid,
-          confidence: 0.90,
-          match_strategy: "phrase_match",
-        };
-      }
-    }
-
-    // 4. Unresolved
     this.unresolvedLog.push({
       raw_input: rawInput,
       normalized: norm,
@@ -162,14 +196,28 @@ export class TaxonomyResolver {
     const seenNodes = new Set<string>();
 
     for (const term of rawTerms) {
-      const res = this.resolve(term, entityContext);
-      if (res.resolved && res.node_id) {
-        if (!seenNodes.has(res.node_id)) {
-          seenNodes.add(res.node_id);
-          results.push(res);
+      const nodeIds = this.resolveAll(term, entityContext);
+      if (nodeIds.length > 0) {
+        for (const nid of nodeIds) {
+          if (!seenNodes.has(nid)) {
+            seenNodes.add(nid);
+            results.push({
+              raw_input: term,
+              resolved: true,
+              node_id: nid,
+              canonical_name: this.tree.nodes[nid]?.canonical_name || nid,
+              confidence: 1.0,
+              match_strategy: "contextual_multi_match",
+            });
+          }
         }
       } else {
-        results.push(res);
+        results.push({
+          raw_input: term,
+          resolved: false,
+          confidence: 0.0,
+          match_strategy: "unresolved",
+        });
       }
     }
 

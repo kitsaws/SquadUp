@@ -1,7 +1,7 @@
 {
   "metadata": {
     "root": "computer_science",
-    "total_nodes": 143,
+    "total_nodes": 151,
     "max_depth": 5,
     "description": "SquadUp 2.0 Technical Knowledge Hierarchy (Single-Parent Rooted Tree)"
   },
@@ -735,30 +735,33 @@
     "javascript": {
       "id": "javascript",
       "canonical_name": "JavaScript",
-      "type": "programming_language",
-      "parent_id": "programming_languages",
+      "type": "technology",
+      "parent_id": "web_development",
       "depth": 3,
       "aliases": [
+        "javascript",
         "js"
       ]
     },
     "typescript": {
       "id": "typescript",
       "canonical_name": "TypeScript",
-      "type": "programming_language",
-      "parent_id": "programming_languages",
+      "type": "technology",
+      "parent_id": "web_development",
       "depth": 3,
       "aliases": [
+        "typescript",
         "ts"
       ]
     },
     "python": {
       "id": "python",
       "canonical_name": "Python",
-      "type": "programming_language",
-      "parent_id": "programming_languages",
-      "depth": 3,
+      "type": "technology",
+      "parent_id": "software_development",
+      "depth": 2,
       "aliases": [
+        "python",
         "py",
         "python3"
       ]
@@ -766,10 +769,11 @@
     "java": {
       "id": "java",
       "canonical_name": "Java",
-      "type": "programming_language",
-      "parent_id": "programming_languages",
-      "depth": 3,
+      "type": "technology",
+      "parent_id": "backend_development",
+      "depth": 4,
       "aliases": [
+        "java",
         "java 17",
         "java 21",
         "java se"
@@ -778,45 +782,50 @@
     "golang": {
       "id": "golang",
       "canonical_name": "Go",
-      "type": "programming_language",
-      "parent_id": "programming_languages",
-      "depth": 3,
+      "type": "technology",
+      "parent_id": "backend_development",
+      "depth": 4,
       "aliases": [
         "golang",
+        "go",
         "go language"
       ]
     },
     "rust": {
       "id": "rust",
       "canonical_name": "Rust",
-      "type": "programming_language",
-      "parent_id": "programming_languages",
+      "type": "technology",
+      "parent_id": "systems_programming",
       "depth": 3,
       "aliases": [
+        "rust",
         "rustlang"
       ]
     },
     "cpp": {
       "id": "cpp",
       "canonical_name": "C++",
-      "type": "programming_language",
-      "parent_id": "programming_languages",
+      "type": "technology",
+      "parent_id": "systems_programming",
       "depth": 3,
       "aliases": [
         "cpp",
+        "c++",
         "c plus plus"
       ]
     },
     "csharp": {
       "id": "csharp",
       "canonical_name": "C#",
-      "type": "programming_language",
-      "parent_id": "programming_languages",
-      "depth": 3,
+      "type": "technology",
+      "parent_id": "backend_development",
+      "depth": 4,
       "aliases": [
+        "c#",
         "csharp",
         "c sharp",
-        ".net"
+        ".net",
+        "dotnet"
       ]
     },
     "llms": {
@@ -1576,6 +1585,109 @@
         "user interviews",
         "usability testing",
         "ux research"
+      ]
+    },
+    "frontend_javascript": {
+      "id": "frontend_javascript",
+      "canonical_name": "JavaScript (Frontend)",
+      "type": "technology",
+      "parent_id": "frontend_development",
+      "depth": 4,
+      "aliases": [
+        "javascript",
+        "js",
+        "vanilla js",
+        "es6",
+        "frontend javascript"
+      ]
+    },
+    "frontend_typescript": {
+      "id": "frontend_typescript",
+      "canonical_name": "TypeScript (Frontend)",
+      "type": "technology",
+      "parent_id": "frontend_development",
+      "depth": 4,
+      "aliases": [
+        "typescript",
+        "ts",
+        "frontend typescript"
+      ]
+    },
+    "backend_javascript": {
+      "id": "backend_javascript",
+      "canonical_name": "JavaScript (Backend/Node)",
+      "type": "technology",
+      "parent_id": "backend_development",
+      "depth": 4,
+      "aliases": [
+        "javascript",
+        "js",
+        "node.js",
+        "nodejs",
+        "backend javascript"
+      ]
+    },
+    "backend_typescript": {
+      "id": "backend_typescript",
+      "canonical_name": "TypeScript (Backend)",
+      "type": "technology",
+      "parent_id": "backend_development",
+      "depth": 4,
+      "aliases": [
+        "typescript",
+        "ts",
+        "backend typescript",
+        "ts node"
+      ]
+    },
+    "backend_python": {
+      "id": "backend_python",
+      "canonical_name": "Python (Backend)",
+      "type": "technology",
+      "parent_id": "backend_development",
+      "depth": 4,
+      "aliases": [
+        "python",
+        "py",
+        "python3",
+        "backend python"
+      ]
+    },
+    "ai_python": {
+      "id": "ai_python",
+      "canonical_name": "Python (AI/ML)",
+      "type": "technology",
+      "parent_id": "ai_machine_learning",
+      "depth": 2,
+      "aliases": [
+        "python",
+        "py",
+        "python3",
+        "ai python"
+      ]
+    },
+    "data_python": {
+      "id": "data_python",
+      "canonical_name": "Python (Data Processing)",
+      "type": "technology",
+      "parent_id": "data_processing",
+      "depth": 3,
+      "aliases": [
+        "python",
+        "py",
+        "python3",
+        "data science python"
+      ]
+    },
+    "c": {
+      "id": "c",
+      "canonical_name": "C",
+      "type": "technology",
+      "parent_id": "systems_programming",
+      "depth": 3,
+      "aliases": [
+        "c",
+        "c language"
       ]
     }
   }

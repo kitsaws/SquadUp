@@ -50,9 +50,16 @@ export class V2MultiSourceExtractor {
 
     // 1. Process explicit skills
     for (const rawS of rawSkills) {
-      const res = this.resolver.resolve(rawS, "skills");
-      if (res.resolved && res.node_id) {
-        addEvidence(res.node_id, "skills", rawS, SKILL_BASE_STRENGTH);
+      const nodeIds = this.resolver.resolveAll(rawS, "skills");
+      if (nodeIds.length > 0) {
+        for (const nid of nodeIds) {
+          addEvidence(nid, "skills", rawS, SKILL_BASE_STRENGTH);
+        }
+      } else {
+        const res = this.resolver.resolve(rawS, "skills");
+        if (res.resolved && res.node_id) {
+          addEvidence(res.node_id, "skills", rawS, SKILL_BASE_STRENGTH);
+        }
       }
     }
 
@@ -64,9 +71,16 @@ export class V2MultiSourceExtractor {
       const projTechs = Array.isArray(proj.technologies) ? proj.technologies : [];
       for (const t of projTechs) {
         if (typeof t === "string") {
-          const res = this.resolver.resolve(t, `project:${pName}`);
-          if (res.resolved && res.node_id) {
-            addEvidence(res.node_id, "projects", `${pName}: ${t}`, PROJECT_BASE_STRENGTH);
+          const nodeIds = this.resolver.resolveAll(t, `project:${pName}`);
+          if (nodeIds.length > 0) {
+            for (const nid of nodeIds) {
+              addEvidence(nid, "projects", `${pName}: ${t}`, PROJECT_BASE_STRENGTH);
+            }
+          } else {
+            const res = this.resolver.resolve(t, `project:${pName}`);
+            if (res.resolved && res.node_id) {
+              addEvidence(res.node_id, "projects", `${pName}: ${t}`, PROJECT_BASE_STRENGTH);
+            }
           }
         }
       }
@@ -107,9 +121,16 @@ export class V2MultiSourceExtractor {
       const expTechs = Array.isArray(item.technologies) ? item.technologies : [];
       for (const t of expTechs) {
         if (typeof t === "string") {
-          const res = this.resolver.resolve(t, contextLabel);
-          if (res.resolved && res.node_id) {
-            addEvidence(res.node_id, "experience", `${contextLabel}: ${t}`, EXPERIENCE_BASE_STRENGTH);
+          const nodeIds = this.resolver.resolveAll(t, contextLabel);
+          if (nodeIds.length > 0) {
+            for (const nid of nodeIds) {
+              addEvidence(nid, "experience", `${contextLabel}: ${t}`, EXPERIENCE_BASE_STRENGTH);
+            }
+          } else {
+            const res = this.resolver.resolve(t, contextLabel);
+            if (res.resolved && res.node_id) {
+              addEvidence(res.node_id, "experience", `${contextLabel}: ${t}`, EXPERIENCE_BASE_STRENGTH);
+            }
           }
         }
       }

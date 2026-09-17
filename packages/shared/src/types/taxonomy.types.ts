@@ -1,3 +1,5 @@
+import type { BestMatchingRoleDTO, TeamRoleDTO } from "./team.types.js";
+
 export interface TaxonomyEvidenceItem {
   nodeId: string;
   source: "skills" | "projects" | "experience";
@@ -20,6 +22,12 @@ export interface TeamTaxonomyDTO {
   teamId: string;
   requirementNodeIds: string[];
   rawRequirements: string[];
+  roleTaxonomies?: Array<{
+    roleId?: string;
+    roleTitle: string;
+    requirementNodeIds: string[];
+    rawSkills: string[];
+  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -60,4 +68,5 @@ export interface TeamRecommendationDTO {
   fulfilledRequirementsCount: number;
   totalRequirementsCount: number;
   requirementBreakdown: RequirementExplanationDTO[];
+  bestMatchingRole?: BestMatchingRoleDTO | null;
 }

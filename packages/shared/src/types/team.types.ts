@@ -1,6 +1,27 @@
+export interface TeamRoleDTO {
+  id?: string;
+  teamId?: string;
+  title: string;
+  skills: string[];
+  spots?: number;
+  assignedToId?: string | null;
+  requirementNodeIds?: string[];
+}
+
+export interface BestMatchingRoleDTO {
+  roleId?: string;
+  roleTitle: string;
+  score: number;
+  fulfilledCount: number;
+  totalCount: number;
+  skills: string[];
+}
+
 export interface CreateTeamRequest {
   eventId: string;
   name: string;
+  description?: string;
+  roles?: TeamRoleDTO[];
   requirements?: string[];
   invites?: string[]; // Array of emails
   orgId?: string;
@@ -8,6 +29,8 @@ export interface CreateTeamRequest {
 
 export interface UpdateTeamRequest {
   name?: string;
+  description?: string;
+  roles?: TeamRoleDTO[];
   requirements?: string[];
   university?: string;
 }
@@ -64,6 +87,7 @@ export interface SendTeamInvitesRequest {
 export interface TeamDetailResponse {
   id: string;
   name: string;
+  description?: string;
   eventId: string;
   event?: {
     id: string;
@@ -76,6 +100,8 @@ export interface TeamDetailResponse {
   orgId?: string | null;
   requirements: string[];
   requirementNodeIds?: string[];
+  roles?: TeamRoleDTO[];
+  bestMatchingRole?: BestMatchingRoleDTO | null;
   university?: string | null;
   members: TeamMemberDTO[];
   invites?: TeamInviteResponse[];

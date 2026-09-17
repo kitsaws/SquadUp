@@ -131,6 +131,7 @@ export const listTeams = async (req: Request, res: Response) => {
             },
           },
           taxonomy: true,
+          roles: true,
           members: {
             include: {
               user: {
@@ -160,6 +161,13 @@ export const listTeams = async (req: Request, res: Response) => {
         description: team.event?.description || null,
         requirements: team.requirements || [],
         requirement_node_ids: team.taxonomy?.requirementNodeIds || [],
+        roles: team.roles ? team.roles.map((r) => ({
+          id: r.id,
+          title: r.title,
+          skills: r.skills,
+          spots: r.spots,
+          assignedToId: r.assignedToId,
+        })) : undefined,
         is_global: team.event?.isGlobal ?? false,
         is_eligible: true,
       }));
@@ -201,6 +209,16 @@ export const listTeams = async (req: Request, res: Response) => {
           requirements: team.requirements,
           requirementNodeIds: team.taxonomy?.requirementNodeIds || [],
           university: team.university,
+          roles: team.roles ? team.roles.map((r) => ({
+            id: r.id,
+            teamId: r.teamId,
+            title: r.title,
+            skills: r.skills,
+            spots: r.spots,
+            assignedToId: r.assignedToId,
+            createdAt: r.createdAt.toISOString(),
+            updatedAt: r.updatedAt.toISOString(),
+          })) : undefined,
           members: team.members.map((m) => ({
             id: m.id,
             userId: m.userId,
@@ -217,6 +235,7 @@ export const listTeams = async (req: Request, res: Response) => {
           isMember,
           taxonomyScore: rec ? rec.taxonomyScore : undefined,
           category: rec ? rec.recommendationCategory : undefined,
+          bestMatchingRole: rec ? rec.bestMatchingRole : undefined,
           requirementBreakdown: rec ? rec.requirementBreakdown : undefined,
           neededRequirement: team.requirements?.[0],
           createdAt: team.createdAt.toISOString(),
@@ -319,6 +338,7 @@ export const listTeams = async (req: Request, res: Response) => {
             },
           },
           taxonomy: true,
+          roles: true,
           members: {
             include: {
               user: {
@@ -363,6 +383,16 @@ export const listTeams = async (req: Request, res: Response) => {
         requirements: team.requirements,
         requirementNodeIds: team.taxonomy?.requirementNodeIds || [],
         university: team.university,
+        roles: team.roles ? team.roles.map((r) => ({
+          id: r.id,
+          teamId: r.teamId,
+          title: r.title,
+          skills: r.skills,
+          spots: r.spots,
+          assignedToId: r.assignedToId,
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+        })) : undefined,
         members: team.members.map((m) => ({
           id: m.id,
           userId: m.userId,
@@ -442,6 +472,7 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
           },
         },
         taxonomy: true,
+        roles: true,
         members: {
           include: {
             user: {
@@ -500,6 +531,7 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
     let taxonomyScore: number | undefined;
     let category: any = undefined;
     let requirementBreakdown: any = undefined;
+    let bestMatchingRole: any = undefined;
 
     if (callerDbId) {
       try {
@@ -532,6 +564,13 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
                 university: team.university,
                 requirements: team.requirements,
                 requirement_node_ids: reqNodeIds,
+                roles: team.roles ? team.roles.map((r) => ({
+                  id: r.id,
+                  title: r.title,
+                  skills: r.skills,
+                  spots: r.spots,
+                  assignedToId: r.assignedToId,
+                })) : undefined,
                 is_global: Boolean(team.event?.isGlobal),
                 is_eligible: Boolean(team.event?.isGlobal || (callerUniversity && team.university && callerUniversity.toLowerCase() === team.university.toLowerCase())),
               },
@@ -543,6 +582,7 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
             taxonomyScore = recs[0].taxonomyScore;
             category = recs[0].recommendationCategory;
             requirementBreakdown = recs[0].requirementBreakdown;
+            bestMatchingRole = recs[0].bestMatchingRole;
           }
         }
       } catch (err) {
@@ -568,6 +608,16 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
       requirements: team.requirements,
       requirementNodeIds: team.taxonomy?.requirementNodeIds || [],
       university: team.university,
+      roles: team.roles ? team.roles.map((r) => ({
+        id: r.id,
+        teamId: r.teamId,
+        title: r.title,
+        skills: r.skills,
+        spots: r.spots,
+        assignedToId: r.assignedToId,
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      })) : undefined,
       members: team.members.map((m) => ({
         id: m.id,
         userId: m.userId,
@@ -615,6 +665,7 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
       hasApplied,
       taxonomyScore,
       category,
+      bestMatchingRole,
       requirementBreakdown,
       neededRequirement: team.requirements?.[0],
       createdAt: team.createdAt.toISOString(),
@@ -637,7 +688,7 @@ export const createTeam = async (req: Request<{}, {}, CreateTeamRequest>, res: R
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { eventId, name, requirements, invites } = req.body;
+  const { eventId, name, requirements, roles, invites } = req.body;
 
   if (!eventId || !name) {
     return res.status(400).json({ error: "eventId and name are required." });
@@ -652,8 +703,18 @@ export const createTeam = async (req: Request<{}, {}, CreateTeamRequest>, res: R
 
   // Pre-resolve requirement tags into canonical taxonomy node IDs
   let requirementNodeIds: string[] = [];
+  let roleTaxonomies: any = null;
+  let allRequirements = requirements || [];
+
   try {
-    if (requirements && requirements.length > 0) {
+    if (roles && roles.length > 0) {
+      const resolved = AIService.resolveTeamRoles(roles);
+      roleTaxonomies = resolved.roleTaxonomies;
+      requirementNodeIds = resolved.requirementNodeIds;
+      if (!requirements || requirements.length === 0) {
+        allRequirements = [...new Set(roles.flatMap((r) => r.skills || []))];
+      }
+    } else if (requirements && requirements.length > 0) {
       const taxRes = await AIService.resolveTeamRequirements("new_team", requirements);
       requirementNodeIds = taxRes.requirement_node_ids;
     }
@@ -667,16 +728,29 @@ export const createTeam = async (req: Request<{}, {}, CreateTeamRequest>, res: R
         data: {
           name,
           eventId,
-          requirements: requirements || [],
+          requirements: allRequirements,
           orgId: orgId || null,
         },
       });
+
+      if (roles && roles.length > 0) {
+        await tx.teamRole.createMany({
+          data: roles.map((r) => ({
+            teamId: newTeam.id,
+            title: r.title,
+            skills: r.skills || [],
+            spots: r.spots ?? 1,
+            assignedToId: r.assignedToId || null,
+          })),
+        });
+      }
 
       await tx.teamTaxonomy.create({
         data: {
           teamId: newTeam.id,
           requirementNodeIds,
-          rawRequirements: requirements || [],
+          rawRequirements: allRequirements,
+          roleTaxonomies: roleTaxonomies ?? Prisma.JsonNull,
         },
       });
 
@@ -728,7 +802,7 @@ export const updateTeam = async (
   }
 
   const { id } = req.params;
-  const { name, requirements, university } = req.body;
+  const { name, requirements, university, roles } = req.body;
 
   let userInDb;
   try {
@@ -754,37 +828,71 @@ export const updateTeam = async (
       return res.status(403).json({ error: "Forbidden. Only the team leader can update team details." });
     }
 
-    // Re-resolve taxonomy if requirements changed
+    // Re-resolve taxonomy if requirements or roles changed
     let requirementNodeIds: string[] | undefined;
-    if (requirements !== undefined) {
+    let roleTaxonomies: any = undefined;
+    let finalRequirements = requirements;
+
+    if (roles !== undefined && roles.length > 0) {
+      const resolved = AIService.resolveTeamRoles(roles);
+      roleTaxonomies = resolved.roleTaxonomies;
+      requirementNodeIds = resolved.requirementNodeIds;
+      if (finalRequirements === undefined) {
+        finalRequirements = [...new Set(roles.flatMap((r) => r.skills || []))];
+      }
+    } else if (requirements !== undefined) {
       try {
         const taxRes = await AIService.resolveTeamRequirements(id, requirements);
         requirementNodeIds = taxRes.requirement_node_ids;
-
-        await prisma.teamTaxonomy.upsert({
-          where: { teamId: id },
-          update: {
-            requirementNodeIds,
-            rawRequirements: requirements,
-          },
-          create: {
-            teamId: id,
-            requirementNodeIds,
-            rawRequirements: requirements,
-          },
-        });
-        console.log(`[Team API] Synced TeamTaxonomy for team ${id} with ${requirementNodeIds.length} nodes`);
       } catch (taxErr) {
         console.warn("[Team API] Failed to re-resolve team requirement taxonomy:", taxErr);
       }
+    }
+
+    if (requirementNodeIds !== undefined) {
+      await prisma.teamTaxonomy.upsert({
+        where: { teamId: id },
+        update: {
+          requirementNodeIds,
+          rawRequirements: finalRequirements || existingTeam.requirements,
+          ...(roleTaxonomies !== undefined && { roleTaxonomies: roleTaxonomies ?? Prisma.JsonNull }),
+        },
+        create: {
+          teamId: id,
+          requirementNodeIds,
+          rawRequirements: finalRequirements || existingTeam.requirements,
+          roleTaxonomies: roleTaxonomies ?? Prisma.JsonNull,
+        },
+      });
+    }
+
+    // Update Team Roles if provided
+    if (roles !== undefined) {
+      await prisma.$transaction(async (tx) => {
+        await tx.teamRole.deleteMany({ where: { teamId: id } });
+        if (roles.length > 0) {
+          await tx.teamRole.createMany({
+            data: roles.map((r) => ({
+              teamId: id,
+              title: r.title,
+              skills: r.skills || [],
+              spots: r.spots ?? 1,
+              assignedToId: r.assignedToId || null,
+            })),
+          });
+        }
+      });
     }
 
     const updatedTeam = await prisma.team.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
-        ...(requirements !== undefined && { requirements }),
+        ...(finalRequirements !== undefined && { requirements: finalRequirements }),
         ...(university !== undefined && { university }),
+      },
+      include: {
+        roles: true,
       },
     });
 
@@ -799,6 +907,16 @@ export const updateTeam = async (
         name: updatedTeam.name,
         requirements: updatedTeam.requirements,
         university: updatedTeam.university,
+        roles: updatedTeam.roles.map((r) => ({
+          id: r.id,
+          teamId: r.teamId,
+          title: r.title,
+          skills: r.skills,
+          spots: r.spots,
+          assignedToId: r.assignedToId,
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+        })),
         requirementNodeIds,
         updatedAt: updatedTeam.updatedAt.toISOString(),
       },
@@ -1986,6 +2104,7 @@ export const getRecommendations = async (
       include: {
         event: true,
         taxonomy: true,
+        roles: true,
       },
     });
 
@@ -2022,6 +2141,13 @@ export const getRecommendations = async (
       description: team.event?.description || null,
       requirements: team.requirements || [],
       requirement_node_ids: team.taxonomy?.requirementNodeIds || [],
+      roles: team.roles ? team.roles.map((r) => ({
+        id: r.id,
+        title: r.title,
+        skills: r.skills,
+        spots: r.spots,
+        assignedToId: r.assignedToId,
+      })) : undefined,
       is_global: team.event?.isGlobal ?? false,
       is_eligible: true,
     }));
