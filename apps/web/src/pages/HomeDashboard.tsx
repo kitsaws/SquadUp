@@ -36,20 +36,65 @@ export function HomeDashboard() {
     async function loadDashboardData() {
       setIsLoading(true);
       try {
-        // 1. Fetch Events (public)
-        const eventsRes = await eventsApi.getEvents({ limit: 3, sort: "date_asc" }).catch(() => null);
-        if (isMounted && eventsRes?.data) {
-          const mappedEvents: EventCardData[] = eventsRes.data.map((evt: EventItem) => {
+        // 1. Fetch Events (cached SWR)
+        const popularEvents = await eventsApi.getPopularEvents({
+          onBackgroundUpdate: (fresh) => {
+            if (isMounted) {
+              setUpcomingEvents(
+                fresh.slice(0, 3).map((evt: EventItem) => {
+                  const eventDate = new Date(evt.date);
+                  const daysRemaining = Math.max(
+                    0,
+                    Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  );
+                  const orgName =
+                    evt.organization?.name ||
+                    evt.organizerProfile?.name ||
+                    (evt.location && evt.location !== "Virtual / Global" ? evt.location : null) ||
+                    "Campus Organizer";
+                  return {
+                    id: evt.id,
+                    title: evt.title,
+                    organizerName: orgName,
+                    organization: evt.organization?.name || evt.organizerProfile?.name || undefined,
+                    organizerLogo: evt.organization?.logoUrl || evt.organizerProfile?.logoUrl || undefined,
+                    dateStr: eventDate.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }),
+                    location: evt.location,
+                    isGlobal: evt.isGlobal,
+                    daysRemaining,
+                    description: evt.description,
+                    tracks: evt.tracks || [],
+                    teamsCount: evt.teamsCount || 0,
+                    participantsCount: evt.participantsCount || (evt.teamsCount ? evt.teamsCount * 3 : 0),
+                  };
+                })
+              );
+            }
+          },
+        }).catch(() => []);
+
+        if (isMounted && popularEvents.length > 0) {
+          const mappedEvents: EventCardData[] = popularEvents.slice(0, 3).map((evt: EventItem) => {
             const eventDate = new Date(evt.date);
             const daysRemaining = Math.max(
               0,
               Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
             );
+            const orgName =
+              evt.organization?.name ||
+              evt.organizerProfile?.name ||
+              (evt.location && evt.location !== "Virtual / Global" ? evt.location : null) ||
+              "Campus Organizer";
             return {
               id: evt.id,
               title: evt.title,
-              organizerName:
-                evt.organizerProfile?.name || evt.organizer?.name || "Campus Organizer",
+              organizerName: orgName,
+              organization: evt.organization?.name || evt.organizerProfile?.name || undefined,
+              organizerLogo: evt.organization?.logoUrl || evt.organizerProfile?.logoUrl || undefined,
               dateStr: eventDate.toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",

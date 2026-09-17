@@ -19,6 +19,7 @@ import { EventCard, EventCardData } from "../components/EventCard";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
 import { CategoryLegend } from "../components/CategoryLegend";
 import { ScopeBadge } from "../components/Badges";
+import { useUserContext } from "../contexts/UserContext";
 import {
   eventsApi,
   recommendationsApi,
@@ -52,11 +53,18 @@ function calculateDaysRemaining(dateStr: string): number {
 }
 
 function mapEventToCardData(item: EventItem): EventCardData {
+  const orgName =
+    item.organization?.name ||
+    item.organizerProfile?.name ||
+    (item.location && item.location !== "Virtual / Global" ? item.location : null) ||
+    "Official Host";
+
   return {
     id: item.id,
     title: item.title,
-    organizerName: item.organizerProfile?.name || item.organizer?.name || "Official Host",
-    organizerLogo: item.organizerProfile?.logoUrl || undefined,
+    organizerName: orgName,
+    organization: item.organization?.name || item.organizerProfile?.name || undefined,
+    organizerLogo: item.organization?.logoUrl || item.organizerProfile?.logoUrl || undefined,
     dateStr: formatEventDate(item.date),
     location: item.location,
     isGlobal: item.isGlobal,
@@ -70,6 +78,9 @@ function mapEventToCardData(item: EventItem): EventCardData {
 
 export function EventsPage() {
   const navigate = useNavigate();
+  const { isSignedIn, userUniversity, profile: userProfile } = useUserContext();
+  const myCampus = userUniversity || userProfile?.university || null;
+
   const [events, setEvents] = useState<EventCardData[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EventCardData | null>(null);
   const [eventTeams, setEventTeams] = useState<TeamCardData[]>([]);
@@ -78,7 +89,7 @@ export function EventsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [scopeFilter, setScopeFilter] = useState<"all" | "global" | "org">("all");
+  const [scopeFilter, setScopeFilter] = useState<"all" | "campus" | "global">("all");
   const [searchInput, setSearchInput] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
 
@@ -95,7 +106,7 @@ export function EventsPage() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch paginated events from backend API
+  // Fetch paginated events from backend API - ALWAYS sorted by popularity
   useEffect(() => {
     let isMounted = true;
     async function fetchEvents() {
@@ -107,8 +118,9 @@ export function EventsPage() {
           page: currentPage,
           limit: 9,
           search: debouncedSearch || undefined,
-          scope: scopeFilter,
-          sort: "date_asc",
+          scope: scopeFilter === "campus" ? (myCampus ? "all" : "org") : scopeFilter,
+          campus: scopeFilter === "campus" && myCampus ? myCampus : undefined,
+          sort: "popularity",
         });
 
         if (!isMounted) return;
@@ -128,7 +140,7 @@ export function EventsPage() {
     return () => {
       isMounted = false;
     };
-  }, [currentPage, debouncedSearch, scopeFilter]);
+  }, [currentPage, debouncedSearch, scopeFilter, myCampus]);
 
   // When an event is selected, fetch participating teams from API
   useEffect(() => {
@@ -379,7 +391,7 @@ export function EventsPage() {
             </div>
 
             {/* Scope Tabs */}
-            <div className="flex items-center gap-1.5 p-1 rounded-lg bg-surface-dim border border-border-main text-xs font-medium">
+            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-lg bg-surface-dim border border-border-main text-xs font-medium">
               <button
                 onClick={() => {
                   setScopeFilter("all");
@@ -391,7 +403,30 @@ export function EventsPage() {
                     : "text-text-muted hover:text-text-main"
                 }`}
               >
-                All Events ({totalEvents})
+                All Events
+              </button>
+
+              <button
+                onClick={() => {
+                  setScopeFilter("campus");
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  scopeFilter === "campus"
+                    ? "bg-surface text-primary-action shadow-2xs font-bold border border-border-main"
+                    : "text-text-muted hover:text-text-main"
+                }`}
+              >
+                {myCampus ? (
+                  <>
+                    <span className="text-[10px] font-extrabold uppercase bg-primary-light text-primary-action px-1.5 py-0.5 rounded">
+                      My Campus
+                    </span>
+                    <span className="truncate max-w-[150px]">{myCampus}</span>
+                  </>
+                ) : (
+                  <span>Campus Only</span>
+                )}
               </button>
 
               <button
@@ -406,20 +441,6 @@ export function EventsPage() {
                 }`}
               >
                 Global
-              </button>
-
-              <button
-                onClick={() => {
-                  setScopeFilter("org");
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
-                  scopeFilter === "org"
-                    ? "bg-surface text-text-main shadow-2xs font-bold border border-border-main"
-                    : "text-text-muted hover:text-text-main"
-                }`}
-              >
-                Campus Only
               </button>
             </div>
           </div>

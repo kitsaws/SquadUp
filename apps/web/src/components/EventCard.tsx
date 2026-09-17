@@ -5,6 +5,7 @@ export interface EventCardData {
   id: string;
   title: string;
   organizerName: string;
+  organization?: string;
   organizerLogo?: string;
   dateStr: string;
   location: string;
@@ -23,11 +24,6 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, onSelect, isSelected = false }: EventCardProps) {
-  // Determine campus affiliation scope
-  const isStanford =
-    event.location.toLowerCase().includes("stanford") ||
-    event.organizerName.toLowerCase().includes("stanford");
-
   const renderScopeBadge = () => {
     if (event.isGlobal) {
       return (
@@ -38,19 +34,10 @@ export function EventCard({ event, onSelect, isSelected = false }: EventCardProp
       );
     }
 
-    if (isStanford) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-600 border border-purple-500/20 shadow-2xs">
-          <Lock className="w-2.5 h-2.5 text-purple-500" />
-          Stanford Only
-        </span>
-      );
-    }
-
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-dim text-text-main border border-border-main shadow-2xs">
-        <Lock className="w-2.5 h-2.5 text-text-muted" />
-        External Campus
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-600 border border-purple-500/20 shadow-2xs">
+        <Lock className="w-2.5 h-2.5 text-purple-500 shrink-0" />
+        Campus Only
       </span>
     );
   };
@@ -67,15 +54,18 @@ export function EventCard({ event, onSelect, isSelected = false }: EventCardProp
       <div>
         {/* Top Meta Bar */}
         <div className="flex items-start justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-primary-light text-primary-action flex items-center justify-center font-bold text-xs font-heading">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-md bg-primary-light text-primary-action flex items-center justify-center font-bold text-xs font-heading shrink-0">
               {event.organizerLogo ? (
                 <img src={event.organizerLogo} alt="" className="w-full h-full rounded-md object-cover" />
               ) : (
                 <Shield className="w-3.5 h-3.5" />
               )}
             </div>
-            <span className="text-xs font-semibold text-text-muted truncate max-w-[140px]">
+            <span
+              className="text-xs font-semibold text-text-muted truncate max-w-[160px]"
+              title={event.organizerName}
+            >
               {event.organizerName}
             </span>
           </div>
@@ -94,15 +84,18 @@ export function EventCard({ event, onSelect, isSelected = false }: EventCardProp
           {event.title}
         </h3>
 
-        {/* Date & Location */}
+        {/* Date & Host University / Organization */}
         <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-xs text-text-muted mb-3">
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 shrink-0">
             <Calendar className="w-3.5 h-3.5 text-text-muted" />
             {event.dateStr}
           </span>
-          <span className="flex items-center gap-1 truncate max-w-[180px]">
-            <MapPin className="w-3.5 h-3.5 text-text-muted" />
-            {event.location}
+          <span
+            className="flex items-center gap-1 min-w-0 max-w-[200px]"
+            title={event.organizerName}
+          >
+            <MapPin className="w-3.5 h-3.5 text-text-muted shrink-0" />
+            <span className="truncate">{event.organizerName}</span>
           </span>
         </div>
 
