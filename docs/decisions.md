@@ -392,6 +392,23 @@ Populating a pitch-ready demonstration dataset with 66 teams and 24 student prof
 ### Status
 Accepted
 
+---
+
+## [CSS Variable Semantic Theming System & Zero Per-Component Dark Overrides]
+
+### Decision
+The entire frontend application (`apps/web`) strictly uses semantic design tokens mapped to CSS custom properties (`var(--sq-*)`) defined in `apps/web/src/styles.css` under `:root` and `.dark`. Hardcoded Tailwind color classes (`bg-white`, `text-slate-*`, `border-slate-*`, etc.) and manual per-component `dark:*` class overrides are prohibited.
+
+### Context
+Manual per-component `dark:*` overrides and hardcoded grayscale classes cause color divergence, poor contrast, maintenance bottlenecks, and broken themes when adding customizable presets or switching palettes dynamically. By standardizing on semantic tokens (`bg-canvas`, `bg-surface`, `bg-surface-dim`, `border-border-main`, `text-text-main`, `text-text-muted`, `bg-primary-action`, etc.), toggling between Light, Dark, System, and custom presets dynamically cascades across every surface, text element, and card without component-level color logic.
+
+### Consequences
+- **Positive:** Instant, flawless theme cascades; unified WCAG AA contrast; zero per-component dark mode maintenance overhead; seamless support for user-defined primary colors and curated presets (`SquadUp 2.0 Default`, `Dark Theme`, `Emerald Focus`, `High Contrast Slate`).
+- **Negative:** Developers must use established semantic tokens instead of arbitrary utility colors.
+
+### Status
+Accepted
+
 
 
 
