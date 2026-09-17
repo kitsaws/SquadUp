@@ -21,6 +21,7 @@ import { toast } from "react-toastify";
 import { useJobContext } from "../contexts/JobContext";
 import { usePalette } from "../contexts/PaletteContext";
 import { resumeApi, profileApi, preferencesApi, UserProfileResponse } from "../services/api";
+import { CacheService } from "../services/cache.service";
 
 export interface BannerConfig {
   type: "gradient" | "image" | "default";
@@ -107,7 +108,7 @@ export function EditProfileModal({
 
   // Banner State
   const [bannerType, setBannerType] = useState<"gradient" | "image" | "default">(
-    currentBanner?.type || "default"
+    currentBanner?.type || "gradient"
   );
   const [gradientColor1, setGradientColor1] = useState(
     currentBanner?.gradient?.color1 || "#0f172a"
@@ -126,10 +127,11 @@ export function EditProfileModal({
   );
   const [isSavingBanner, setIsSavingBanner] = useState<boolean>(false);
   const bannerImageInputRef = useRef<HTMLInputElement>(null);
+  const prevIsOpenRef = useRef(false);
 
-  // Reset form when opened or profile changes
+  // Reset form only when modal transitions from closed to open
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       setActiveView(initialView);
       setResumeFile(null);
       setFullName(profile.name || "");
@@ -140,19 +142,24 @@ export function EditProfileModal({
       setLinkedinUrl(profile.linkedinUrl || "");
       setDegree(profile.education?.[0]?.degree || "");
       if (currentBanner) {
-        setBannerType(currentBanner.type);
+        setBannerType(currentBanner.type || "gradient");
         if (currentBanner.gradient) {
-          setGradientColor1(currentBanner.gradient.color1);
-          setGradientColor2(currentBanner.gradient.color2);
-          setGradientAngle(currentBanner.gradient.angle);
+          setGradientColor1(currentBanner.gradient.color1 || "#0f172a");
+          setGradientColor2(currentBanner.gradient.color2 || "#1e3a8a");
+          setGradientAngle(currentBanner.gradient.angle ?? 135);
         }
         if (currentBanner.imageUrl) {
           setBannerImageDataUrl(currentBanner.imageUrl);
         }
         setSyncThemeWithBanner(currentBanner.syncTheme || false);
+      } else {
+        setBannerType("gradient");
+        setBannerImageDataUrl("");
+        setSyncThemeWithBanner(false);
       }
     }
-  }, [isOpen, initialView, profile, currentBanner]);
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, initialView]);
 
   if (!isOpen) return null;
 
@@ -347,10 +354,13 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
     };
 
     // Store in localStorage for client instant caching
-    try {
-      localStorage.setItem(`squadup_banner_${profile.userId}`, JSON.stringify(config));
-    } catch (err) {
-      console.warn("[EditProfileModal] Could not store banner in localStorage:", err);
+    const userStorageKey = profile.userId || profile.id;
+    if (userStorageKey) {
+      try {
+        localStorage.setItem(`squadup_banner_${userStorageKey}`, JSON.stringify(config));
+      } catch (err) {
+        console.warn("[EditProfileModal] Could not store banner in localStorage:", err);
+      }
     }
 
     const activeColor =
@@ -362,6 +372,9 @@ function compressImage(file: File, maxWidth = 1400, quality = 0.85): Promise<str
         bannerConfig: config,
         ...(syncThemeWithBanner && activeColor ? { primaryColor: activeColor } : {}),
       });
+      // Invalidate frontend caches so fresh profile is fetched
+      CacheService.invalidatePrefix("sq:profile:");
+      CacheService.invalidatePrefix("sq:public_profile:");
       console.log("[EditProfileModal] Successfully saved banner to database!");
     } catch (err) {
       console.error("[EditProfileModal] Failed to store banner in preferencesApi:", err);

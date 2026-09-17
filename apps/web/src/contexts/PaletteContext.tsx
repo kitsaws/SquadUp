@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useUser } from "@clerk/react";
 import { preferencesApi } from "../services/api";
+import { CacheService } from "../services/cache.service";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -158,7 +159,18 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
-  }, []);
+    if (isSignedIn) {
+      preferencesApi
+        .updatePreferences({ themeMode: mode })
+        .then(() => {
+          CacheService.invalidatePrefix("sq:profile:");
+          CacheService.invalidatePrefix("sq:public_profile:");
+        })
+        .catch((err) => {
+          console.warn("[PaletteContext] Failed to persist themeMode to preferences:", err);
+        });
+    }
+  }, [isSignedIn]);
 
   const toggleThemeMode = useCallback(() => {
     // Toggle between light and dark

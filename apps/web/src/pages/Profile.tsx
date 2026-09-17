@@ -143,10 +143,18 @@ export function Profile() {
   const [expandedProjects, setExpandedProjects] = useState<Record<number, boolean>>({});
   const [bannerConfig, setBannerConfig] = useState<BannerConfig | null>(null);
 
-  // Load custom banner preference from profile object, database preferences, or local storage
+  // Load custom banner preference from profile object or local storage
   useEffect(() => {
+    const userStorageKey = profile?.userId || profile?.id || urlId;
     if (profile?.bannerConfig) {
       setBannerConfig(profile.bannerConfig);
+      if (userStorageKey) {
+        try {
+          localStorage.setItem(`squadup_banner_${userStorageKey}`, JSON.stringify(profile.bannerConfig));
+        } catch {
+          // ignore
+        }
+      }
       if (profile.bannerConfig.syncTheme) {
         const activeColor =
           profile.bannerConfig.type === "gradient" && profile.bannerConfig.gradient
@@ -154,10 +162,10 @@ export function Profile() {
             : "#ec4899";
         updateToken("primaryAction", activeColor);
       }
-    } else if (profile?.userId) {
-      // 1. Instant optimistic load from localStorage
+    } else if (userStorageKey) {
+      // Optimistic load from localStorage if profile does not have bannerConfig yet
       try {
-        const saved = localStorage.getItem(`squadup_banner_${profile.userId}`);
+        const saved = localStorage.getItem(`squadup_banner_${userStorageKey}`);
         if (saved) {
           const parsed: BannerConfig = JSON.parse(saved);
           setBannerConfig(parsed);
@@ -172,38 +180,19 @@ export function Profile() {
       } catch (err) {
         console.warn("[Profile] Failed to load banner config from localStorage:", err);
       }
-
-      // 2. Fetch latest preferences from PostgreSQL
-      preferencesApi
-        .getPreferences()
-        .then((prefs) => {
-          if (prefs?.bannerConfig) {
-            setBannerConfig(prefs.bannerConfig);
-            if (prefs.bannerConfig.syncTheme) {
-              const activeColor =
-                prefs.bannerConfig.type === "gradient" && prefs.bannerConfig.gradient
-                  ? prefs.bannerConfig.gradient.color2 || prefs.bannerConfig.gradient.color1
-                  : prefs.primaryColor || "#ec4899";
-              updateToken("primaryAction", activeColor);
-            }
-          }
-        })
-        .catch((err) => {
-          console.warn("[Profile] Failed to load preferences from API:", err);
-        });
     }
-  }, [profile?.userId, profile?.bannerConfig]);
+  }, [profile?.userId, profile?.id, profile?.bannerConfig, urlId]);
 
-  // Auto-refresh profile when background resume parsing completes
+  // Auto-refresh profile only once when background resume parsing completes
   const prevUploadingRef = useRef(isUploading);
   useEffect(() => {
-    if ((prevUploadingRef.current && !isUploading && !jobId) || profileData) {
+    if (prevUploadingRef.current && !isUploading && !jobId) {
       if (isOwner) {
         refreshCtxProfile(true);
       }
     }
     prevUploadingRef.current = isUploading;
-  }, [isUploading, jobId, profileData, isOwner, refreshCtxProfile]);
+  }, [isUploading, jobId, isOwner, refreshCtxProfile]);
 
   useEffect(() => {
     let isMounted = true;
@@ -257,7 +246,7 @@ export function Profile() {
     return () => {
       isMounted = false;
     };
-  }, [urlId, isOwner, ctxProfile]);
+  }, [urlId, isOwner]);
 
   if (loading && !profile) {
     return (
@@ -667,64 +656,70 @@ export function Profile() {
             {/* Squads Container */}
             <div className="space-y-3.5 max-h-[420px] overflow-y-auto pr-1">
               {/* 1. Confirmed Memberships */}
-              {userTeams.map((squad) => (
-                <div
-                  key={squad.teamId}
-                  className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3 ${
-                    squad.role === "Leader"
-                      ? "bg-primary-light/30 border-primary-border hover:border-primary-action/40"
-                      : "bg-surface-dim border-border-main hover:border-primary-action/40 shadow-2xs"
-                  }`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        {squad.role === "Leader" ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-light text-primary-action flex items-center gap-1">
-                            <Crown className="w-3 h-3 text-primary-action" /> Squad Leader
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface text-text-muted border border-border-main">
-                            Member
-                          </span>
-                        )}
+              {userTeams.map((squad) => {
+                const isViewerLeader = isOwner
+                  ? squad.role === "Leader"
+                  : Boolean(ctxProfile?.teams?.some((t: any) => t.teamId === squad.teamId && t.role === "Leader"));
+
+                return (
+                  <div
+                    key={squad.teamId}
+                    className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3 ${
+                      squad.role === "Leader"
+                        ? "bg-primary-light/30 border-primary-border hover:border-primary-action/40"
+                        : "bg-surface-dim border-border-main hover:border-primary-action/40 shadow-2xs"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          {squad.role === "Leader" ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-light text-primary-action flex items-center gap-1">
+                              <Crown className="w-3 h-3 text-primary-action" /> Squad Leader
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface text-text-muted border border-border-main">
+                              Member
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="text-base font-bold text-text-main font-heading">
+                          {squad.teamName}
+                        </h3>
+                        <p className="text-xs text-text-muted mt-0.5">
+                          Joined {new Date(squad.joinedAt).toLocaleDateString()}
+                        </p>
                       </div>
 
-                      <h3 className="text-base font-bold text-text-main font-heading">
-                        {squad.teamName}
-                      </h3>
-                      <p className="text-xs text-text-muted mt-0.5">
-                        Joined {new Date(squad.joinedAt).toLocaleDateString()}
-                      </p>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-bold text-text-main block">
+                          Role: {squad.role}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="text-right shrink-0">
-                      <span className="text-xs font-bold text-text-main block">
-                        Role: {squad.role}
+                    {/* Action Link */}
+                    <div className="flex items-center justify-between pt-2 border-t border-border-main text-xs">
+                      <span className="text-text-muted font-medium">
+                        Status: <strong className="text-text-main">Active Member</strong>
                       </span>
+
+                      <Link
+                        to={`/team/${squad.teamId}`}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition-colors shadow-2xs cursor-pointer ${
+                          isViewerLeader
+                            ? "text-white bg-primary-action hover:bg-primary-hover"
+                            : "text-text-main bg-surface hover:bg-surface-dim border border-border-main"
+                        }`}
+                      >
+                        <span>{isViewerLeader ? "Manage Team" : "View Team"}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
                     </div>
                   </div>
-
-                  {/* Action Link */}
-                  <div className="flex items-center justify-between pt-2 border-t border-border-main text-xs">
-                    <span className="text-text-muted font-medium">
-                      Status: <strong className="text-text-main">Active Member</strong>
-                    </span>
-
-                    <Link
-                      to={`/team/${squad.teamId}`}
-                      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold transition-colors shadow-2xs cursor-pointer ${
-                        squad.role === "Leader"
-                          ? "text-white bg-primary-action hover:bg-primary-hover"
-                          : "text-text-main bg-surface hover:bg-surface-dim border border-border-main"
-                      }`}
-                    >
-                      <span>{squad.role === "Leader" ? "Manage Team" : "View Team"}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* 2. Submitted Applications (Pending candidate applications) */}
               {!isCandidateView &&
@@ -1082,6 +1077,8 @@ export function Profile() {
           currentBanner={bannerConfig || undefined}
           onBannerUpdated={(newBanner) => {
             setBannerConfig(newBanner);
+            updateCachedProfile({ bannerConfig: newBanner });
+            setProfile((prev) => (prev ? { ...prev, bannerConfig: newBanner } : prev));
           }}
         />
       )}
@@ -1094,6 +1091,8 @@ export function Profile() {
           onPreferencesUpdated={(updatedPrefs) => {
             if (updatedPrefs.bannerConfig) {
               setBannerConfig(updatedPrefs.bannerConfig);
+              updateCachedProfile({ bannerConfig: updatedPrefs.bannerConfig });
+              setProfile((prev) => (prev ? { ...prev, bannerConfig: updatedPrefs.bannerConfig } : prev));
             }
           }}
         />

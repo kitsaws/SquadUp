@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
 import { PrismaClient } from "@prisma/client";
 import { UpdateProfileRequest } from "@squadup/shared";
-import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
+import { getOrCreateUserByClerkId, linkUserToOrganization } from "../utils/auth.utils.js";
 import { AIService } from "../services/ai.service.js";
 import { CacheService } from "../services/cache.service.js";
 
@@ -228,20 +228,7 @@ export const updateProfile = async (
           where: { name: { equals: university.trim(), mode: "insensitive" } },
         });
         if (matchingOrg) {
-          await prisma.organizationMembership.upsert({
-            where: {
-              organizationId_userId: {
-                organizationId: matchingOrg.id,
-                userId: userInDb.id,
-              },
-            },
-            update: { role: "org:member" },
-            create: {
-              organizationId: matchingOrg.id,
-              userId: userInDb.id,
-              role: "org:member",
-            },
-          });
+          await linkUserToOrganization(userInDb.id, userInDb.clerkId, matchingOrg);
         }
       } catch (orgLinkErr) {
         console.warn("[Profile API] Warning: Failed to link organization membership:", orgLinkErr);
@@ -285,6 +272,12 @@ export const updateProfile = async (
       updatedTaxonomyNodeIds = existingTax?.taxonomyNodeIds || [];
     }
 
+    // Fetch user with preferences to preserve bannerConfig in response
+    const userWithPrefs = await prisma.user.findUnique({
+      where: { id: userInDb.id },
+      include: { preferences: true },
+    });
+
     // Invalidate profile cache on update
     await CacheService.del(`profile:${userInDb.id}`);
 
@@ -308,6 +301,7 @@ export const updateProfile = async (
         resumePdfUrl: updatedProfile.resumePdfPath ? `/api/resume/view` : null,
         lastResumeUploadedAt: updatedProfile.lastResumeUploadedAt?.toISOString() || null,
         taxonomyNodeIds: updatedTaxonomyNodeIds,
+        bannerConfig: userWithPrefs?.preferences?.bannerConfig || null,
         updatedAt: updatedProfile.updatedAt.toISOString(),
       },
     });

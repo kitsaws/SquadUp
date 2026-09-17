@@ -93,6 +93,14 @@ export const updatePreferences = async (req: Request, res: Response) => {
       update: dataToUpdate,
     });
 
+    // Invalidate cached profile so new preferences and bannerConfig are reflected immediately
+    try {
+      const { CacheService } = await import("../services/cache.service.js");
+      await CacheService.del(`profile:${userInDb.id}`);
+    } catch {
+      // ignore
+    }
+
     return res.json(preferences);
   } catch (error) {
     console.error("[PreferencesController] Error updating preferences:", error);

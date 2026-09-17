@@ -57,9 +57,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (!profile) {
-      setIsLoadingProfile(true);
-    }
     setProfileError(null);
 
     try {
@@ -78,7 +75,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setIsLoadingProfile(false);
       setHasInitialProfileLoaded(true);
     }
-  }, [isSignedIn, user?.id, profile]);
+  }, [isSignedIn, user?.id]);
 
   useEffect(() => {
     if (isSignedIn && user?.id) {

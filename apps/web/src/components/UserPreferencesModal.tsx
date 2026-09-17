@@ -22,6 +22,7 @@ import {
   UserPreferences,
   UpdateUserPreferencesRequest,
 } from "../services/api";
+import { CacheService } from "../services/cache.service";
 
 interface UserPreferencesModalProps {
   isOpen: boolean;
@@ -117,7 +118,6 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
 
   const handlePresetSelect = (presetName: string) => {
     setSelectedPreset(presetName);
-    loadPreset(presetName);
     if (PALETTE_PRESETS[presetName]) {
       setCustomPrimaryColor(PALETTE_PRESETS[presetName].primaryAction);
     }
@@ -126,7 +126,6 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   const handleCustomColorChange = (hex: string) => {
     setCustomPrimaryColor(hex);
     setSelectedPreset("Custom");
-    updateToken("primaryAction", hex);
   };
 
   const toggleRole = (role: string) => {
@@ -152,6 +151,17 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
 
     try {
       const updated = await preferencesApi.updatePreferences(updates);
+      CacheService.invalidatePrefix("sq:profile:");
+      CacheService.invalidatePrefix("sq:public_profile:");
+
+      // Apply theme changes globally now that the user confirmed saving
+      setContextThemeMode(themeMode);
+      if (selectedPreset && PALETTE_PRESETS[selectedPreset]) {
+        loadPreset(selectedPreset);
+      } else if (customPrimaryColor) {
+        updateToken("primaryAction", customPrimaryColor);
+      }
+
       toast.success("Preferences saved successfully!", { position: "bottom-right" });
       if (onPreferencesUpdated) {
         onPreferencesUpdated(updated);
@@ -260,7 +270,6 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                             onClick={() => {
                               const newMode = mode.id as "light" | "dark" | "system";
                               setThemeMode(newMode);
-                              setContextThemeMode(newMode);
                             }}
                             className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-bold gap-1.5 transition-all cursor-pointer ${
                               isSelected

@@ -422,8 +422,11 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
     }
   }
 
-  const cacheKey = `team:${id}`;
+  const cacheKey = callerDbId ? `team:${id}:${callerDbId}` : `team:${id}:anon`;
   const cached = await CacheService.get<TeamDetailResponse>(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
 
   try {
     const team = await prisma.team.findUnique({
@@ -508,6 +511,16 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
         const callerUniversity = callerWithTax?.profile?.university || null;
 
         if (callerTaxNodeIds.length > 0) {
+          let reqNodeIds = team.taxonomy?.requirementNodeIds || [];
+          if (reqNodeIds.length === 0 && team.requirements && team.requirements.length > 0) {
+            try {
+              const resolved = await AIService.resolveTeamRequirements(team.id, team.requirements);
+              reqNodeIds = resolved.requirement_node_ids;
+            } catch {
+              // ignore
+            }
+          }
+
           const recs = await AIService.getRecommendations({
             userId: callerDbId,
             userTaxonomyNodeIds: callerTaxNodeIds,
@@ -518,7 +531,7 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
                 team_name: team.name,
                 university: team.university,
                 requirements: team.requirements,
-                requirement_node_ids: team.taxonomy?.requirementNodeIds || [],
+                requirement_node_ids: reqNodeIds,
                 is_global: Boolean(team.event?.isGlobal),
                 is_eligible: Boolean(team.event?.isGlobal || (callerUniversity && team.university && callerUniversity.toLowerCase() === team.university.toLowerCase())),
               },
