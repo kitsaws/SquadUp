@@ -44,7 +44,14 @@ export function RecommendationBadge({ category, score, className = "" }: Recomme
   );
 }
 
-export function ScopeBadge({ isGlobal, location }: { isGlobal: boolean; location?: string }) {
+export function ScopeBadge({
+  isGlobal,
+  location,
+}: {
+  isGlobal: boolean;
+  location?: string;
+  userUniversity?: string | null;
+}) {
   if (isGlobal) {
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
@@ -57,7 +64,7 @@ export function ScopeBadge({ isGlobal, location }: { isGlobal: boolean; location
   return (
     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-600 border border-purple-500/20">
       <Lock className="w-3 h-3 text-purple-500" />
-      {location ? `Campus Only (${location})` : "Campus Only"}
+      Campus Only
     </span>
   );
 }
@@ -212,7 +219,7 @@ export function VerificationBadge({
       {/* Hover / Click Popup Card */}
       {isOpen && (
         <div
-          className="absolute top-full right-0 mt-2 z-50 w-72 sm:w-80 p-3.5 bg-surface rounded-xl shadow-xl border border-border-main text-left text-xs animate-in fade-in zoom-in-95 duration-150 text-text-main"
+          className="absolute top-full right-0 mt-2 z-50 w-72 sm:w-80 p-3.5 bg-surface dark:bg-[#151c2e] rounded-xl shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] dark:ring-1 dark:ring-white/10 border border-border-main dark:border-slate-700/80 text-left text-xs animate-in fade-in zoom-in-95 duration-150 text-text-main backdrop-blur-xl"
           role="tooltip"
         >
           {/* Header */}

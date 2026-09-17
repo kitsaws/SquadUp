@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { SignInButton } from "@clerk/react";
 import {
@@ -21,6 +21,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  RotateCw,
 } from "lucide-react";
 import { useUserContext } from "../contexts/UserContext";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
@@ -30,16 +31,17 @@ import { RecommendationBadge, ScopeBadge, SkillTag } from "../components/Badges"
 import { CompatibilityScoreRing } from "../components/CompatibilityScoreRing";
 import {
   teamsApi,
-  recommendationsApi,
+  organizersApi,
   applicationsApi,
   TeamItem,
-  UserProfileResponse,
+  OrganizationItem,
 } from "../services/api";
+import { CacheService } from "../services/cache.service";
 
 type SortOption = "FIT_DESC" | "FIT_ASC" | "SPOTS_DESC" | "NAME_ASC";
 
 export function TeamsPage() {
-  const { isSignedIn, userVerifiedSkills, profile: userProfile } = useUserContext();
+  const { isSignedIn, userVerifiedSkills, profile: userProfile, userUniversity } = useUserContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const teamIdParam = searchParams.get("id");
 
@@ -50,6 +52,39 @@ export function TeamsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  // Available universities for dynamic campus filtering
+  const [universities, setUniversities] = useState<OrganizationItem[]>([]);
+  const [campusSearch, setCampusSearch] = useState("");
+
+  const myCampus = userUniversity || userProfile?.university || null;
+
+  const filteredUniversities = useMemo(() => {
+    const query = campusSearch.trim().toLowerCase();
+    if (!query) return [];
+
+    const queryTokens = query.split(/\s+/).filter(Boolean);
+
+    return universities.filter((u) => {
+      const uniName = u.name.toLowerCase();
+      const uniSlug = (u.slug || "").toLowerCase();
+
+      // 1. Direct substring in name or slug
+      if (uniName.includes(query) || uniSlug.includes(query)) return true;
+
+      // 2. All tokens present in name
+      if (queryTokens.every((token) => uniName.includes(token))) return true;
+
+      // 3. Acronym match (e.g. "iitd" or "ucb")
+      const acronym = uniName
+        .split(/\s+/)
+        .map((w) => w[0])
+        .join("");
+      if (acronym.includes(query)) return true;
+
+      return false;
+    });
+  }, [campusSearch, universities]);
+
   // Inspected team (split view drawer)
   const [inspectedTeam, setInspectedTeam] = useState<TeamCardData | null>(null);
 
@@ -58,10 +93,27 @@ export function TeamsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
+
+  // Active (committed) filters
   const [filterTier, setFilterTier] = useState<string>("ALL");
   const [filterCampus, setFilterCampus] = useState<string>("ALL");
   const [filterOpenSpotsOnly, setFilterOpenSpotsOnly] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<SortOption>(isSignedIn ? "FIT_DESC" : "SPOTS_DESC");
+
+  // Staged filter state (in popover until "Apply Filters" is clicked)
+  const [stagedTier, setStagedTier] = useState<string>("ALL");
+  const [stagedCampus, setStagedCampus] = useState<string>("ALL");
+  const [stagedOpenSpotsOnly, setStagedOpenSpotsOnly] = useState<boolean>(false);
+
+  // Load universities dynamically on mount
+  useEffect(() => {
+    organizersApi
+      .getUniversities()
+      .then((data) => {
+        if (data && data.length > 0) setUniversities(data);
+      })
+      .catch((err) => console.warn("[TeamsPage] Could not load universities:", err));
+  }, []);
 
   // Keep sort valid if signed out
   useEffect(() => {
@@ -69,6 +121,38 @@ export function TeamsPage() {
       setSortBy("SPOTS_DESC");
     }
   }, [isSignedIn, sortBy]);
+
+  // Sync staged filters when opening popover
+  const handleOpenFilterPopover = () => {
+    setStagedTier(filterTier);
+    setStagedCampus(filterCampus);
+    setStagedOpenSpotsOnly(filterOpenSpotsOnly);
+    setCampusSearch("");
+    setIsFilterOpen((prev) => !prev);
+    setIsSortOpen(false);
+  };
+
+  // Commit staged filters
+  const handleApplyFilters = () => {
+    setFilterTier(stagedTier);
+    setFilterCampus(stagedCampus);
+    setFilterOpenSpotsOnly(stagedOpenSpotsOnly);
+    setPage(1);
+    setIsFilterOpen(false);
+  };
+
+  // Reset all filters
+  const handleResetFilters = () => {
+    setStagedTier("ALL");
+    setStagedCampus("ALL");
+    setStagedOpenSpotsOnly(false);
+    setCampusSearch("");
+    setFilterTier("ALL");
+    setFilterCampus("ALL");
+    setFilterOpenSpotsOnly(false);
+    setPage(1);
+    setIsFilterOpen(false);
+  };
 
   // Application feedback state
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -84,89 +168,111 @@ export function TeamsPage() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Fetch teams & recommendations (recommendations only if signed in)
-  useEffect(() => {
-    let isMounted = true;
-    setIsLoading(true);
+  // Fetch teams with server-side filtering & recommendation sorting
+  const loadTeams = useCallback(async (bypassCache = false) => {
+    const userScope = userProfile?.userId || "anon";
+    const cacheKey = `sq:teams:list:${JSON.stringify({
+      page,
+      debouncedSearch,
+      filterTier,
+      filterCampus,
+      filterOpenSpotsOnly,
+      sortBy,
+      userScope,
+    })}`;
 
-    async function loadTeams() {
-      try {
-        let teamsRes: any;
-        let recsRes: any = null;
-
-        if (isSignedIn) {
-          [teamsRes, recsRes] = await Promise.all([
-            teamsApi.getTeams({
-              page,
-              limit: 12,
-              search: debouncedSearch || undefined,
-              sort: sortBy === "NAME_ASC" ? "name" : "created_at",
-            }),
-            recommendationsApi.getRecommendations().catch(() => null),
-          ]);
-        } else {
-          teamsRes = await teamsApi.getTeams({
-            page,
-            limit: 12,
-            search: debouncedSearch || undefined,
-            sort: sortBy === "NAME_ASC" ? "name" : "created_at",
-          });
-        }
-
-        if (!isMounted) return;
-
-        const recsMap = new Map();
-        if (isSignedIn && recsRes?.recommendations) {
-          recsRes.recommendations.forEach((rec: any) => {
-            recsMap.set(rec.teamId, rec);
-          });
-        }
-
-        const mapped: TeamCardData[] = (teamsRes.data || []).map((t: TeamItem) => {
-          const rec = isSignedIn ? recsMap.get(t.id) : null;
-          return {
-            id: t.id,
-            name: t.name,
-            eventId: t.eventId,
-            eventTitle: t.event?.title || "Collegiate Hackathon",
-            university: t.university || t.event?.university || "External Campus",
-            requirements: t.requirements || [],
-            neededRequirement: t.requirements?.[0],
-            taxonomyScore: rec ? rec.taxonomyScore : undefined,
-            category: rec ? rec.recommendationCategory : undefined,
-            description: t.description || "",
-            members: (t.members || []).map((m) => ({
-              id: m.id || m.userId,
-              name: m.name || "Member",
-              role: m.role || "Member",
-            })),
-            maxCapacity: t.maxCapacity || 4,
-            isUserLeader: t.isLeader || false,
-            isUserMember: t.isMember || false,
-          };
-        });
-
-        setTeams(mapped);
-        setTotalPages(teamsRes.pagination?.totalPages || 1);
-        setTotalCount(teamsRes.pagination?.total || mapped.length);
-
-        // Auto-select if URL param present
-        if (teamIdParam) {
-          const match = mapped.find((m) => m.id === teamIdParam);
-          if (match) setInspectedTeam(match);
-        }
-      } catch (err) {
-        console.error("[TeamsPage] Error loading teams:", err);
-      } finally {
-        if (isMounted) setIsLoading(false);
+    // SWR: Instant paint from client session cache if available
+    if (!bypassCache) {
+      const cached = CacheService.get<{ data: TeamCardData[]; totalPages: number; totalCount: number }>(
+        cacheKey,
+        "session"
+      );
+      if (cached) {
+        setTeams(cached.data.data);
+        setTotalPages(cached.data.totalPages);
+        setTotalCount(cached.data.totalCount);
+        setIsLoading(false);
+      } else {
+        setIsLoading(true);
       }
+    } else {
+      setIsLoading(true);
     }
 
+    try {
+      const sortParam =
+        sortBy === "FIT_DESC"
+          ? "fit_desc"
+          : sortBy === "FIT_ASC"
+          ? "fit_asc"
+          : sortBy === "SPOTS_DESC"
+          ? "spots_desc"
+          : sortBy === "NAME_ASC"
+          ? "name_asc"
+          : "created_at";
+
+      const teamsRes = await teamsApi.getTeams({
+        page,
+        limit: 12,
+        search: debouncedSearch || undefined,
+        campus: filterCampus !== "ALL" ? filterCampus : undefined,
+        tier: filterTier !== "ALL" ? filterTier : undefined,
+        openSpotsOnly: filterOpenSpotsOnly,
+        sort: sortParam,
+      });
+
+      const mapped: TeamCardData[] = (teamsRes.data || []).map((t: TeamItem) => ({
+        id: t.id,
+        name: t.name,
+        eventId: t.eventId,
+        eventTitle: t.event?.title || "Collegiate Hackathon",
+        university: t.university || t.event?.university || t.event?.location || "External Campus",
+        requirements: t.requirements || [],
+        neededRequirement: t.requirements?.[0],
+        taxonomyScore: t.taxonomyScore,
+        category: t.category,
+        description: t.description || t.event?.description || "",
+        members: (t.members || []).map((m) => ({
+          id: m.id || m.userId,
+          name: m.name || "Member",
+          role: m.role || "Member",
+        })),
+        maxCapacity: t.maxCapacity || 4,
+        isUserLeader: t.isLeader || false,
+        isUserMember: t.isMember || false,
+      }));
+
+      setTeams(mapped);
+      setTotalPages(teamsRes.pagination?.totalPages || 1);
+      setTotalCount(teamsRes.pagination?.total || mapped.length);
+
+      // Cache page payload in session storage
+      CacheService.set(
+        cacheKey,
+        {
+          data: mapped,
+          totalPages: teamsRes.pagination?.totalPages || 1,
+          totalCount: teamsRes.pagination?.total || mapped.length,
+        },
+        1000 * 60 * 2, // 2 minutes TTL
+        "session"
+      );
+
+      // Auto-select if URL param present
+      if (teamIdParam) {
+        const match = mapped.find((m) => m.id === teamIdParam);
+        if (match) setInspectedTeam(match);
+      }
+    } catch (err) {
+      console.error("[TeamsPage] Error loading teams:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page, debouncedSearch, filterTier, filterCampus, filterOpenSpotsOnly, sortBy, userProfile?.userId, teamIdParam]);
+
+  useEffect(() => {
     loadTeams();
-    return () => {
-      isMounted = false;
-    };
-  }, [page, debouncedSearch, sortBy, isSignedIn]);
+  }, [loadTeams]);
 
   // Toggle inspection: If the same team is clicked twice, hide the drawer.
   const handleInspectToggle = (team: TeamCardData) => {
@@ -183,25 +289,6 @@ export function TeamsPage() {
     }
   };
 
-  // Client-side filtering for active tier and campus
-  const filteredTeams = teams.filter((team) => {
-    if (filterTier === "BEST" && team.category !== "BEST") return false;
-    if (filterTier === "CROSS_CAMPUS" && team.category !== "GOOD_DIFFERENT_UNIVERSITY") return false;
-    if (filterTier === "CAMPUS_EXPLORER" && team.category !== "SAME_UNIVERSITY_LOWER_SCORE") return false;
-
-    if (filterCampus !== "ALL") {
-      const matchCampus = (team.university || "").toLowerCase().includes(filterCampus.toLowerCase());
-      if (!matchCampus) return false;
-    }
-
-    if (filterOpenSpotsOnly) {
-      const spotsRemaining = (team.maxCapacity || 4) - team.members.length;
-      if (spotsRemaining <= 0) return false;
-    }
-
-    return true;
-  });
-
   const activeFilterCount =
     (filterTier !== "ALL" ? 1 : 0) +
     (filterCampus !== "ALL" ? 1 : 0) +
@@ -213,6 +300,7 @@ export function TeamsPage() {
       setAppliedTeamIds((prev) => [...prev, teamId]);
       setIsApplyModalOpen(false);
       setToastMessage("✓ Application submitted! Squad leaders have received your dossier.");
+      loadTeams(true);
     } catch (err: any) {
       setToastMessage(err?.message || "Application submitted.");
       setAppliedTeamIds((prev) => [...prev, teamId]);
@@ -245,9 +333,17 @@ export function TeamsPage() {
             Squads Directory
           </h1>
           <p className="text-sm text-text-muted mt-1">
-            Browse hackathon teams recruiting talent. Filter by skills, event, or campus match.
+            Browse hackathon teams recruiting talent. Ranked globally by AI taxonomy fit.
           </p>
         </div>
+        <button
+          onClick={() => loadTeams(true)}
+          title="Refresh Squads List"
+          className="self-start md:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-muted hover:text-text-main text-xs font-semibold transition-all cursor-pointer"
+        >
+          <RotateCw className="w-3.5 h-3.5" />
+          <span>Refresh</span>
+        </button>
       </div>
 
       {/* Search & Filter Bar */}
@@ -258,7 +354,7 @@ export function TeamsPage() {
             <Search className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by team name or required skills (e.g. React, Docker)..."
+              placeholder="Search by team name, event, or required skills (e.g. React, Docker)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-surface-dim rounded-xl border border-border-main text-text-main placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-action transition-all"
@@ -268,10 +364,7 @@ export function TeamsPage() {
           {/* Filter Popover Button */}
           <div className="relative">
             <button
-              onClick={() => {
-                setIsFilterOpen(!isFilterOpen);
-                setIsSortOpen(false);
-              }}
+              onClick={handleOpenFilterPopover}
               className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                 activeFilterCount > 0
                   ? "bg-primary-light text-primary-action border-primary-border"
@@ -288,21 +381,17 @@ export function TeamsPage() {
             </button>
 
             {isFilterOpen && (
-              <div className="absolute left-0 top-full mt-2 w-72 bg-surface rounded-2xl border border-border-main shadow-xl p-4 z-30 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-center justify-between pb-2 border-b border-border-main">
+              <div className="absolute left-0 top-full mt-2 w-80 bg-surface dark:bg-[#151c2e] rounded-2xl border border-border-main dark:border-slate-700/80 shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] dark:ring-1 dark:ring-white/10 p-4 z-30 space-y-4 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl">
+                <div className="flex items-center justify-between pb-2 border-b border-border-main dark:border-slate-800">
                   <h4 className="text-xs font-black text-text-main uppercase tracking-wider">
                     Filter Squads
                   </h4>
-                  {activeFilterCount > 0 && (
+                  {(stagedTier !== "ALL" || stagedCampus !== "ALL" || stagedOpenSpotsOnly) && (
                     <button
-                      onClick={() => {
-                        setFilterTier("ALL");
-                        setFilterCampus("ALL");
-                        setFilterOpenSpotsOnly(false);
-                      }}
+                      onClick={handleResetFilters}
                       className="text-[11px] text-primary-action hover:underline font-semibold cursor-pointer"
                     >
-                      Reset
+                      Reset All
                     </button>
                   )}
                 </div>
@@ -316,20 +405,20 @@ export function TeamsPage() {
                     <div className="space-y-1 text-xs">
                       <button
                         type="button"
-                        onClick={() => setFilterTier("ALL")}
+                        onClick={() => setStagedTier("ALL")}
                         className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                          filterTier === "ALL"
-                            ? "bg-primary-light text-primary-action font-bold"
-                            : "text-text-main hover:bg-surface-dim"
+                          stagedTier === "ALL"
+                            ? "bg-primary-light dark:bg-primary-action/20 text-primary-action dark:text-blue-400 font-bold border border-primary-border/30 dark:border-primary-action/30"
+                            : "text-text-main hover:bg-surface-dim dark:hover:bg-slate-800/70"
                         }`}
                       >
                         All Tiers
                       </button>
                       <button
                         type="button"
-                        onClick={() => setFilterTier("BEST")}
+                        onClick={() => setStagedTier("BEST")}
                         className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                          filterTier === "BEST"
+                          stagedTier === "BEST"
                             ? "bg-best-fit text-best-fit-dark font-bold"
                             : "text-best-fit-dark hover:bg-best-fit-light"
                         }`}
@@ -338,9 +427,9 @@ export function TeamsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setFilterTier("CROSS_CAMPUS")}
+                        onClick={() => setStagedTier("CROSS_CAMPUS")}
                         className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                          filterTier === "CROSS_CAMPUS"
+                          stagedTier === "CROSS_CAMPUS"
                             ? "bg-cross-campus text-white font-bold"
                             : "text-cross-campus-dark hover:bg-cross-campus-light"
                         }`}
@@ -349,9 +438,9 @@ export function TeamsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setFilterTier("CAMPUS_EXPLORER")}
+                        onClick={() => setStagedTier("CAMPUS_EXPLORER")}
                         className={`w-full text-left px-3 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
-                          filterTier === "CAMPUS_EXPLORER"
+                          stagedTier === "CAMPUS_EXPLORER"
                             ? "bg-campus-explorer text-white font-bold"
                             : "text-campus-explorer-dark hover:bg-campus-explorer-light"
                         }`}
@@ -363,42 +452,142 @@ export function TeamsPage() {
                 )}
 
                 {/* Campus Affiliation */}
-                <div className={`space-y-1.5 ${isSignedIn ? "pt-2 border-t border-border-main" : ""}`}>
-                  <label className="text-xs font-black text-text-main block">
-                    Campus Affiliation
-                  </label>
+                <div className={`space-y-2 ${isSignedIn ? "pt-2 border-t border-border-main dark:border-slate-800" : ""}`}>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-text-main block">
+                      Campus Affiliation
+                    </label>
+                    {stagedCampus !== "ALL" && (
+                      <span className="text-[10px] font-semibold text-primary-action truncate max-w-[140px]" title={stagedCampus}>
+                        {stagedCampus}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Primary Choices: All Campuses & User's University & Active Custom Campus */}
                   <div className="space-y-1">
-                    {[
-                      { id: "ALL", label: "All Campuses" },
-                      { id: "Stanford", label: "Stanford University" },
-                      { id: "TIET", label: "TIET" },
-                      { id: "Berkeley", label: "UC Berkeley" },
-                    ].map((opt) => (
+                    <button
+                      type="button"
+                      onClick={() => setStagedCampus("ALL")}
+                      className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center justify-between ${
+                        stagedCampus === "ALL"
+                          ? "bg-primary-light dark:bg-primary-action/20 text-primary-action dark:text-blue-400 font-bold border border-primary-border/30 dark:border-primary-action/30"
+                          : "text-text-main hover:bg-surface-dim dark:hover:bg-slate-800/70"
+                      }`}
+                    >
+                      <span>All Campuses</span>
+                      {stagedCampus === "ALL" && <Check className="w-3.5 h-3.5 text-primary-action flex-shrink-0" />}
+                    </button>
+
+                    {myCampus && (
                       <button
-                        key={opt.id}
                         type="button"
-                        onClick={() => setFilterCampus(opt.id)}
-                        className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                          filterCampus === opt.id
-                            ? "bg-primary-light text-primary-action font-bold"
-                            : "text-text-main hover:bg-surface-dim"
+                        onClick={() => setStagedCampus(myCampus)}
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center justify-between ${
+                          stagedCampus === myCampus
+                            ? "bg-primary-light dark:bg-primary-action/20 text-primary-action dark:text-blue-400 font-bold border border-primary-border/30 dark:border-primary-action/30"
+                            : "text-text-main hover:bg-surface-dim dark:hover:bg-slate-800/70"
                         }`}
                       >
-                        {opt.label}
+                        <span className="truncate">{myCampus}</span>
+                        {stagedCampus === myCampus && <Check className="w-3.5 h-3.5 text-primary-action flex-shrink-0" />}
                       </button>
-                    ))}
+                    )}
+
+                    {stagedCampus !== "ALL" && stagedCampus !== myCampus && (
+                      <button
+                        type="button"
+                        onClick={() => setStagedCampus(stagedCampus)}
+                        className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold bg-primary-light dark:bg-primary-action/20 text-primary-action dark:text-blue-400 transition-all cursor-pointer flex items-center justify-between border border-primary-border/30 dark:border-primary-action/30"
+                      >
+                        <span className="truncate">{stagedCampus}</span>
+                        <Check className="w-3.5 h-3.5 text-primary-action flex-shrink-0" />
+                      </button>
+                    )}
                   </div>
+
+                  {/* Search bar for universities */}
+                  <div className="relative pt-0.5">
+                    <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={campusSearch}
+                      onChange={(e) => setCampusSearch(e.target.value)}
+                      placeholder="Search universities..."
+                      className="w-full pl-8 pr-7 py-1.5 bg-surface-dim/70 dark:bg-slate-800/80 border border-border-main dark:border-slate-700/80 rounded-lg text-xs text-text-main placeholder-text-muted focus:outline-none focus:ring-1 focus:ring-primary-action"
+                    />
+                    {campusSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setCampusSearch("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-main p-0.5 cursor-pointer"
+                        title="Clear search"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filtered University List - ONLY shown when searching */}
+                  {campusSearch.trim().length > 0 && (
+                    <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1 border border-border-main/60 dark:border-slate-700/60 rounded-lg p-1 bg-surface-dim/30 dark:bg-slate-900/50 animate-in fade-in duration-150">
+                      {filteredUniversities.length > 0 ? (
+                        filteredUniversities.map((uni) => {
+                          const isSelected = stagedCampus === uni.name;
+                          return (
+                            <button
+                              key={uni.id || uni.clerkOrgId || uni.name}
+                              type="button"
+                              onClick={() => {
+                                setStagedCampus(uni.name);
+                              }}
+                              className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center justify-between ${
+                                isSelected
+                                  ? "bg-primary-light dark:bg-primary-action/20 text-primary-action dark:text-blue-400 font-bold border border-primary-border/30 dark:border-primary-action/30"
+                                  : "text-text-main hover:bg-surface-dim dark:hover:bg-slate-800/70"
+                              }`}
+                            >
+                              <span className="truncate">{uni.name}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-primary-action flex-shrink-0 ml-1" />}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="py-2.5 text-center text-xs text-text-muted">
+                          No campuses matching &quot;{campusSearch}&quot;
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Toggle Open Spots */}
-                <div className="pt-2 border-t border-border-main flex items-center justify-between text-xs">
+                <div className="pt-2 border-t border-border-main dark:border-slate-800 flex items-center justify-between text-xs">
                   <span className="font-semibold text-text-main">Open Spots Only</span>
                   <input
                     type="checkbox"
-                    checked={filterOpenSpotsOnly}
-                    onChange={(e) => setFilterOpenSpotsOnly(e.target.checked)}
+                    checked={stagedOpenSpotsOnly}
+                    onChange={(e) => setStagedOpenSpotsOnly(e.target.checked)}
                     className="w-4 h-4 rounded text-primary-action focus:ring-primary-action cursor-pointer"
                   />
+                </div>
+
+                {/* Apply Filters Action Button */}
+                <div className="pt-3 border-t border-border-main dark:border-slate-800 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold text-text-muted hover:bg-surface-dim dark:hover:bg-slate-800/70 transition-all cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyFilters}
+                    className="px-4 py-1.5 rounded-xl text-xs font-bold bg-primary-action text-white hover:bg-primary-hover shadow-xs transition-all cursor-pointer"
+                  >
+                    Apply Filters
+                  </button>
                 </div>
               </div>
             )}
@@ -418,7 +607,7 @@ export function TeamsPage() {
             </button>
 
             {isSortOpen && (
-              <div className="absolute left-0 top-full mt-2 w-56 bg-surface rounded-2xl border border-border-main shadow-xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute left-0 top-full mt-2 w-56 bg-surface dark:bg-[#151c2e] rounded-2xl border border-border-main dark:border-slate-700/80 shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] dark:ring-1 dark:ring-white/10 p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl">
                 {(
                   (isSignedIn
                     ? [
@@ -436,12 +625,13 @@ export function TeamsPage() {
                     key={opt.id}
                     onClick={() => {
                       setSortBy(opt.id);
+                      setPage(1);
                       setIsSortOpen(false);
                     }}
                     className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                       sortBy === opt.id
-                        ? "bg-primary-light text-primary-action font-bold"
-                        : "text-text-main hover:bg-surface-dim"
+                        ? "bg-primary-light dark:bg-primary-action/20 text-primary-action dark:text-blue-400 font-bold border border-primary-border/30 dark:border-primary-action/30"
+                        : "text-text-main hover:bg-surface-dim dark:hover:bg-slate-800/70"
                     }`}
                   >
                     <span>{opt.label}</span>
@@ -457,7 +647,7 @@ export function TeamsPage() {
         <div className="pt-2.5 border-t border-border-main flex flex-wrap items-center justify-between gap-2 px-1">
           {isSignedIn ? <CategoryLegend /> : <div />}
           <span className="text-xs text-text-muted font-medium hidden sm:inline">
-            Showing {filteredTeams.length} of {totalCount} squads
+            Showing {teams.length} of {totalCount} squads
           </span>
         </div>
       </div>
@@ -491,7 +681,7 @@ export function TeamsPage() {
                 inspectedTeam ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
               }`}
             >
-              {filteredTeams.map((team) => (
+              {teams.map((team) => (
                 <div key={team.id} id={`team-card-${team.id}`} className="h-full scroll-mt-24">
                   <TeamCard
                     team={team}
@@ -519,18 +709,21 @@ export function TeamsPage() {
 
               <div className="flex items-center gap-2">
                 <button
-                  disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="px-3 py-1.5 rounded-lg border border-border-main bg-surface text-xs font-semibold text-text-main hover:bg-surface-dim disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+                  disabled={page <= 1}
+                  className="p-2 rounded-xl border border-border-main bg-surface hover:bg-surface-dim disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" /> Previous
+                  <ChevronLeft className="w-4 h-4 text-text-main" />
                 </button>
+                <span className="text-xs font-bold text-text-main px-2">
+                  {page} / {totalPages}
+                </span>
                 <button
-                  disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-3 py-1.5 rounded-lg border border-border-main bg-surface text-xs font-semibold text-text-main hover:bg-surface-dim disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+                  disabled={page >= totalPages}
+                  className="p-2 rounded-xl border border-border-main bg-surface hover:bg-surface-dim disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                 >
-                  Next <ChevronRight className="w-3.5 h-3.5" />
+                  <ChevronRight className="w-4 h-4 text-text-main" />
                 </button>
               </div>
             </div>
@@ -788,7 +981,7 @@ export function TeamsPage() {
         )}
       </div>
 
-      {!isLoading && filteredTeams.length === 0 && (
+      {!isLoading && teams.length === 0 && (
         <div className="text-center py-16 bg-surface rounded-2xl border border-border-main p-8 space-y-3">
           <Users className="w-12 h-12 text-text-muted mx-auto opacity-50" />
           <h3 className="text-base font-bold text-text-main">No matching squads found</h3>
