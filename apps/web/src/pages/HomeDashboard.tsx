@@ -126,48 +126,42 @@ export function HomeDashboard() {
           setUserProfile(null);
         }
 
-        // 3. Fetch Recommendations (if signed in) or featured teams (if signed out or fallback)
+        // 3. Fetch Featured/Recommended Teams
         let loadedTeams: TeamCardData[] = [];
-        if (isSignedIn) {
-          try {
-            const recsRes = await recommendationsApi.getRecommendations({ topK: 3 });
-            if (recsRes?.recommendations && recsRes.recommendations.length > 0) {
-              loadedTeams = recsRes.recommendations.map((rec) => ({
-                id: rec.teamId,
-                name: rec.teamName,
-                eventId: "",
-                eventTitle: "Featured Event",
-                university: rec.university,
-                requirements: rec.requirements || [],
-                neededRequirement: rec.requirements?.[0],
-                taxonomyScore: rec.taxonomyScore,
-                category: rec.recommendationCategory,
-                description: rec.description,
-                members: [],
-                maxCapacity: 4,
-              }));
-            }
-          } catch {
-            // Fallback to real teams if no resume
-          }
-        }
+        try {
+          const teamsRes = await teamsApi.getTeams({
+            limit: 3,
+            sort: isSignedIn ? "fit_desc" : "created_at",
+          }).catch(() => null);
 
-        if (loadedTeams.length === 0) {
-          const teamsRes = await teamsApi.getTeams({ limit: 3, sort: "created_at" }).catch(() => null);
-          if (teamsRes?.data) {
+          if (teamsRes?.data && teamsRes.data.length > 0) {
             loadedTeams = teamsRes.data.map((t: TeamItem) => ({
               id: t.id,
               name: t.name,
               eventId: t.eventId,
               eventTitle: t.event?.title || "Upcoming Hackathon",
               university: t.university || t.event?.university || "Campus Squad",
+              isGlobal: t.event?.isGlobal ?? (t as any).isGlobal ?? true,
               requirements: t.requirements || [],
+              requirementBreakdown: t.requirementBreakdown,
               neededRequirement: t.requirements?.[0],
-              description: t.description || "",
-              members: t.members || [],
+              taxonomyScore: t.taxonomyScore,
+              category: t.category,
+              description: t.description || t.event?.description || "",
+              members: (t.members || []).map((m: any) => ({
+                id: m.id || m.userId,
+                name: m.name || "Member",
+                role: m.role || "Member",
+                avatarUrl: m.avatarUrl || m.profilePicture,
+                profilePicture: m.profilePicture || m.avatarUrl,
+              })),
               maxCapacity: t.maxCapacity || 4,
+              isUserLeader: t.isLeader || false,
+              isUserMember: t.isMember || false,
             }));
           }
+        } catch (err) {
+          console.warn("[HomeDashboard] Could not fetch featured squads:", err);
         }
 
         if (isMounted) {

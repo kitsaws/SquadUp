@@ -21,7 +21,7 @@ export function TeamTile({
 }: TeamTileProps) {
   const { isSignedIn, userVerifiedSkills, userUniversity } = useUserContext();
   const maxCapacity = team.maxCapacity || 4;
-  const currentCount = team.members.length;
+  const currentCount = Math.max(1, (team.members || []).length);
   const isFull = currentCount >= maxCapacity;
 
   const isCampusRestricted = Boolean(

@@ -74,7 +74,11 @@ export function TeamCard({
 }: TeamCardProps) {
   const { isSignedIn, userVerifiedSkills } = useUserContext();
   const maxCapacity = team.maxCapacity || 4;
-  const currentCount = team.members.length;
+  const membersList =
+    team.members && team.members.length > 0
+      ? team.members
+      : [{ id: "leader", name: team.university ? `${team.university} Lead` : "Squad Lead", role: "Leader" }];
+  const currentCount = Math.max(1, (team.members || []).length);
   const isFull = currentCount >= maxCapacity;
 
   const [isHovered, setIsHovered] = React.useState(false);
@@ -176,7 +180,7 @@ export function TeamCard({
         {/* Member Avatars & Spots */}
         <div className="flex items-center gap-2">
           <div className="flex -space-x-1.5">
-            {team.members.map((m, idx) => {
+            {membersList.map((m, idx) => {
               const picture = m.profilePicture || m.avatarUrl;
               const initials =
                 (m.name || "Member")

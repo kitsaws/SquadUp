@@ -327,9 +327,19 @@ export function TeamDetailPage() {
 
   // Derive primary open requirement (if any)
   const openRequirement = team.requirements.find((r) => !userVerifiedSkills.includes(r)) || team.requirements[0] || "Specialist";
-  const category = recommendation?.recommendationCategory;
-  const taxonomyScore = recommendation?.taxonomyScore;
-  const fulfilledCount = team.requirements.filter((r) => userVerifiedSkills.includes(r)).length;
+  const category = recommendation?.recommendationCategory ?? team.category;
+  const taxonomyScore = recommendation?.taxonomyScore ?? team.taxonomyScore;
+  const rawBreakdown = recommendation?.requirementBreakdown || (team as any).requirementBreakdown || [];
+  const activeBreakdown = rawBreakdown.map((item: any) => ({
+    requirementName: item.requirementName,
+    score: item.score,
+    isDirectMatch: item.score >= 0.8,
+    provenanceSource: item.bestUserSkillName ? `Skill: ${item.bestUserSkillName}` : "Taxonomy Alignment",
+    explanation: item.explanationText || "",
+  }));
+  const fulfilledCount = activeBreakdown.length > 0
+    ? activeBreakdown.filter((b: any) => b.score >= 0.8).length
+    : team.requirements.filter((r) => userVerifiedSkills.includes(r)).length;
   const totalSpots = team.maxCapacity || 4;
   const userUni = profile?.university || contextProfile?.university || userUniversity || "";
   const teamUni = team.university || team.event?.university || team.event?.location || "";
@@ -850,13 +860,7 @@ export function TeamDetailPage() {
                   ),
                   requirements: team.requirements,
                   userVerifiedSkills: userVerifiedSkills,
-                  breakdown: recommendation?.requirementBreakdown?.map((item) => ({
-                    requirementName: item.requirementName,
-                    score: item.score,
-                    isDirectMatch: item.score >= 0.8,
-                    provenanceSource: item.bestUserSkillName ? `Skill: ${item.bestUserSkillName}` : "Taxonomy Alignment",
-                    explanation: item.explanationText,
-                  })),
+                  breakdown: activeBreakdown.length > 0 ? activeBreakdown : undefined,
                 }}
                 isRecommended={Boolean(category && taxonomyScore !== undefined)}
                 isFull={team.members.length >= totalSpots}

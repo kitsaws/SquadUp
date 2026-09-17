@@ -75,6 +75,7 @@ export function SmartRecommendationPanel({
   // State for on-demand compatibility calculation for non-recommended / general squads
   const [isCalculating, setIsCalculating] = useState(false);
   const [onDemandScore, setOnDemandScore] = useState<number | null>(null);
+  const [onDemandBreakdown, setOnDemandBreakdown] = useState<RequirementBreakdownItem[] | null>(null);
 
   const handleCalculateScore = () => {
     setIsCalculating(true);
@@ -86,6 +87,39 @@ export function SmartRecommendationPanel({
       // Realistic calibrated score between 0.45 and 0.78 for non-recommended squads
       const computed = Math.min(0.78, Math.max(0.45, Math.round((baseRatio * 0.4 + 0.35) * 100) / 100));
       setOnDemandScore(computed);
+
+      // Generate explainability breakdown items if not already provided
+      if (!recommendation.breakdown || recommendation.breakdown.length === 0) {
+        const generated: RequirementBreakdownItem[] = (recommendation.requirements || []).map((req) => {
+          const matchType = getSkillMatchType(req, userSkills);
+          if (matchType === "perfect") {
+            return {
+              requirementName: req,
+              score: 1.0,
+              isDirectMatch: true,
+              provenanceSource: `Skill: ${req}`,
+              explanation: `Direct exact match with verified skill '${req}' in your profile.`,
+            };
+          } else if (matchType === "partial") {
+            return {
+              requirementName: req,
+              score: 0.65,
+              isDirectMatch: false,
+              provenanceSource: `Taxonomy Match`,
+              explanation: `Related technology domain match in your profile.`,
+            };
+          } else {
+            return {
+              requirementName: req,
+              score: 0.0,
+              isDirectMatch: false,
+              provenanceSource: `Open Vacancy`,
+              explanation: `Open squad vacancy — no matching skill found in your profile.`,
+            };
+          }
+        });
+        setOnDemandBreakdown(generated);
+      }
       setIsCalculating(false);
     }, 700);
   };
@@ -158,13 +192,22 @@ export function SmartRecommendationPanel({
   }
 
   // Active score to display in the ring
-  const activeScore = isActivelyRecommended
+  const activeScore = recommendation.taxonomyScore !== undefined
     ? recommendation.taxonomyScore
     : onDemandScore !== null
     ? onDemandScore
     : undefined;
 
-  const isUnratedScore = !isActivelyRecommended && onDemandScore === null;
+  const isUnratedScore = activeScore === undefined;
+
+  const activeBreakdown =
+    recommendation.breakdown && recommendation.breakdown.length > 0
+      ? recommendation.breakdown
+      : onDemandBreakdown && onDemandBreakdown.length > 0
+      ? onDemandBreakdown
+      : null;
+
+  const hasBreakdown = Boolean(activeBreakdown && activeBreakdown.length > 0);
 
   return (
     <div className="bg-surface rounded-xl border border-border-main p-6 shadow-xs space-y-6">
@@ -206,7 +249,7 @@ export function SmartRecommendationPanel({
         <CompatibilityScoreRing
           score={activeScore}
           category={isActivelyRecommended ? category : "UNRATED"}
-          customColor={!isActivelyRecommended && onDemandScore !== null ? "#64748b" : undefined}
+          customColor={!isActivelyRecommended && activeScore !== undefined ? "#64748b" : undefined}
           isUnrated={isUnratedScore}
           size={84}
           strokeWidth={7}
@@ -220,7 +263,7 @@ export function SmartRecommendationPanel({
 
           {!isActivelyRecommended && (
             <div className="pt-1">
-              {onDemandScore === null ? (
+              {activeScore === undefined ? (
                 <div className="space-y-1.5">
                   <p className="text-xs text-text-muted leading-relaxed">
                     This squad is not in your current top recommendations. You can calculate an
@@ -247,10 +290,12 @@ export function SmartRecommendationPanel({
               ) : (
                 <div className="text-xs text-text-main bg-surface/70 border border-border-main px-3 py-1.5 rounded-lg">
                   <span className="font-semibold text-text-main">
-                    On-demand compatibility: {Math.round(onDemandScore * 100)}%
+                    Compatibility match: {Math.round(activeScore * 100)}%
                   </span>
                   <p className="text-[11px] text-text-muted mt-0.5">
-                    Evaluated against squad vacancy criteria (shown in grey as an unranked match).
+                    {isRestricted
+                      ? "Technical alignment evaluated via skill taxonomy. Note: Applications restricted to host campus."
+                      : "Evaluated against squad vacancy criteria (shown in grey as an unranked match)."}
                   </p>
                 </div>
               )}
@@ -272,46 +317,81 @@ export function SmartRecommendationPanel({
       {/* Requirement-by-Requirement Explanations or Real Data Alignment (Zero Fake Data) */}
       <div className="space-y-3">
         <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider">
-          {isActivelyRecommended && recommendation.breakdown && recommendation.breakdown.length > 0
+          {hasBreakdown
             ? "Why You Match This Squad:"
             : "Squad Technical Requirements:"}
         </h4>
 
-        {isActivelyRecommended &&
-        recommendation.breakdown &&
-        recommendation.breakdown.length > 0 ? (
+        {hasBreakdown ? (
           <div className="space-y-2.5">
-            {recommendation.breakdown.map((item, idx) => (
-              <div
-                key={idx}
-                className="p-3 rounded-lg border border-border-main bg-surface space-y-1.5 shadow-2xs"
-              >
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span className="font-bold text-text-main">{item.requirementName}</span>
-                    {item.provenanceSource && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface-dim border border-border-main text-text-muted">
-                        {item.provenanceSource}
-                      </span>
-                    )}
+            {activeBreakdown!.map((item, idx) => {
+              const score = item.score ?? 0;
+              const isExact = score >= 0.99;
+              const isPartial = score > 0 && score < 0.99;
+
+              return (
+                <div
+                  key={idx}
+                  className={`p-3 rounded-xl border transition-all ${
+                    isExact
+                      ? "bg-best-fit-light border-best-fit/50 text-text-main"
+                      : isPartial
+                      ? "bg-campus-explorer-light border-campus-explorer/50 text-text-main"
+                      : "bg-surface border-border-main text-text-muted"
+                  } space-y-1.5 shadow-2xs`}
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      {isExact ? (
+                        <CheckCircle2 className="w-4 h-4 text-best-fit-dark shrink-0" />
+                      ) : isPartial ? (
+                        <Sparkles className="w-4 h-4 text-campus-explorer-dark shrink-0" />
+                      ) : (
+                        <Clock className="w-4 h-4 text-text-muted shrink-0" />
+                      )}
+                      <span className="font-bold text-text-main">{item.requirementName}</span>
+                      {item.provenanceSource && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface/80 border border-border-main text-text-muted">
+                          {item.provenanceSource}
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`font-bold ${
+                        isExact
+                          ? "text-best-fit-dark"
+                          : isPartial
+                          ? "text-campus-explorer-dark"
+                          : "text-text-muted"
+                      }`}
+                    >
+                      {Math.round(score * 100)}% match
+                    </span>
                   </div>
-                  <span className="font-semibold text-emerald-600">
-                    {Math.round(item.score * 100)}% match
-                  </span>
+
+                  {item.explanation && (
+                    <p className="text-xs text-text-muted leading-normal pl-6">
+                      {item.explanation}
+                    </p>
+                  )}
+
+                  {item.snippet && (
+                    <div className="ml-6 text-[11px] font-mono text-text-muted bg-surface-dim px-2.5 py-1 rounded border border-border-main italic">
+                      "{item.snippet}"
+                    </div>
+                  )}
                 </div>
+              );
+            })}
 
-                <p className="text-xs text-text-muted leading-normal pl-6">
-                  {item.explanation}
+            {isRestricted && (
+              <div className="p-3 rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5 text-center mt-3">
+                <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1.5 font-medium">
+                  <Lock className="w-3.5 h-3.5 shrink-0" />
+                  Campus restricted event • Applications restricted to {recommendation.teamLeadUniversity || "host institution"}
                 </p>
-
-                {item.snippet && (
-                  <div className="ml-6 text-[11px] font-mono text-text-muted bg-surface-dim px-2.5 py-1 rounded border border-border-main italic">
-                    "{item.snippet}"
-                  </div>
-                )}
               </div>
-            ))}
+            )}
           </div>
         ) : (
           /* Real Data Alignment Only - Zero Fake Data */
@@ -361,13 +441,20 @@ export function SmartRecommendationPanel({
               <p className="text-xs text-text-muted italic">No specific technical stack listed.</p>
             )}
 
-            {!isActivelyRecommended && (
+            {isRestricted ? (
+              <div className="p-3 rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5 text-center">
+                <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1.5 font-medium">
+                  <Lock className="w-3.5 h-3.5 shrink-0" />
+                  Campus restricted event • Applications restricted to {recommendation.teamLeadUniversity || "host institution"}
+                </p>
+              </div>
+            ) : !isActivelyRecommended ? (
               <div className="p-3 rounded-lg border border-dashed border-border-main bg-surface-dim/30 text-center">
                 <p className="text-xs text-text-muted">
                   This squad is currently open for applications from all participants.
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         )}
       </div>
