@@ -21,23 +21,54 @@ const prisma = new PrismaClient();
 export const listTeams = async (req: Request, res: Response) => {
   const auth = getAuth(req);
   const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
-  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string, 10) || 10));
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string, 10) || 12));
   const eventId = (req.query.eventId as string)?.trim() || undefined;
   const search = (req.query.search as string)?.trim() || undefined;
   const myTeams = req.query.myTeams === "true";
+  const campus = (req.query.campus as string)?.trim() || undefined;
+  const openSpotsOnly = req.query.openSpotsOnly === "true";
+  const tier = (req.query.tier as string)?.trim() || undefined;
   const sort = (req.query.sort as string) || "created_at";
 
   let callerDbId: string | null = null;
+  let userTaxNodeIds: string[] = [];
+  let userUniversity: string | null = null;
+
   if (auth.userId) {
     try {
       const user = await getOrCreateUserByClerkId(auth.userId);
       callerDbId = user.id;
+
+      const userWithTax = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: {
+          taxonomy: true,
+          profile: true,
+        },
+      });
+
+      if (userWithTax?.taxonomy?.taxonomyNodeIds) {
+        userTaxNodeIds = userWithTax.taxonomy.taxonomyNodeIds;
+      }
+      userUniversity = userWithTax?.profile?.university || null;
     } catch {
       // Unauthenticated / fallback
     }
   }
 
-  const cacheKey = `teams:list:${JSON.stringify({ page, limit, eventId, search, myTeams, callerDbId, sort })}`;
+  const cacheKey = `teams:list:${JSON.stringify({
+    page,
+    limit,
+    eventId,
+    search,
+    myTeams,
+    campus: campus === "ALL" ? undefined : campus,
+    openSpotsOnly,
+    tier: tier === "ALL" ? undefined : tier,
+    callerDbId,
+    sort,
+  })}`;
+
   const cached = await CacheService.get<PaginatedResponse<TeamDetailResponse>>(cacheKey);
   if (cached) {
     return res.json(cached);
@@ -63,18 +94,208 @@ export const listTeams = async (req: Request, res: Response) => {
         OR: [
           { name: { contains: search, mode: "insensitive" } },
           { requirements: { has: search } },
+          { event: { title: { contains: search, mode: "insensitive" } } },
+        ],
+      });
+    }
+
+    if (campus && campus !== "ALL") {
+      andClauses.push({
+        OR: [
+          { university: { contains: campus, mode: "insensitive" } },
+          { event: { location: { contains: campus, mode: "insensitive" } } },
         ],
       });
     }
 
     const where: Prisma.TeamWhereInput = andClauses.length > 0 ? { AND: andClauses } : {};
 
+    // Check if we need in-process taxonomy scoring (fit sorting or tier filtering)
+    const requiresTaxonomyScoring =
+      userTaxNodeIds.length > 0 &&
+      (sort === "fit_desc" || sort === "fit_asc" || (tier && tier !== "ALL"));
+
+    if (requiresTaxonomyScoring || userTaxNodeIds.length > 0) {
+      // Fetch matching candidate teams for in-process scoring
+      const allTeams = await prisma.team.findMany({
+        where,
+        include: {
+          event: {
+            select: {
+              id: true,
+              title: true,
+              date: true,
+              isGlobal: true,
+              location: true,
+              description: true,
+            },
+          },
+          taxonomy: true,
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  profile: {
+                    select: {
+                      university: true,
+                      title: true,
+                      skills: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Filter candidate teams for hard eligibility
+      const candidatePayloads = allTeams.map((team) => ({
+        team_id: team.id,
+        team_name: team.name,
+        university: team.university || team.event?.location || null,
+        description: team.event?.description || null,
+        requirements: team.requirements || [],
+        requirement_node_ids: team.taxonomy?.requirementNodeIds || [],
+        is_global: team.event?.isGlobal ?? false,
+        is_eligible: true,
+      }));
+
+      // In-process deterministic recommendation scoring (< 15ms)
+      const recommendations = userTaxNodeIds.length > 0
+        ? await AIService.getRecommendations({
+            userId: callerDbId || "anonymous",
+            userTaxonomyNodeIds: userTaxNodeIds,
+            userUniversity,
+            candidateTeams: candidatePayloads,
+            topK: allTeams.length,
+          })
+        : [];
+
+      const recsMap = new Map(recommendations.map((r) => [r.teamId, r]));
+
+      // Format team details with scores
+      let processedTeams: TeamDetailResponse[] = allTeams.map((team) => {
+        const isLeader = callerDbId ? team.members.some((m) => m.userId === callerDbId && m.role === "Leader") : false;
+        const isMember = callerDbId ? team.members.some((m) => m.userId === callerDbId) : false;
+        const rec = recsMap.get(team.id);
+
+        return {
+          id: team.id,
+          name: team.name,
+          eventId: team.eventId,
+          event: team.event
+            ? {
+                id: team.event.id,
+                title: team.event.title,
+                date: team.event.date.toISOString(),
+                isGlobal: team.event.isGlobal,
+                location: team.event.location,
+                university: team.university,
+              }
+            : undefined,
+          orgId: team.orgId,
+          requirements: team.requirements,
+          requirementNodeIds: team.taxonomy?.requirementNodeIds || [],
+          university: team.university,
+          members: team.members.map((m) => ({
+            id: m.id,
+            userId: m.userId,
+            role: m.role,
+            joinedAt: m.joinedAt.toISOString(),
+            name: m.user.name,
+            email: m.user.email,
+            university: m.user.profile?.university || null,
+            skills: m.user.profile?.skills || [],
+            title: m.user.profile?.title || null,
+          })),
+          isLeader,
+          isMember,
+          taxonomyScore: rec ? rec.taxonomyScore : undefined,
+          category: rec ? rec.recommendationCategory : undefined,
+          neededRequirement: team.requirements?.[0],
+          createdAt: team.createdAt.toISOString(),
+          updatedAt: team.updatedAt.toISOString(),
+        };
+      });
+
+      // Apply openSpotsOnly filter
+      if (openSpotsOnly) {
+        processedTeams = processedTeams.filter((t) => {
+          const maxCap = 4;
+          return maxCap - t.members.length > 0;
+        });
+      }
+
+      // Apply tier filter
+      if (tier && tier !== "ALL") {
+        if (tier === "BEST") {
+          processedTeams = processedTeams.filter((t) => t.category === "BEST");
+        } else if (tier === "CROSS_CAMPUS") {
+          processedTeams = processedTeams.filter((t) => t.category === "GOOD_DIFFERENT_UNIVERSITY");
+        } else if (tier === "CAMPUS_EXPLORER") {
+          processedTeams = processedTeams.filter((t) => t.category === "SAME_UNIVERSITY_LOWER_SCORE");
+        }
+      }
+
+      // Sort results
+      if (sort === "fit_desc") {
+        processedTeams.sort((a, b) => {
+          const scoreA = a.taxonomyScore ?? 0;
+          const scoreB = b.taxonomyScore ?? 0;
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+      } else if (sort === "fit_asc") {
+        processedTeams.sort((a, b) => {
+          const scoreA = a.taxonomyScore ?? 0;
+          const scoreB = b.taxonomyScore ?? 0;
+          if (scoreA !== scoreB) return scoreA - scoreB;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+      } else if (sort === "spots_desc") {
+        processedTeams.sort((a, b) => {
+          const spotsA = 4 - a.members.length;
+          const spotsB = 4 - b.members.length;
+          return spotsB - spotsA;
+        });
+      } else if (sort === "name_asc" || sort === "name") {
+        processedTeams.sort((a, b) => a.name.localeCompare(b.name));
+      } else {
+        // Default: created_at descending
+        processedTeams.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      }
+
+      const total = processedTeams.length;
+      const totalPages = Math.ceil(total / limit) || 1;
+      const paginatedData = processedTeams.slice((page - 1) * limit, page * limit);
+
+      const payload: PaginatedResponse<TeamDetailResponse> = {
+        data: paginatedData,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+        },
+      };
+
+      // Cache list for 2 minutes
+      await CacheService.set(cacheKey, payload, 120);
+
+      return res.json(payload);
+    }
+
+    // Fallback: Standard database query when no taxonomy scoring is needed
     let orderBy: Prisma.TeamOrderByWithRelationInput = { createdAt: "desc" };
-    if (sort === "name") {
+    if (sort === "name_asc" || sort === "name") {
       orderBy = { name: "asc" };
     }
 
-    const [total, teams] = await prisma.$transaction([
+    const [totalRaw, teams] = await prisma.$transaction([
       prisma.team.count({ where }),
       prisma.team.findMany({
         where,
@@ -114,9 +335,7 @@ export const listTeams = async (req: Request, res: Response) => {
       }),
     ]);
 
-    const totalPages = Math.ceil(total / limit) || 1;
-
-    const data: TeamDetailResponse[] = teams.map((team) => {
+    let data: TeamDetailResponse[] = teams.map((team) => {
       const isLeader = callerDbId ? team.members.some((m) => m.userId === callerDbId && m.role === "Leader") : false;
       const isMember = callerDbId ? team.members.some((m) => m.userId === callerDbId) : false;
 
@@ -151,28 +370,35 @@ export const listTeams = async (req: Request, res: Response) => {
         })),
         isLeader,
         isMember,
+        neededRequirement: team.requirements?.[0],
         createdAt: team.createdAt.toISOString(),
         updatedAt: team.updatedAt.toISOString(),
       };
     });
+
+    if (openSpotsOnly) {
+      data = data.filter((t) => 4 - t.members.length > 0);
+    }
+
+    const totalPages = Math.ceil(totalRaw / limit) || 1;
 
     const payload: PaginatedResponse<TeamDetailResponse> = {
       data,
       pagination: {
         page,
         limit,
-        total,
+        total: totalRaw,
         totalPages,
       },
     };
 
-    // Cache list for 5 minutes
-    await CacheService.set(cacheKey, payload, 300);
+    // Cache list for 2 minutes
+    await CacheService.set(cacheKey, payload, 120);
 
     return res.json(payload);
   } catch (error) {
-    console.error("[Team API] Error listing teams:", error);
-    return res.status(500).json({ error: "Failed to list teams." });
+    console.error("[Team API] Error fetching teams list:", error);
+    return res.status(500).json({ error: "Failed to fetch teams." });
   }
 };
 

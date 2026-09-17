@@ -46,6 +46,22 @@ async function main() {
       location: "New Delhi, Delhi, India",
       logoUrl: "https://images.unsplash.com/photo-1592280771190-3e2e4d571952?w=200&h=200&fit=crop",
     },
+    {
+      clerkOrgId: "org_seed_stanford",
+      name: "Stanford University",
+      slug: "stanford",
+      domain: "stanford.edu",
+      location: "Stanford, CA, USA",
+      logoUrl: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=200&h=200&fit=crop",
+    },
+    {
+      clerkOrgId: "org_seed_ucberkeley",
+      name: "UC Berkeley",
+      slug: "uc-berkeley",
+      domain: "berkeley.edu",
+      location: "Berkeley, CA, USA",
+      logoUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=200&h=200&fit=crop",
+    },
   ];
 
   const orgMap: Record<string, any> = {};
@@ -896,6 +912,9 @@ async function main() {
       date: new Date(Date.now() + 16 * 24 * 60 * 60 * 1000),
       location: "Hybrid (New Delhi & Virtual)",
       organizerId: presenterUser.id,
+      organizerProfileId: clubMap["ccs-tiet"]?.id,
+      organizationId: tietOrg.id,
+      orgId: tietOrg.clerkOrgId,
       isGlobal: true,
     },
     {
@@ -904,6 +923,9 @@ async function main() {
       date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       location: "Virtual / Global",
       organizerId: createdStudents[1].id,
+      organizerProfileId: clubMap["devclub-iitd"]?.id,
+      organizationId: iitdOrg.id,
+      orgId: iitdOrg.clerkOrgId,
       isGlobal: true,
     },
     {
@@ -912,6 +934,8 @@ async function main() {
       date: new Date(Date.now() + 22 * 24 * 60 * 60 * 1000),
       location: "Stanford, CA & Virtual",
       organizerId: presenterUser.id,
+      organizationId: orgMap["stanford"]?.id,
+      orgId: orgMap["stanford"]?.clerkOrgId,
       isGlobal: true,
     },
     {
@@ -920,6 +944,8 @@ async function main() {
       date: new Date(Date.now() + 36 * 24 * 60 * 60 * 1000),
       location: "San Francisco, CA & Remote",
       organizerId: createdStudents[6].id,
+      organizationId: orgMap["uc-berkeley"]?.id,
+      orgId: orgMap["uc-berkeley"]?.clerkOrgId,
       isGlobal: true,
     },
     {
@@ -928,6 +954,9 @@ async function main() {
       date: new Date(Date.now() + 48 * 24 * 60 * 60 * 1000),
       location: "Mumbai, India & Virtual",
       organizerId: createdStudents[13].id,
+      organizerProfileId: clubMap["csi-vit"]?.id,
+      organizationId: vitOrg.id,
+      orgId: vitOrg.clerkOrgId,
       isGlobal: true,
     },
     {
@@ -936,6 +965,9 @@ async function main() {
       date: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
       location: "Bangalore, India & Virtual",
       organizerId: createdStudents[20].id,
+      organizerProfileId: clubMap["coding-club-bits"]?.id,
+      organizationId: bitsOrg.id,
+      orgId: bitsOrg.clerkOrgId,
       isGlobal: true,
     },
   ];

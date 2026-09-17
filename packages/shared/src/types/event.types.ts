@@ -42,6 +42,12 @@ export interface EventDetailResponse extends EventResponse {
     slug: string;
     logoUrl?: string | null;
   } | null;
+  organization?: {
+    id: string;
+    name: string;
+    slug: string;
+    logoUrl?: string | null;
+  } | null;
   teamsCount: number;
   teams?: {
     id: string;
@@ -55,7 +61,8 @@ export interface EventQueryFilters {
   page?: number;
   limit?: number;
   search?: string;
-  scope?: "all" | "global" | "org";
-  sort?: "date_asc" | "date_desc" | "created_at";
+  scope?: "all" | "global" | "org" | "my_university";
+  campus?: string;
+  sort?: "popularity" | "popular" | "date_asc" | "date_desc" | "created_at";
 }
 

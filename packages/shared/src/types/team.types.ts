@@ -81,6 +81,9 @@ export interface TeamDetailResponse {
   isLeader?: boolean;
   isMember?: boolean;
   hasApplied?: boolean;
+  taxonomyScore?: number;
+  category?: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE";
+  neededRequirement?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -91,7 +94,10 @@ export interface TeamQueryFilters {
   eventId?: string;
   search?: string;
   myTeams?: boolean;
-  sort?: "created_at" | "name";
+  campus?: string;
+  openSpotsOnly?: boolean;
+  tier?: "BEST" | "CROSS_CAMPUS" | "CAMPUS_EXPLORER" | "ALL";
+  sort?: "fit_desc" | "fit_asc" | "spots_desc" | "name_asc" | "created_at";
 }
 
 export interface MyApplicationResponse {

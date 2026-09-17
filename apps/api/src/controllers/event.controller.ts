@@ -21,9 +21,10 @@ export const listEvents = async (req: Request, res: Response) => {
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string, 10) || 10));
   const search = (req.query.search as string)?.trim() || "";
   const scope = (req.query.scope as string) || "all";
-  const sort = (req.query.sort as string) || "date_asc";
+  const campus = (req.query.campus as string)?.trim() || "";
+  const sort = (req.query.sort as string) || "popularity";
 
-  const cacheKey = `events:list:${JSON.stringify({ page, limit, search, scope, sort, userOrgId })}`;
+  const cacheKey = `events:list:${JSON.stringify({ page, limit, search, scope, campus, sort, userOrgId })}`;
   const cached = await CacheService.get<PaginatedResponse<EventDetailResponse>>(cacheKey);
   if (cached) {
     return res.json(cached);
@@ -50,6 +51,17 @@ export const listEvents = async (req: Request, res: Response) => {
       }
     }
 
+    // Campus filter (e.g. My University)
+    if (campus && campus !== "ALL") {
+      andClauses.push({
+        OR: [
+          { location: { contains: campus, mode: "insensitive" } },
+          { organizerProfile: { name: { contains: campus, mode: "insensitive" } } },
+          { organization: { name: { contains: campus, mode: "insensitive" } } },
+        ],
+      });
+    }
+
     // Search query
     if (search) {
       andClauses.push({
@@ -63,12 +75,19 @@ export const listEvents = async (req: Request, res: Response) => {
 
     const where: Prisma.EventWhereInput = andClauses.length > 0 ? { AND: andClauses } : {};
 
-    // Sort order
-    let orderBy: Prisma.EventOrderByWithRelationInput = { date: "asc" };
-    if (sort === "date_desc") {
+    // Sort order: default popularity (teams count desc), date, or created_at
+    let orderBy: Prisma.EventOrderByWithRelationInput | Prisma.EventOrderByWithRelationInput[] = [
+      { teams: { _count: "desc" } },
+      { date: "asc" },
+    ];
+    if (sort === "date_asc") {
+      orderBy = { date: "asc" };
+    } else if (sort === "date_desc") {
       orderBy = { date: "desc" };
     } else if (sort === "created_at") {
       orderBy = { createdAt: "desc" };
+    } else if (sort === "popularity" || sort === "popular") {
+      orderBy = [{ teams: { _count: "desc" } }, { date: "asc" }];
     }
 
     const [total, events] = await prisma.$transaction([
@@ -83,6 +102,9 @@ export const listEvents = async (req: Request, res: Response) => {
             select: { id: true, name: true, email: true },
           },
           organizerProfile: {
+            select: { id: true, name: true, slug: true, logoUrl: true },
+          },
+          organization: {
             select: { id: true, name: true, slug: true, logoUrl: true },
           },
           _count: {
@@ -106,6 +128,7 @@ export const listEvents = async (req: Request, res: Response) => {
       isGlobal: ev.isGlobal,
       organizer: ev.organizer,
       organizerProfile: ev.organizerProfile,
+      organization: ev.organization,
       teamsCount: ev._count.teams,
       createdAt: ev.createdAt.toISOString(),
       updatedAt: ev.updatedAt.toISOString(),
@@ -153,6 +176,9 @@ export const getEventById = async (req: Request, res: Response) => {
         organizerProfile: {
           select: { id: true, name: true, slug: true, logoUrl: true },
         },
+        organization: {
+          select: { id: true, name: true, slug: true, logoUrl: true },
+        },
         teams: {
           select: {
             id: true,
@@ -183,6 +209,7 @@ export const getEventById = async (req: Request, res: Response) => {
       isGlobal: event.isGlobal,
       organizer: event.organizer,
       organizerProfile: event.organizerProfile,
+      organization: event.organization,
       teamsCount: event._count.teams,
       teams: event.teams.map((t) => ({
         id: t.id,
