@@ -5,12 +5,14 @@
 SquadUp 2.0 replaces unstructured dense vector similarity search with a **Deterministic Single-Parent Knowledge Hierarchy** and a **V2 Multi-Source Evidence Extraction Pipeline**.
 
 ### Key Architectural Tenets
-1. **Zero Hallucinations:** Matching is governed strictly by graph relationships in an in-memory 143-node canonical taxonomy tree.
+1. **Zero Hallucinations:** Matching is governed strictly by graph relationships in an in-memory 151-node canonical single-parent taxonomy tree.
 2. **Decoupled Relational Persistence:** Core `User`, `Profile`, and `Team` models remain pristine. Technical taxonomy nodes and evidence are stored in isolated `UserTaxonomy` and `TeamTaxonomy` tables.
-3. **Multi-Source Demonstrated Capability:** Capabilities are extracted not only from self-reported skills, but also from demonstrated usage in `projects` and professional `work experience`.
-4. **Pure Taxonomy Compatibility:** Technical capability scores are strictly uncorrupted ($0.0$ to $1.0$). University alignment is never blended arithmetically into the technical score.
-5. **Hard Event Eligibility:** Scoping constraints (`isGlobal`, university isolation) are applied before ranking to prevent ineligible teams from occupying top recommendation candidate pools.
-6. **Blazing Fast In-Memory Scoring:** Uses an $O(K \times N)$ User Pre-Scoring Vector, allowing 10,000+ candidate teams to be evaluated in under **15 milliseconds**.
+3. **Role-Based Precision Matching:** Evaluates candidates against specific designated roles (`TeamRole`) within a squad, providing the optimal role recommendation (`bestMatchingRole`).
+4. **Multi-Source Demonstrated Capability:** Capabilities are extracted not only from self-reported skills, but also from demonstrated usage in `projects` and professional `work experience`.
+5. **Pure Taxonomy Compatibility:** Technical capability scores are strictly uncorrupted ($0.0$ to $1.0$). University alignment is never blended arithmetically into the technical score.
+6. **Hard Event Eligibility:** Scoping constraints (`isGlobal`, university isolation) are applied before ranking to prevent ineligible teams from occupying top recommendation candidate pools.
+7. **Blazing Fast In-Memory Scoring:** Uses an $O(K \times N)$ User Pre-Scoring Vector, allowing 10,000+ candidate teams to be evaluated in under **15 milliseconds**.
+8. **Deep Structural Explainability:** Matches provide tree level depths ($L_r, L_u, L_{lca}$), graph distance $d$, and exact relationship types.
 
 ---
 

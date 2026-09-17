@@ -4,9 +4,33 @@ This document provides a snapshot of the current state of the SquadUp project. I
 
 ## Current Focus
 
-The platform features a complete First-Time User Onboarding flow with dynamic Navbar progression. Immediate upcoming focus is further refinement of the student squad discovery and organizer management workflows.
+Following the completion of **Task 1: TeamRole Model & Taxonomy Recommendation Engine Upgrade**, immediate upcoming focus is **Task 2: Role-Based Teammate Invites, Lifecycle Modals & Live Notifications Backend (with Redis Pub/Sub)**.
 
 ## Completed
+
+- **Task 1 — TeamRole Model, 151-Node Taxonomy Hierarchy & Role-Based Recommendation Engine (`apps/api`, `apps/web`):**
+  - **Relational `TeamRole` Database Model:**
+    - Added `TeamRole` in PostgreSQL (Prisma) with 1:N relationship to `Team` (`onDelete: Cascade`), supporting `title`, `skills`, `spots`, `assignedToId`, and pre-resolved `requirementNodeIds`.
+    - Synced through Prisma ORM and added to `@squadup/shared` types.
+  - **Expanded Single-Parent Taxonomy Hierarchy (151 Nodes):**
+    - Expanded `taxonomy_tree.json` to 151 single-parent rooted nodes under `computer_science` domain tree.
+    - Preserved single-parent strictness (LCA solvable in microsecond tree traversal) while allowing multi-role concept duplication under distinct subdomains.
+    - Updated `TaxonomyResolver.resolveAll()` to support multi-source entity context and automatic duplicate resolution.
+  - **Role-Based Pure Taxonomy Recommendation Engine (`recommendation.engine.ts`):**
+    - Upgraded recommendation engine to evaluate fit on a per-role basis for teams with configured roles, deriving the candidate's optimal matching role (`bestMatchingRole`).
+    - Propagates `roleTitle`, `score`, `fulfilledCount`, `totalCount`, and `skills` to clients.
+  - **Deep Structural Explainability & Hierarchy Path Tracing (`explain.ts`, `SmartRecommendationPanel.tsx`):**
+    - Enriched explainability engine to explicitly report requirement depth ($L_r$), candidate skill depth ($L_u$), lowest common ancestor intersection node ($L_{lca}$), graph distance $d$, and exact relationship categorization.
+    - Integrated visual breadcrumb trace bar in `SmartRecommendationPanel.tsx` with graph distance, relationship badges, and allotted score calculations.
+    - Added internal smooth scrolling (`max-h-[calc(100vh-6rem)] overflow-y-auto`) and sticky layout in `SmartRecommendationPanel.tsx`.
+  - **Role-Based UI & Badges across Teams Directory & Squad Dossier:**
+    - **`TeamCard.tsx` & `TeamTile.tsx`:** Replaced flat requirement tags with **`Roles Needed:`** grid displaying 3-tier color-coded role badges (🟢 Green for perfect match $\ge 85\%$, 🟡 Yellow for partial match $\ge 40\%$, ⚪ Grey for open vacancies) and Leader/Member badges.
+    - **`TeamsPage.tsx` (Inspection Drawer):** Upgraded preview drawer with structured `Role : Technologies Needed` cards, `⭐ Recommended Role` badge, and dynamic action footer preventing redundant applications when already a member or leader.
+    - **`TeamDetailPage.tsx`:** Upgraded candidate and leader dossiers with structured role technologies, candidate matching indicators, and member/leader action controls.
+    - **`ApplyTeamModal.tsx`:** Restricted role selection strictly to configured team roles and highlighted `⭐ Recommended Role`.
+  - **Pitch-Ready Multi-Campus Database Reseeding (`prisma/seed.ts`):**
+    - Reseeded database with structured `TeamRole` records across 66 teams and 24 users.
+    - Recomputed canonical taxonomy nodes and multi-source evidence in-process via `TaxonomyService.resolveUserTaxonomy` and `resolveTeamRoles`.
 
 - **First-Time User Onboarding Flow with Dynamic Navbar Progression (`apps/web`):**
   - **Dynamic Navbar Progression Bar:** Adapts on `/onboarding` to render an animated 2-step progress track (`1. Select Campus` $\to$ `2. Build Profile`) with percentage badges (`50% Complete` $\to$ `Step 2 of 2` $\to$ `Ready`), active step ring accents, and completed step checkmarks.

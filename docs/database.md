@@ -96,7 +96,19 @@ The absolute source of truth for the database is `apps/api/prisma/schema.prisma`
   - `orgId`: Inherited Clerk Organization scoping.
   - `requirements`: String array of requested roles and technologies.
   - `university`: Optional university affiliation.
-- **Relationships:** Belongs to one `Event`. Has one `TeamTaxonomy`. Has many `TeamMember`s, `TeamInvite`s, and `TeamApplication`s.
+- **Relationships:** Belongs to one `Event`. Has one `TeamTaxonomy`. Has many `TeamRole`s, `TeamMember`s, `TeamInvite`s, and `TeamApplication`s.
+
+### `TeamRole`
+- **Purpose:** Represents structured, designated positions within a squad (e.g., "Frontend Developer", "ML Engineer", "Product Designer").
+- **Important Fields:**
+  - `id`: Internal `cuid()`.
+  - `teamId`: Foreign key to `Team`.
+  - `title`: Designated role title (e.g. "Frontend Architect").
+  - `skills`: String array of specific technologies/skills required for this role (e.g. `["React", "TypeScript", "Tailwind CSS"]`).
+  - `spots`: Integer number of open positions for this role (defaults to 1).
+  - `assignedToId`: Optional foreign key to `User` if already claimed/assigned.
+  - `requirementNodeIds`: Canonical taxonomy graph node IDs pre-resolved for this role.
+- **Relationships:** Belongs to `Team` (`onDelete: Cascade`), optionally assigned to `User`.
 
 ### `TeamTaxonomy`
 - **Purpose:** Decoupled technical requirement index for recommendations.
