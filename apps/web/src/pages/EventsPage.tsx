@@ -16,8 +16,11 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { EventCard, EventCardData } from "../components/EventCard";
+import { EventTile } from "../components/EventTile";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
+import { TeamTile } from "../components/TeamTile";
 import { CategoryLegend } from "../components/CategoryLegend";
+import { ViewModeToggle, ViewMode } from "../components/ViewModeToggle";
 import { ScopeBadge } from "../components/Badges";
 import { useUserContext } from "../contexts/UserContext";
 import {
@@ -92,6 +95,9 @@ export function EventsPage() {
   const [scopeFilter, setScopeFilter] = useState<"all" | "campus" | "global">("all");
   const [searchInput, setSearchInput] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+
+  const [eventsViewMode, setEventsViewMode] = useState<ViewMode>("cards");
+  const [teamsViewMode, setTeamsViewMode] = useState<ViewMode>("cards");
 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -317,7 +323,14 @@ export function EventsPage() {
                 </p>
               </div>
 
-              <CategoryLegend />
+              <div className="flex items-center gap-3">
+                <CategoryLegend />
+                <ViewModeToggle
+                  mode={teamsViewMode}
+                  onChange={setTeamsViewMode}
+                  size="sm"
+                />
+              </div>
             </div>
 
             {teamsLoading ? (
@@ -326,15 +339,27 @@ export function EventsPage() {
                 <p className="text-xs font-semibold text-text-muted">Loading participating squads...</p>
               </div>
             ) : eventTeams.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {eventTeams.map((team) => (
-                  <TeamCard
-                    key={team.id}
-                    team={team}
-                    onInspect={() => navigate(`/team/${team.id}`)}
-                  />
-                ))}
-              </div>
+              teamsViewMode === "cards" ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {eventTeams.map((team) => (
+                    <TeamCard
+                      key={team.id}
+                      team={team}
+                      onInspect={() => navigate(`/team/${team.id}`)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col space-y-3">
+                  {eventTeams.map((team) => (
+                    <TeamTile
+                      key={team.id}
+                      team={team}
+                      onInspect={() => navigate(`/team/${team.id}`)}
+                    />
+                  ))}
+                </div>
+              )
             ) : (
               <div className="bg-surface rounded-2xl border border-border-main p-12 text-center space-y-3">
                 <Users className="w-10 h-10 text-text-muted mx-auto opacity-50" />
@@ -390,58 +415,67 @@ export function EventsPage() {
               />
             </div>
 
-            {/* Scope Tabs */}
-            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-lg bg-surface-dim border border-border-main text-xs font-medium">
-              <button
-                onClick={() => {
-                  setScopeFilter("all");
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
-                  scopeFilter === "all"
-                    ? "bg-surface text-text-main shadow-2xs font-bold border border-border-main"
-                    : "text-text-muted hover:text-text-main"
-                }`}
-              >
-                All Events
-              </button>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Scope Tabs */}
+              <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-lg bg-surface-dim border border-border-main text-xs font-medium">
+                <button
+                  onClick={() => {
+                    setScopeFilter("all");
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                    scopeFilter === "all"
+                      ? "bg-surface text-text-main shadow-2xs font-bold border border-border-main"
+                      : "text-text-muted hover:text-text-main"
+                  }`}
+                >
+                  All Events
+                </button>
 
-              <button
-                onClick={() => {
-                  setScopeFilter("campus");
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  scopeFilter === "campus"
-                    ? "bg-surface text-primary-action shadow-2xs font-bold border border-border-main"
-                    : "text-text-muted hover:text-text-main"
-                }`}
-              >
-                {myCampus ? (
-                  <>
-                    <span className="text-[10px] font-extrabold uppercase bg-primary-light text-primary-action px-1.5 py-0.5 rounded">
-                      My Campus
-                    </span>
-                    <span className="truncate max-w-[150px]">{myCampus}</span>
-                  </>
-                ) : (
-                  <span>Campus Only</span>
-                )}
-              </button>
+                <button
+                  onClick={() => {
+                    setScopeFilter("campus");
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ${
+                    scopeFilter === "campus"
+                      ? "bg-surface text-primary-action shadow-2xs font-bold border border-border-main"
+                      : "text-text-muted hover:text-text-main"
+                  }`}
+                >
+                  {myCampus ? (
+                    <>
+                      <span className="text-[10px] font-extrabold uppercase bg-primary-light text-primary-action px-1.5 py-0.5 rounded">
+                        My Campus
+                      </span>
+                      <span className="truncate max-w-[150px]">{myCampus}</span>
+                    </>
+                  ) : (
+                    <span>Campus Only</span>
+                  )}
+                </button>
 
-              <button
-                onClick={() => {
-                  setScopeFilter("global");
-                  setCurrentPage(1);
-                }}
-                className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
-                  scopeFilter === "global"
-                    ? "bg-surface text-text-main shadow-2xs font-bold border border-border-main"
-                    : "text-text-muted hover:text-text-main"
-                }`}
-              >
-                Global
-              </button>
+                <button
+                  onClick={() => {
+                    setScopeFilter("global");
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                    scopeFilter === "global"
+                      ? "bg-surface text-text-main shadow-2xs font-bold border border-border-main"
+                      : "text-text-muted hover:text-text-main"
+                  }`}
+                >
+                  Global
+                </button>
+              </div>
+
+              {/* View Mode Toggle */}
+              <ViewModeToggle
+                mode={eventsViewMode}
+                onChange={setEventsViewMode}
+                size="sm"
+              />
             </div>
           </div>
 
@@ -458,16 +492,28 @@ export function EventsPage() {
               <p className="text-xs text-text-muted">{error}</p>
             </div>
           ) : events.length > 0 ? (
-            /* Events Grid */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {events.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  onSelect={(evt) => setSelectedEvent(evt)}
-                />
-              ))}
-            </div>
+            /* Events Grid / Tiles */
+            eventsViewMode === "cards" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {events.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    onSelect={(evt) => setSelectedEvent(evt)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col space-y-3">
+                {events.map((event) => (
+                  <EventTile
+                    key={event.id}
+                    event={event}
+                    onSelect={(evt) => setSelectedEvent(evt)}
+                  />
+                ))}
+              </div>
+            )
           ) : (
             <div className="bg-surface rounded-2xl border border-border-main p-12 text-center space-y-2">
               <Calendar className="w-10 h-10 text-text-muted mx-auto opacity-50" />

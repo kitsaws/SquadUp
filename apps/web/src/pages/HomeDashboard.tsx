@@ -5,8 +5,11 @@ import { ArrowRight, Sparkles, CheckCircle2, Shield, Users, Calendar, Loader2 } 
 import { useUserContext } from "../contexts/UserContext";
 import { CategoryLegend } from "../components/CategoryLegend";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
+import { TeamTile } from "../components/TeamTile";
 import { EventCard, EventCardData } from "../components/EventCard";
+import { EventTile } from "../components/EventTile";
 import { ApplyTeamModal } from "../components/ApplyTeamModal";
+import { ViewModeToggle, ViewMode } from "../components/ViewModeToggle";
 import {
   eventsApi,
   teamsApi,
@@ -29,6 +32,9 @@ export function HomeDashboard() {
   const [selectedTeamForApply, setSelectedTeamForApply] = useState<TeamCardData | null>(null);
   const [appliedTeamIds, setAppliedTeamIds] = useState<string[]>([]);
   const [notificationToast, setNotificationToast] = useState<string | null>(null);
+
+  const [teamsViewMode, setTeamsViewMode] = useState<ViewMode>("cards");
+  const [eventsViewMode, setEventsViewMode] = useState<ViewMode>("cards");
 
   useEffect(() => {
     let isMounted = true;
@@ -218,23 +224,30 @@ export function HomeDashboard() {
         </div>
       </section>
 
-      {/* Section 1: Recommended For You or Featured Squads */}
+      {/* Section 1: Recommended Squads */}
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-text-main font-heading flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary-action" />{" "}
-              {isSignedIn ? "Recommended for you" : "Featured Squads"}
+            <h2 className="text-xl font-bold text-text-main font-heading">
+              {isSignedIn ? "Recommended Squads For You" : "Featured Hackathon Teams"}
             </h2>
             <p className="text-xs text-text-muted mt-0.5">
               {isSignedIn
-                ? "Smart recommendations matched against your verified skills & campus affiliation."
-                : "Discover active collegiate squads currently recruiting builders and collaborators."}
+                ? "Scored deterministically using your AI profile taxonomy and verified skills."
+                : "Explore active squads recruiting teammates. Sign in for personalized compatibility matches."}
             </p>
           </div>
 
-          {/* Horizontal Match Legend (only visible when logged in) */}
-          {isSignedIn && <CategoryLegend />}
+          <div className="flex items-center gap-3">
+            {isSignedIn && <CategoryLegend />}
+            <ViewModeToggle mode={teamsViewMode} onChange={setTeamsViewMode} size="sm" />
+            <Link
+              to="/teams"
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary-action hover:text-primary-hover transition-colors cursor-pointer shrink-0"
+            >
+              Browse All Squads <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
 
         {isLoading ? (
@@ -249,16 +262,29 @@ export function HomeDashboard() {
             ))}
           </div>
         ) : recommendedTeams.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {recommendedTeams.map((team) => (
-              <TeamCard
-                key={team.id}
-                team={team}
-                onInspect={() => navigate(`/team/${team.id}`)}
-                onApply={() => navigate(`/team/${team.id}`)}
-              />
-            ))}
-          </div>
+          teamsViewMode === "cards" ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {recommendedTeams.map((team) => (
+                <TeamCard
+                  key={team.id}
+                  team={team}
+                  onInspect={() => navigate(`/team/${team.id}`)}
+                  onApply={() => navigate(`/team/${team.id}`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col space-y-3">
+              {recommendedTeams.map((team) => (
+                <TeamTile
+                  key={team.id}
+                  team={team}
+                  onInspect={() => navigate(`/team/${team.id}`)}
+                  onApply={() => navigate(`/team/${team.id}`)}
+                />
+              ))}
+            </div>
+          )
         ) : (
           <div className="p-8 rounded-xl border border-dashed border-border-main bg-surface shadow-2xs text-center space-y-2">
             <p className="text-sm font-semibold text-text-main">No squads available right now.</p>
@@ -271,7 +297,7 @@ export function HomeDashboard() {
 
       {/* Section 2: Upcoming Events */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-text-main font-heading">
               Upcoming Events
@@ -281,12 +307,15 @@ export function HomeDashboard() {
             </p>
           </div>
 
-          <Link
-            to="/events"
-            className="inline-flex items-center gap-1 text-xs font-bold text-primary-action hover:text-primary-hover transition-colors cursor-pointer"
-          >
-            Explore All Events <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          <div className="flex items-center gap-3">
+            <ViewModeToggle mode={eventsViewMode} onChange={setEventsViewMode} size="sm" />
+            <Link
+              to="/events"
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary-action hover:text-primary-hover transition-colors cursor-pointer shrink-0"
+            >
+              Explore All Events <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
 
         {isLoading ? (
@@ -301,11 +330,27 @@ export function HomeDashboard() {
             ))}
           </div>
         ) : upcomingEvents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {upcomingEvents.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
+          eventsViewMode === "cards" ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {upcomingEvents.map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  onSelect={() => navigate(`/events`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col space-y-3">
+              {upcomingEvents.map((event) => (
+                <EventTile
+                  key={event.id}
+                  event={event}
+                  onSelect={() => navigate(`/events`)}
+                />
+              ))}
+            </div>
+          )
         ) : (
           <div className="p-8 rounded-xl border border-dashed border-border-main bg-surface shadow-2xs text-center">
             <p className="text-sm text-text-muted">No upcoming events listed at this time.</p>

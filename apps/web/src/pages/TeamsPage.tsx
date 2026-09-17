@@ -25,10 +25,12 @@ import {
 } from "lucide-react";
 import { useUserContext } from "../contexts/UserContext";
 import { TeamCard, TeamCardData } from "../components/TeamCard";
+import { TeamTile } from "../components/TeamTile";
 import { CategoryLegend } from "../components/CategoryLegend";
 import { ApplyTeamModal } from "../components/ApplyTeamModal";
 import { RecommendationBadge, ScopeBadge, SkillTag } from "../components/Badges";
 import { CompatibilityScoreRing } from "../components/CompatibilityScoreRing";
+import { ViewModeToggle, ViewMode } from "../components/ViewModeToggle";
 import {
   teamsApi,
   organizersApi,
@@ -104,6 +106,9 @@ export function TeamsPage() {
   const [stagedTier, setStagedTier] = useState<string>("ALL");
   const [stagedCampus, setStagedCampus] = useState<string>("ALL");
   const [stagedOpenSpotsOnly, setStagedOpenSpotsOnly] = useState<boolean>(false);
+
+  // View Mode: Cards vs Tiles
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
 
   // Load universities dynamically on mount
   useEffect(() => {
@@ -641,6 +646,9 @@ export function TeamsPage() {
               </div>
             )}
           </div>
+
+          {/* View Mode Toggle */}
+          <ViewModeToggle mode={viewMode} onChange={setViewMode} />
         </div>
 
         {/* Legend */}
@@ -675,7 +683,7 @@ export function TeamsPage() {
               <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
               <p className="text-xs font-semibold text-text-muted">Loading squads & teams...</p>
             </div>
-          ) : (
+          ) : viewMode === "cards" ? (
             <div
               className={`grid gap-6 ${
                 inspectedTeam ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
@@ -684,6 +692,25 @@ export function TeamsPage() {
               {teams.map((team) => (
                 <div key={team.id} id={`team-card-${team.id}`} className="h-full scroll-mt-24">
                   <TeamCard
+                    team={team}
+                    isSelected={inspectedTeam?.id === team.id}
+                    hasApplied={appliedTeamIds.includes(team.id)}
+                    onInspect={() => handleInspectToggle(team)}
+                    onApply={() => {
+                      handleInspectToggle(team);
+                      if (!team.isUserLeader) {
+                        setIsApplyModalOpen(true);
+                      }
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col space-y-3">
+              {teams.map((team) => (
+                <div key={team.id} id={`team-tile-${team.id}`} className="w-full scroll-mt-24">
+                  <TeamTile
                     team={team}
                     isSelected={inspectedTeam?.id === team.id}
                     hasApplied={appliedTeamIds.includes(team.id)}
