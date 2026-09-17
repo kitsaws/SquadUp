@@ -65,6 +65,7 @@ export function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/profile/:id" element={<Profile />} />
               <Route path="/profile/:candidateId" element={<Profile />} />
               <Route path="/playground" element={<PlaygroundPage />} />
               <Route path="/resume-upload" element={<LegacyResumeUpload />} />

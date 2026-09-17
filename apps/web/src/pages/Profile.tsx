@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Users,
   ArrowRight,
+  ArrowLeft,
   Crown,
   Clock,
   MapPin,
@@ -86,7 +87,8 @@ const formatLinkedinUrl = (url?: string | null) => {
 };
 
 export function Profile() {
-  const { candidateId } = useParams<{ candidateId?: string }>();
+  const params = useParams<{ id?: string; candidateId?: string }>();
+  const urlId = params.id || params.candidateId;
   const { jobId, isUploading, status, profileData } = useJobContext();
   const { user } = useUser();
   const { openUserProfile, signOut } = useClerk();
@@ -98,22 +100,37 @@ export function Profile() {
     updateCachedProfile,
   } = useUserContext();
 
-  const isCandidateView = Boolean(candidateId);
+  const isOwner = Boolean(
+    !urlId ||
+    (user && (urlId === user.id || (ctxProfile && (urlId === ctxProfile.userId || urlId === ctxProfile.clerkId || urlId === ctxProfile.id))))
+  );
+  const isCandidateView = !isOwner;
+
   const [profile, setProfile] = useState<UserProfileResponse | null>(
-    !isCandidateView && ctxProfile ? ctxProfile : null
+    isOwner && ctxProfile ? ctxProfile : null
   );
   const [myApplications, setMyApplications] = useState<CandidateApplicationItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(isCandidateView ? true : !ctxProfile);
+  const [loading, setLoading] = useState<boolean>(!isOwner || !ctxProfile);
   const [error, setError] = useState<string | null>(null);
   const [copiedEmail, setCopiedEmail] = useState<boolean>(false);
 
+  const handleSignOut = () => {
+    try {
+      localStorage.removeItem("squadup_theme_mode");
+      localStorage.removeItem("squadup_active_palette");
+    } catch {
+      // ignore
+    }
+    signOut({ redirectUrl: "/" });
+  };
+
   // Sync context profile if user view
   useEffect(() => {
-    if (!isCandidateView && ctxProfile) {
+    if (isOwner && ctxProfile) {
       setProfile(ctxProfile);
       setLoading(false);
     }
-  }, [isCandidateView, ctxProfile]);
+  }, [isOwner, ctxProfile]);
 
   // Edit Profile, Preferences & Collapsible States
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -181,43 +198,58 @@ export function Profile() {
   const prevUploadingRef = useRef(isUploading);
   useEffect(() => {
     if ((prevUploadingRef.current && !isUploading && !jobId) || profileData) {
-      if (!candidateId) {
+      if (isOwner) {
         refreshCtxProfile(true);
       }
     }
     prevUploadingRef.current = isUploading;
-  }, [isUploading, jobId, profileData, candidateId, refreshCtxProfile]);
+  }, [isUploading, jobId, profileData, isOwner, refreshCtxProfile]);
 
   useEffect(() => {
     let isMounted = true;
 
     async function fetchProfileData() {
-      if (isCandidateView && candidateId) {
-        setLoading(true);
-        setError(null);
+      setLoading(true);
+      setError(null);
+
+      if (urlId) {
         try {
-          const publicProf = await profileApi.getPublicProfile(candidateId);
+          const fetchedProf = await profileApi.getPublicProfile(urlId);
           if (isMounted) {
-            setProfile(publicProf);
-            setMyApplications([]);
+            setProfile(fetchedProf);
           }
         } catch (err: any) {
-          console.error("[Profile] Error fetching public profile:", err);
-          if (isMounted) setError(err.message || "Failed to load public profile.");
+          console.error("[Profile] Error fetching profile:", err);
+          if (isMounted) setError(err.message || "Failed to load profile.");
         } finally {
           if (isMounted) setLoading(false);
         }
       } else {
-        // Logged-in user view
-        if (!ctxProfile) {
-          setLoading(true);
+        if (ctxProfile) {
+          setProfile(ctxProfile);
+          setLoading(false);
+        } else {
+          try {
+            const myProf = await profileApi.getProfile();
+            if (isMounted) setProfile(myProf);
+          } catch (err: any) {
+            if (isMounted) setError(err.message || "Failed to load profile.");
+          } finally {
+            if (isMounted) setLoading(false);
+          }
         }
+      }
+
+      // If viewing own profile, also load submitted applications
+      if (isOwner) {
         try {
           const apps = await applicationsApi.getMyApplications();
           if (isMounted) setMyApplications(apps.applications || []);
         } catch {
           // unauthenticated or none
         }
+      } else {
+        if (isMounted) setMyApplications([]);
       }
     }
 
@@ -225,7 +257,7 @@ export function Profile() {
     return () => {
       isMounted = false;
     };
-  }, [candidateId, isCandidateView]);
+  }, [urlId, isOwner, ctxProfile]);
 
   if (loading && !profile) {
     return (
@@ -241,48 +273,47 @@ export function Profile() {
       <div className="max-w-md mx-auto my-20 bg-surface rounded-2xl border border-border-main p-8 text-center space-y-4 shadow-sm">
         <AlertCircle className="w-12 h-12 text-primary-action mx-auto" />
         <h2 className="text-xl font-bold text-text-main font-heading">
-          {candidateId ? "Profile Not Found" : "Authentication Required"}
+          {urlId ? "Profile Not Found" : "Authentication Required"}
         </h2>
         <p className="text-xs text-text-muted">
-          {candidateId
-            ? "The student profile could not be found or is private."
-            : "Sign in with your university credentials to access your profile and squad applications."}
+          {error || (urlId ? "Could not find a student profile with this ID." : "Sign in to view and manage your verified profile.")}
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-          {!candidateId && (
-            <SignInButton mode="modal">
-              <button className="inline-flex items-center gap-2 px-4 py-2 bg-primary-action hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-colors cursor-pointer">
-                Sign In to View Profile
-              </button>
-            </SignInButton>
-          )}
+        <div className="pt-2">
           <Link
-            to="/"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-surface-dim hover:bg-surface text-text-main border border-border-main text-xs font-bold rounded-xl transition-colors"
+            to="/teams"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-action hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
           >
-            Return Home
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Teams Directory
           </Link>
         </div>
       </div>
     );
   }
 
-  const resumeUrl = isCandidateView
-    ? `/api/resume/view/${candidateId}`
+  const resumeUrl = isCandidateView && urlId
+    ? `/api/resume/view/${urlId}`
     : `/api/resume/view`;
 
   const hasResume = Boolean(profile.lastResumeUploadedAt || profile.resumePdfUrl || (profile as any).hasResume);
 
-  const displayName = profile.name || user?.fullName || "Student Builder";
+  const displayName = profile.name || (isOwner ? user?.fullName : null) || "Student Builder";
   const displayTitle = profile.title || "Full Stack Engineer & Hackathon Builder";
   const displayUniversity = profile.university || "Collegiate Participant";
   const displaySummary =
     profile.summary ||
-    "Upload a resume to automatically extract your skills, project experiences, and background.";
+    (isOwner
+      ? "Upload a resume to automatically extract your skills, project experiences, and background."
+      : "Participant in collegiate hackathons and project sprints.");
   const displayEmail =
     profile.email ||
-    (!isCandidateView ? user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress : null) ||
+    (isOwner ? user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress : null) ||
     "";
+  const displayAvatar =
+    profile.profilePicture ||
+    profile.avatarUrl ||
+    profile.imageUrl ||
+    (isOwner ? user?.imageUrl : null) ||
+    null;
 
   const handleCopyEmail = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -397,7 +428,7 @@ export function Profile() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => signOut({ redirectUrl: "/" })}
+                    onClick={handleSignOut}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-white/80 hover:text-white bg-black/30 hover:bg-black/50 backdrop-blur-md border border-white/15 transition-all cursor-pointer shadow-xs"
                     title="Sign out of SquadUp"
                   >
@@ -413,11 +444,14 @@ export function Profile() {
               {/* Avatar Hanging Over Banner - square with heavily rounded corners */}
               <div className="flex items-end justify-between -mt-12 mb-2 relative z-10">
                 <div className="w-24 h-24 rounded-3xl border-4 border-surface shadow-md bg-surface overflow-hidden shrink-0">
-                  {user?.imageUrl && !isCandidateView ? (
+                  {displayAvatar ? (
                     <img
-                      src={user.imageUrl}
+                      src={displayAvatar}
                       alt={displayName}
                       className="w-full h-full object-cover rounded-xl"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-tr from-primary-action to-cross-campus text-white flex items-center justify-center text-3xl font-black font-heading rounded-xl">
@@ -1097,7 +1131,7 @@ export function Profile() {
               </button>
               <button
                 type="button"
-                onClick={() => signOut({ redirectUrl: "/" })}
+                onClick={handleSignOut}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-xs transition-colors cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
