@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { UpdateProfileRequest } from "@squadup/shared";
 import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
 import { AIService } from "../services/ai.service.js";
+import { CacheService } from "../services/cache.service.js";
 
 const prisma = new PrismaClient();
 
@@ -20,6 +21,12 @@ export const getProfile = async (req: Request, res: Response) => {
     userInDb = await getOrCreateUserByClerkId(userId);
   } catch (error) {
     return res.status(500).json({ error: "Failed to verify user profile." });
+  }
+
+  const cacheKey = `profile:${userInDb.id}`;
+  const cached = await CacheService.get<any>(cacheKey);
+  if (cached) {
+    return res.json(cached);
   }
 
   try {
@@ -80,12 +87,32 @@ export const getProfile = async (req: Request, res: Response) => {
       }
     }
 
-    return res.json({
+    let userImageUrl = userWithProfile.imageUrl || null;
+    if (!userImageUrl && userWithProfile.clerkId) {
+      try {
+        const { clerkClient } = await import("@clerk/express");
+        const clerkUser = await clerkClient.users.getUser(userWithProfile.clerkId);
+        if (clerkUser?.imageUrl) {
+          userImageUrl = clerkUser.imageUrl;
+          prisma.user.update({
+            where: { id: userWithProfile.id },
+            data: { imageUrl: clerkUser.imageUrl },
+          }).catch(() => {});
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const responsePayload = {
       id: profile?.id || null,
       userId: userWithProfile.id,
       clerkId: userWithProfile.clerkId,
       name: userWithProfile.name,
       email: userWithProfile.email,
+      imageUrl: userImageUrl,
+      profilePicture: userImageUrl,
+      avatarUrl: userImageUrl,
       university: profile?.university || null,
       title: profile?.title || null,
       summary: profile?.summary || null,
@@ -114,7 +141,11 @@ export const getProfile = async (req: Request, res: Response) => {
       bannerConfig: userWithProfile.preferences?.bannerConfig || null,
       createdAt: userWithProfile.createdAt.toISOString(),
       updatedAt: userWithProfile.updatedAt.toISOString(),
-    });
+    };
+
+    await CacheService.set(cacheKey, responsePayload, 300);
+
+    return res.json(responsePayload);
   } catch (error) {
     console.error("[Profile API] Error fetching profile:", error);
     return res.status(500).json({ error: "Failed to fetch profile" });
@@ -254,6 +285,9 @@ export const updateProfile = async (
       updatedTaxonomyNodeIds = existingTax?.taxonomyNodeIds || [];
     }
 
+    // Invalidate profile cache on update
+    await CacheService.del(`profile:${userInDb.id}`);
+
     return res.json({
       message: "Profile updated successfully.",
       profile: {
@@ -294,6 +328,28 @@ export const getProfileById = async (req: Request, res: Response) => {
     return res.status(400).json({ error: "targetUserId is required." });
   }
 
+  let currentUserInDb;
+  try {
+    currentUserInDb = await getOrCreateUserByClerkId(auth.userId);
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to verify current user." });
+  }
+
+  // Check if current user id == id from url
+  const isCurrentViewer =
+    currentUserInDb.id === targetUserId ||
+    currentUserInDb.clerkId === targetUserId ||
+    auth.userId === targetUserId;
+
+  const cacheKey = `profile:${currentUserInDb.id}`;
+
+  if (isCurrentViewer) {
+    const cached = await CacheService.get<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+  }
+
   try {
     const user = await prisma.user.findFirst({
       where: {
@@ -306,6 +362,18 @@ export const getProfileById = async (req: Request, res: Response) => {
         organizationMemberships: {
           include: {
             organization: true,
+          },
+        },
+        teams: {
+          include: {
+            team: {
+              select: {
+                id: true,
+                name: true,
+                eventId: true,
+                university: true,
+              },
+            },
           },
         },
       },
@@ -342,11 +410,32 @@ export const getProfileById = async (req: Request, res: Response) => {
       }
     }
 
-    return res.json({
+    let userImageUrl = user.imageUrl || null;
+    if (!userImageUrl && user.clerkId) {
+      try {
+        const { clerkClient } = await import("@clerk/express");
+        const clerkUser = await clerkClient.users.getUser(user.clerkId);
+        if (clerkUser?.imageUrl) {
+          userImageUrl = clerkUser.imageUrl;
+          prisma.user.update({
+            where: { id: user.id },
+            data: { imageUrl: clerkUser.imageUrl },
+          }).catch(() => {});
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const responsePayload = {
       id: profile?.id || null,
       userId: user.id,
+      clerkId: user.clerkId,
       name: user.name,
       email: user.email,
+      imageUrl: userImageUrl,
+      profilePicture: userImageUrl,
+      avatarUrl: userImageUrl,
       university: profile?.university || null,
       title: profile?.title || null,
       summary: profile?.summary || null,
@@ -358,14 +447,31 @@ export const getProfileById = async (req: Request, res: Response) => {
       githubUrl: profile?.githubUrl || null,
       linkedinUrl: profile?.linkedinUrl || null,
       hasResume: Boolean(profile?.resumePdfPath),
+      resumePdfUrl: profile?.resumePdfPath ? `/api/resume/view/${user.id}` : null,
       resumeViewUrl: profile?.resumePdfPath ? `/api/resume/view/${user.id}` : null,
       taxonomyNodeIds: user.taxonomy?.taxonomyNodeIds || [],
+      evidence: user.taxonomy?.evidence || [],
       isVerifiedStudent,
       verificationReason,
       organizationDomain: orgDomain || null,
       organizationName: orgName,
+      teams: (user.teams || []).map((tm) => ({
+        teamId: tm.team.id,
+        teamName: tm.team.name,
+        eventId: tm.team.eventId,
+        role: tm.role,
+        joinedAt: tm.joinedAt.toISOString(),
+      })),
       bannerConfig: user.preferences?.bannerConfig || null,
-    });
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
+    };
+
+    if (isCurrentViewer) {
+      await CacheService.set(cacheKey, responsePayload, 300);
+    }
+
+    return res.json(responsePayload);
   } catch (error) {
     console.error("[Profile API] Error fetching public profile:", error);
     return res.status(500).json({ error: "Failed to fetch candidate profile." });

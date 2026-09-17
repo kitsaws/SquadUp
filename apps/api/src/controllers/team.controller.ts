@@ -208,6 +208,7 @@ export const listTeams = async (req: Request, res: Response) => {
             joinedAt: m.joinedAt.toISOString(),
             name: m.user.name,
             email: m.user.email,
+            avatarUrl: (m.user as any).imageUrl || null,
             university: m.user.profile?.university || null,
             skills: m.user.profile?.skills || [],
             title: m.user.profile?.title || null,
@@ -216,6 +217,7 @@ export const listTeams = async (req: Request, res: Response) => {
           isMember,
           taxonomyScore: rec ? rec.taxonomyScore : undefined,
           category: rec ? rec.recommendationCategory : undefined,
+          requirementBreakdown: rec ? rec.requirementBreakdown : undefined,
           neededRequirement: team.requirements?.[0],
           createdAt: team.createdAt.toISOString(),
           updatedAt: team.updatedAt.toISOString(),
@@ -244,6 +246,10 @@ export const listTeams = async (req: Request, res: Response) => {
       // Sort results
       if (sort === "fit_desc") {
         processedTeams.sort((a, b) => {
+          const isEligibleA = a.event?.isGlobal || (userUniversity && a.university && a.university.toLowerCase() === userUniversity.toLowerCase()) ? 1 : 0;
+          const isEligibleB = b.event?.isGlobal || (userUniversity && b.university && b.university.toLowerCase() === userUniversity.toLowerCase()) ? 1 : 0;
+          if (isEligibleB !== isEligibleA) return isEligibleB - isEligibleA;
+
           const scoreA = a.taxonomyScore ?? 0;
           const scoreB = b.taxonomyScore ?? 0;
           if (scoreB !== scoreA) return scoreB - scoreA;
@@ -440,6 +446,7 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
                 id: true,
                 name: true,
                 email: true,
+                imageUrl: true,
                 profile: {
                   select: {
                     university: true,
@@ -459,6 +466,7 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
                 id: true,
                 name: true,
                 email: true,
+                imageUrl: true,
                 profile: {
                   select: {
                     university: true,
@@ -486,6 +494,49 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
     const isMember = callerDbId ? team.members.some((m) => m.userId === callerDbId) : false;
     const hasApplied = callerDbId ? team.applications.some((a) => a.userId === callerDbId && a.status === "PENDING") : false;
 
+    let taxonomyScore: number | undefined;
+    let category: any = undefined;
+    let requirementBreakdown: any = undefined;
+
+    if (callerDbId) {
+      try {
+        const callerWithTax = await prisma.user.findUnique({
+          where: { id: callerDbId },
+          include: { taxonomy: true, profile: true },
+        });
+        const callerTaxNodeIds = callerWithTax?.taxonomy?.taxonomyNodeIds || [];
+        const callerUniversity = callerWithTax?.profile?.university || null;
+
+        if (callerTaxNodeIds.length > 0) {
+          const recs = await AIService.getRecommendations({
+            userId: callerDbId,
+            userTaxonomyNodeIds: callerTaxNodeIds,
+            userUniversity: callerUniversity,
+            candidateTeams: [
+              {
+                team_id: team.id,
+                team_name: team.name,
+                university: team.university,
+                requirements: team.requirements,
+                requirement_node_ids: team.taxonomy?.requirementNodeIds || [],
+                is_global: Boolean(team.event?.isGlobal),
+                is_eligible: Boolean(team.event?.isGlobal || (callerUniversity && team.university && callerUniversity.toLowerCase() === team.university.toLowerCase())),
+              },
+            ],
+            topK: 1,
+          });
+
+          if (recs && recs.length > 0) {
+            taxonomyScore = recs[0].taxonomyScore;
+            category = recs[0].recommendationCategory;
+            requirementBreakdown = recs[0].requirementBreakdown;
+          }
+        }
+      } catch (err) {
+        console.warn("[Team Controller] Could not score single team:", err);
+      }
+    }
+
     const payload: TeamDetailResponse = {
       id: team.id,
       name: team.name,
@@ -511,6 +562,7 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
         joinedAt: m.joinedAt.toISOString(),
         name: m.user.name,
         email: m.user.email,
+        avatarUrl: (m.user as any).imageUrl || null,
         university: m.user.profile?.university || null,
         skills: m.user.profile?.skills || [],
         title: m.user.profile?.title || null,
@@ -548,6 +600,10 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
       isLeader,
       isMember,
       hasApplied,
+      taxonomyScore,
+      category,
+      requirementBreakdown,
+      neededRequirement: team.requirements?.[0],
       createdAt: team.createdAt.toISOString(),
       updatedAt: team.updatedAt.toISOString(),
     };
