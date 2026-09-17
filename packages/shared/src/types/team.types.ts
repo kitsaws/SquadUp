@@ -28,6 +28,8 @@ export interface TeamMemberDTO {
   joinedAt: string;
   name: string;
   email: string;
+  avatarUrl?: string | null;
+  imageUrl?: string | null;
   university?: string | null;
   skills?: string[];
   title?: string | null;
@@ -82,7 +84,15 @@ export interface TeamDetailResponse {
   isMember?: boolean;
   hasApplied?: boolean;
   taxonomyScore?: number;
-  category?: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE";
+  category?: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE" | null;
+  requirementBreakdown?: Array<{
+    requirementNodeId?: string;
+    requirementName: string;
+    bestUserSkillName?: string | null;
+    score: number;
+    explanationText?: string;
+    isStrong?: boolean;
+  }>;
   neededRequirement?: string;
   createdAt: string;
   updatedAt: string;

@@ -1,6 +1,7 @@
 import { Queue, Worker, Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import { AIService } from '../services/ai.service.js';
+import { CacheService } from '../services/cache.service.js';
 import { PrismaClient } from '@prisma/client';
 import { getOrCreateUserByClerkId } from '../utils/auth.utils.js';
 
@@ -112,6 +113,13 @@ export const aiWorker = new Worker(
         console.log(`[Job ${job.id}] Successfully saved UserTaxonomy for user: ${userInDb.id}`);
       } catch (taxError) {
         console.error(`[Job ${job.id}] Failed to resolve user taxonomy:`, taxError);
+      }
+      
+      // Invalidate profile cache
+      try {
+        await CacheService.del(`profile:${userInDb.id}`);
+      } catch (cacheErr) {
+        console.warn(`[Job ${job.id}] Failed to invalidate profile cache:`, cacheErr);
       }
       
       return profile;

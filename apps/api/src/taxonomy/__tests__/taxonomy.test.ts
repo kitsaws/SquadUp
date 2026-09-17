@@ -141,10 +141,12 @@ export function runTaxonomyParityTests() {
     assert(r.taxonomy_score >= 0.0 && r.taxonomy_score <= 1.0, `Score out of bounds: ${r.taxonomy_score}`);
     if (r.same_university && r.taxonomy_score >= 0.80) {
       assert(r.recommendation_category === "BEST", `Expected BEST, got ${r.recommendation_category}`);
-    } else if (!r.same_university) {
-      assert(r.recommendation_category === "GOOD_DIFFERENT_UNIVERSITY", `Expected GOOD_DIFFERENT_UNIVERSITY, got ${r.recommendation_category}`);
     } else if (r.same_university && r.taxonomy_score < 0.80) {
       assert(r.recommendation_category === "SAME_UNIVERSITY_LOWER_SCORE", `Expected SAME_UNIVERSITY_LOWER_SCORE, got ${r.recommendation_category}`);
+    } else if (!r.same_university && r.is_global) {
+      assert(r.recommendation_category === "GOOD_DIFFERENT_UNIVERSITY", `Expected GOOD_DIFFERENT_UNIVERSITY, got ${r.recommendation_category}`);
+    } else {
+      assert(!r.recommendation_category, `Expected null/undefined for non-global cross-campus, got ${r.recommendation_category}`);
     }
   }
 

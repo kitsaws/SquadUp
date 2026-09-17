@@ -19,6 +19,7 @@ interface ScoredTeam {
   strongCnt: number;
   totalReqs: number;
   team: CandidateTeamInput;
+  isEligible: boolean;
   reqMatches: Array<[string, number, string | null, StructuralFeatures | null]>;
 }
 
@@ -81,6 +82,11 @@ export class V2RecommendationEngine {
     const scoredTeams: ScoredTeam[] = [];
 
     for (const team of candidateTeams) {
+      const tUniClean = team.university ? team.university.trim().toLowerCase() : null;
+      const sameUni = Boolean(userUniClean && tUniClean && userUniClean === tUniClean);
+      // Hard eligibility: A candidate is eligible if event is global OR if candidate belongs to the same university
+      const isEligible = Boolean(team.is_global || (userUniClean && sameUni));
+
       const reqIds = team.requirement_node_ids || [];
       if (reqIds.length === 0) {
         scoredTeams.push({
@@ -88,6 +94,7 @@ export class V2RecommendationEngine {
           strongCnt: 0,
           totalReqs: 0,
           team,
+          isEligible,
           reqMatches: [],
         });
         continue;
@@ -117,15 +124,20 @@ export class V2RecommendationEngine {
         strongCnt,
         totalReqs: reqIds.length,
         team,
+        isEligible,
         reqMatches,
       });
     }
 
     // 3. Sort candidates:
-    // primary: pure taxonomy score descending
-    // secondary: strong match count descending
-    // tertiary: total requirements ascending (fewer unmet requirements)
+    // primary: eligibility (eligible teams rank before campus-locked non-global teams)
+    // secondary: pure taxonomy score descending
+    // tertiary: strong match count descending
+    // quaternary: total requirements ascending (fewer unmet requirements)
     scoredTeams.sort((a, b) => {
+      if (b.isEligible !== a.isEligible) {
+        return (b.isEligible ? 1 : 0) - (a.isEligible ? 1 : 0);
+      }
       if (b.taxScore !== a.taxScore) {
         return b.taxScore - a.taxScore;
       }
@@ -142,18 +154,22 @@ export class V2RecommendationEngine {
 
     for (let i = 0; i < topCandidates.length; i++) {
       const rank = i + 1;
-      const { taxScore, strongCnt, totalReqs, team, reqMatches } = topCandidates[i];
+      const { taxScore, strongCnt, totalReqs, team, isEligible, reqMatches } = topCandidates[i];
 
       const tUniClean = team.university ? team.university.trim().toLowerCase() : null;
       const sameUni = Boolean(userUniClean && tUniClean && userUniClean === tUniClean);
 
-      let category: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE";
+      let category: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE" | null = null;
       if (sameUni && taxScore >= strongThreshold) {
         category = "BEST";
-      } else if (!sameUni) {
+      } else if (sameUni) {
+        category = "SAME_UNIVERSITY_LOWER_SCORE";
+      } else if (team.is_global) {
+        // Only global events are eligible for cross-campus recommendations
         category = "GOOD_DIFFERENT_UNIVERSITY";
       } else {
-        category = "SAME_UNIVERSITY_LOWER_SCORE";
+        // Non-global events with different campus are locked/unrated
+        category = null;
       }
 
       const breakdown: RequirementExplanationItem[] = [];
@@ -189,7 +205,7 @@ export class V2RecommendationEngine {
         taxonomy_score: taxScore,
         same_university: sameUni,
         is_global: team.is_global,
-        is_eligible: team.is_eligible,
+        is_eligible: isEligible,
         recommendation_category: category,
         fulfilled_requirements_count: strongCnt,
         total_requirements_count: totalReqs,

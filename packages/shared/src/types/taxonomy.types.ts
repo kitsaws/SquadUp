@@ -56,7 +56,7 @@ export interface TeamRecommendationDTO {
   sameUniversity: boolean;
   isGlobal: boolean;
   isEligible: boolean;
-  recommendationCategory: RecommendationCategory;
+  recommendationCategory?: RecommendationCategory | null;
   fulfilledRequirementsCount: number;
   totalRequirementsCount: number;
   requirementBreakdown: RequirementExplanationDTO[];

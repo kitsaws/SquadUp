@@ -93,11 +93,12 @@ export async function getOrCreateUserByClerkId(clerkId: string) {
       
       const email = clerkUser.emailAddresses[0]?.emailAddress || `${clerkId}@squadup.dev`;
       const name = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || "SquadUp User";
+      const imageUrl = clerkUser.imageUrl || null;
       
       userInDb = await prisma.user.upsert({
         where: { clerkId },
-        update: { email, name },
-        create: { clerkId, email, name },
+        update: { email, name, ...(imageUrl && { imageUrl }) },
+        create: { clerkId, email, name, imageUrl },
         include: {
           profile: true,
           organizationMemberships: {
@@ -127,6 +128,26 @@ export async function getOrCreateUserByClerkId(clerkId: string) {
     } catch (clerkError) {
       console.error("[Auth Utils] Error fetching user from Clerk API:", clerkError);
       throw new Error("Failed to verify user profile with Clerk.");
+    }
+  } else if (!userInDb.imageUrl) {
+    // Lazily backfill imageUrl if missing in DB
+    try {
+      const { clerkClient } = await import("@clerk/express");
+      const clerkUser = await clerkClient.users.getUser(clerkId);
+      if (clerkUser.imageUrl) {
+        userInDb = await prisma.user.update({
+          where: { clerkId },
+          data: { imageUrl: clerkUser.imageUrl },
+          include: {
+            profile: true,
+            organizationMemberships: {
+              include: { organization: true },
+            },
+          },
+        });
+      }
+    } catch {
+      // Non-blocking
     }
   }
 

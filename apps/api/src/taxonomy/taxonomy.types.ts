@@ -101,7 +101,7 @@ export interface RankedTeamRecommendation {
   same_university: boolean;
   is_global: boolean;
   is_eligible: boolean;
-  recommendation_category: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE";
+  recommendation_category?: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE" | null;
   fulfilled_requirements_count: number;
   total_requirements_count: number;
   requirement_breakdown: RequirementExplanationItem[];

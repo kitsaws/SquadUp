@@ -455,6 +455,15 @@ export const getEventTeams = async (req: Request<{ id: string }>, res: Response)
       where: { eventId: id },
       include: {
         taxonomy: true,
+        members: {
+          include: {
+            user: {
+              include: {
+                profile: true,
+              },
+            },
+          },
+        },
         _count: { select: { members: true } },
       },
     });
@@ -469,6 +478,18 @@ export const getEventTeams = async (req: Request<{ id: string }>, res: Response)
         requirementNodeIds: t.taxonomy?.requirementNodeIds || [],
         membersCount: t._count.members,
         university: t.university,
+        members: t.members.map((m) => ({
+          id: m.id,
+          userId: m.userId,
+          role: m.role,
+          joinedAt: m.joinedAt.toISOString(),
+          name: m.user.name,
+          email: m.user.email,
+          avatarUrl: (m.user as any).imageUrl || null,
+          university: m.user.profile?.university || null,
+          skills: m.user.profile?.skills || [],
+          title: m.user.profile?.title || null,
+        })),
         createdAt: t.createdAt.toISOString(),
       })),
     });
