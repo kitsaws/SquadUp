@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Calendar, MapPin, ArrowRight, Shield, Globe, Lock } from "lucide-react";
 import { EventCardData } from "./EventCard";
 
@@ -9,6 +10,16 @@ interface EventTileProps {
 }
 
 export function EventTile({ event, onSelect, isSelected = false }: EventTileProps) {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (onSelect) {
+      onSelect(event);
+    } else {
+      navigate(`/event/${event.id}`);
+    }
+  };
+
   const renderScopeBadge = () => {
     if (event.isGlobal) {
       return (
@@ -29,7 +40,7 @@ export function EventTile({ event, onSelect, isSelected = false }: EventTileProp
 
   return (
     <div
-      onClick={() => onSelect?.(event)}
+      onClick={handleClick}
       className={`group bg-surface rounded-xl border p-4 sm:p-5 transition-all duration-200 cursor-pointer flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${
         isSelected
           ? "border-primary-action ring-2 ring-primary-action/20 shadow-md"

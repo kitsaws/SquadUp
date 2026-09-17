@@ -336,7 +336,7 @@ export function HomeDashboard() {
                 <EventCard
                   key={event.id}
                   event={event}
-                  onSelect={() => navigate(`/events`)}
+                  onSelect={() => navigate(`/event/${event.id}`)}
                 />
               ))}
             </div>
@@ -346,7 +346,7 @@ export function HomeDashboard() {
                 <EventTile
                   key={event.id}
                   event={event}
-                  onSelect={() => navigate(`/events`)}
+                  onSelect={() => navigate(`/event/${event.id}`)}
                 />
               ))}
             </div>

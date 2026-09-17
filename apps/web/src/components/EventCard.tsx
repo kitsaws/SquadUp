@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Calendar, MapPin, Users, ArrowRight, Shield, Globe, Lock } from "lucide-react";
 
 export interface EventCardData {
@@ -24,6 +25,15 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, onSelect, isSelected = false }: EventCardProps) {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (onSelect) {
+      onSelect(event);
+    } else {
+      navigate(`/event/${event.id}`);
+    }
+  };
   const renderScopeBadge = () => {
     if (event.isGlobal) {
       return (
@@ -44,7 +54,7 @@ export function EventCard({ event, onSelect, isSelected = false }: EventCardProp
 
   return (
     <div
-      onClick={() => onSelect?.(event)}
+      onClick={handleClick}
       className={`bg-surface rounded-xl border p-6 transition-all duration-200 cursor-pointer flex flex-col justify-between ${
         isSelected
           ? "border-primary-action ring-2 ring-primary-action/20 shadow-md"

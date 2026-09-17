@@ -9,6 +9,7 @@ import { TeamsPage } from "./pages/TeamsPage";
 import { ApplicationsPage } from "./pages/ApplicationsPage";
 import { Profile } from "./pages/Profile";
 import { TeamDetailPage } from "./pages/TeamDetailPage";
+import { EventDetailPage } from "./pages/EventDetailPage";
 import { PlaygroundPage } from "./pages/PlaygroundPage";
 import { Onboarding } from "./pages/Onboarding";
 import { OnboardingGuard } from "./components/onboarding/OnboardingGuard";
@@ -43,6 +44,8 @@ export function App() {
               <Route path="/" element={<HomeDashboard />} />
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/events" element={<EventsPage />} />
+              <Route path="/event/:id" element={<EventDetailPage />} />
+              <Route path="/events/:id" element={<EventDetailPage />} />
               <Route path="/teams" element={<TeamsPage />} />
               <Route path="/team/:id" element={<TeamDetailPage />} />
               <Route path="/teams/:id" element={<TeamDetailPage />} />
