@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
-import { SignInButton } from "@clerk/react";
+import { SignInButton, useUser, useAuth } from "@clerk/react";
 import {
   ArrowLeft,
   Users,
@@ -45,6 +45,7 @@ import {
   CandidateApplicationTile,
   CandidateApplicationData,
 } from "../components/CandidateApplicationTile";
+import { ConfirmModal } from "../components/ConfirmModal";
 import type { TeamInviteItem } from "../services/api";
 
 function formatTimeAgo(dateInput: Date | string): string {
@@ -66,7 +67,19 @@ export function TeamDetailPage() {
   const locationState = location.state as { fromEventId?: string; fromEventTitle?: string; from?: string } | null;
   const fromEventId = locationState?.fromEventId;
   const fromEventTitle = locationState?.fromEventTitle;
-  const { isSignedIn, userVerifiedSkills, profile: contextProfile, userUniversity } = useUserContext();
+  const {
+    isSignedIn,
+    userVerifiedSkills,
+    profile: contextProfile,
+    userUniversity,
+    refreshProfile,
+    updateCachedProfile,
+  } = useUserContext();
+  const { orgId } = useAuth();
+  const { user } = useUser();
+  const userOrgIds = useMemo(() => {
+    return (user?.organizationMemberships || []).map((m) => m.organization.id);
+  }, [user]);
 
   const [team, setTeam] = useState<TeamItem | null>(null);
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
@@ -85,6 +98,24 @@ export function TeamDetailPage() {
   // Invite states for viewing candidate
   const [pendingInvite, setPendingInvite] = useState<TeamInviteItem | null>(null);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
+
+  // Confirmation modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: React.ReactNode;
+    confirmText?: string;
+    cancelText?: string;
+    variant?: "danger" | "warning" | "primary";
+    iconType?: "leave" | "remove" | "delete" | "warning";
+    isLoading?: boolean;
+    onConfirm: () => Promise<void> | void;
+  }>({
+    isOpen: false,
+    title: "",
+    description: null,
+    onConfirm: async () => {},
+  });
 
   // Load Team, User Profile, Applications (if leader), and Recommendations (if candidate)
   useEffect(() => {
@@ -135,9 +166,16 @@ export function TeamDetailPage() {
             (m.role === "Leader" || m.role?.toLowerCase() === "leader")
           ))
         );
+        const isUserMember = Boolean(
+          teamData.isMember ||
+          (userProfile && teamData.members.some((m) =>
+            m.userId === currentUid || (currentEmail && m.email && m.email.toLowerCase() === currentEmail)
+          ))
+        );
+        const isUserInTeam = isUserLeader || isUserMember;
 
-        // 3. If Leader, fetch incoming applications for this squad
-        if (isUserLeader) {
+        // 3. If in Team (Leader or Member), fetch incoming applications for this squad
+        if (isUserInTeam) {
           try {
             const appsRes = await applicationsApi.getIncomingApplications({ teamId: teamData.id });
             if (isMounted) {
@@ -249,6 +287,24 @@ export function TeamDetailPage() {
       m.userId === currentUserId || (currentUserEmail && m.email && m.email.toLowerCase() === currentUserEmail)
     ))
   );
+  const isUserInTeam = isUserLeader || isUserMember;
+
+  // Defensively ensure bestMatchingRole is only valid if the role has open spots remaining
+  const rawBestMatchingRole = team?.bestMatchingRole || recommendation?.bestMatchingRole;
+  const activeBestMatchingRole = useMemo(() => {
+    if (!rawBestMatchingRole) return undefined;
+    if (team?.roles && team.roles.length > 0) {
+      const match = team.roles.find(
+        (r) =>
+          (rawBestMatchingRole.roleId && r.id === rawBestMatchingRole.roleId) ||
+          r.title.toLowerCase().trim() === rawBestMatchingRole.roleTitle.toLowerCase().trim()
+      );
+      if (!match || (match.spots !== undefined && match.spots <= 0) || match.assignedToId) {
+        return undefined;
+      }
+    }
+    return rawBestMatchingRole;
+  }, [rawBestMatchingRole, team?.roles]);
 
   const handleApplySuccess = async (teamId: string, role: string, message: string) => {
     try {
@@ -294,30 +350,79 @@ export function TeamDetailPage() {
     }
   };
 
-  const handleLeaveTeam = async () => {
-    if (!team || !confirm("Are you sure you want to leave this squad?")) return;
-    try {
-      await teamsApi.leaveTeam(team.id);
-      setToastMessage("You have left the squad.");
-      setTimeout(() => navigate("/teams"), 1500);
-    } catch (err: any) {
-      setToastMessage(err.message || "Failed to leave squad.");
-      setTimeout(() => setToastMessage(null), 4000);
-    }
+  const handleLeaveTeam = () => {
+    if (!team) return;
+    const isLeader = Boolean(
+      team.isLeader ||
+      team.members.some((m) => m.userId === contextProfile?.userId && m.role === "Leader")
+    );
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Leave Squad",
+      iconType: "leave",
+      variant: "danger",
+      confirmText: "Leave Squad",
+      description: (
+        <span>
+          Are you sure you want to leave <strong className="text-text-main font-semibold">{team.name}</strong>?
+          {isLeader
+            ? " Since you are the squad leader, squad leadership will automatically transfer to another member."
+            : " Your role will immediately become open for incoming applicants."}
+        </span>
+      ),
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await teamsApi.leaveTeam(team.id);
+          if (contextProfile?.teams) {
+            updateCachedProfile({
+              teams: contextProfile.teams.filter((t: any) => t.teamId !== team.id),
+            });
+          }
+          await refreshProfile(true);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          setToastMessage("You have left the squad.");
+          setTimeout(() => navigate("/teams"), 1000);
+        } catch (err: any) {
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+          setToastMessage(err.message || "Failed to leave squad.");
+          setTimeout(() => setToastMessage(null), 4000);
+        }
+      },
+    });
   };
 
-  const handleRemoveMember = async (memberUserId: string, memberName: string) => {
-    if (!team || !confirm(`Remove ${memberName} from this squad?`)) return;
-    try {
-      await teamsApi.removeMember(team.id, memberUserId);
-      setToastMessage(`✓ ${memberName} removed from squad roster.`);
-      setTimeout(() => setToastMessage(null), 4000);
-      const refreshed = await teamsApi.getTeam(team.id);
-      setTeam(refreshed);
-    } catch (err: any) {
-      setToastMessage(err.message || "Failed to remove member.");
-      setTimeout(() => setToastMessage(null), 4000);
-    }
+  const handleRemoveMember = (memberUserId: string, memberName: string) => {
+    if (!team) return;
+    setConfirmModal({
+      isOpen: true,
+      title: "Remove Squad Member",
+      iconType: "remove",
+      variant: "danger",
+      confirmText: "Remove Member",
+      description: (
+        <span>
+          Are you sure you want to remove <strong className="text-text-main font-semibold">{memberName}</strong> from <strong className="text-text-main font-semibold">{team.name}</strong>? Their assigned role spot will immediately be reopened.
+        </span>
+      ),
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await teamsApi.removeMember(team.id, memberUserId);
+          await refreshProfile(true);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          setToastMessage(`✓ ${memberName} removed from squad roster.`);
+          setTimeout(() => setToastMessage(null), 4000);
+          const refreshed = await teamsApi.getTeam(team.id);
+          setTeam(refreshed);
+        } catch (err: any) {
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+          setToastMessage(err.message || "Failed to remove member.");
+          setTimeout(() => setToastMessage(null), 4000);
+        }
+      },
+    });
   };
 
   const handleSendInvite = async (e: React.FormEvent) => {
@@ -360,6 +465,7 @@ export function TeamDetailPage() {
   const handleAcceptInvite = async (inviteId: string) => {
     try {
       await invitesApi.acceptInvite(inviteId);
+      await refreshProfile(true);
       setPendingInvite(null);
       setIsInviteModalOpen(false);
       setToastMessage("🎉 Congratulations! You have joined the squad roster.");
@@ -387,31 +493,65 @@ export function TeamDetailPage() {
     }
   };
 
-  const handleCancelInvite = async (inviteId: string, email: string) => {
-    if (!team || !confirm(`Cancel pending invite sent to ${email}?`)) return;
-    try {
-      await invitesApi.cancelInvite(team.id, inviteId);
-      setToastMessage(`✓ Invitation to ${email} cancelled.`);
-      setTimeout(() => setToastMessage(null), 4000);
-      const refreshed = await teamsApi.getTeam(team.id);
-      setTeam(refreshed);
-    } catch (err: any) {
-      setToastMessage(err.message || "Failed to cancel invite.");
-      setTimeout(() => setToastMessage(null), 4000);
-    }
+  const handleCancelInvite = (inviteId: string, email: string) => {
+    if (!team) return;
+    setConfirmModal({
+      isOpen: true,
+      title: "Cancel Invitation",
+      iconType: "warning",
+      variant: "warning",
+      confirmText: "Cancel Invite",
+      description: (
+        <span>
+          Are you sure you want to cancel the pending invitation sent to <strong className="text-text-main font-semibold">{email}</strong>?
+        </span>
+      ),
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await invitesApi.cancelInvite(team.id, inviteId);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          setToastMessage(`✓ Invitation to ${email} cancelled.`);
+          setTimeout(() => setToastMessage(null), 4000);
+          const refreshed = await teamsApi.getTeam(team.id);
+          setTeam(refreshed);
+        } catch (err: any) {
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+          setToastMessage(err.message || "Failed to cancel invite.");
+          setTimeout(() => setToastMessage(null), 4000);
+        }
+      },
+    });
   };
 
-  const handleWithdrawApplication = async () => {
-    if (!team || !confirm("Are you sure you want to withdraw your application?")) return;
-    try {
-      await applicationsApi.withdrawApplication(team.id);
-      setApplied(false);
-      setToastMessage("Application withdrawn.");
-      setTimeout(() => setToastMessage(null), 4000);
-    } catch (err: any) {
-      setToastMessage(err.message || "Failed to withdraw application.");
-      setTimeout(() => setToastMessage(null), 4000);
-    }
+  const handleWithdrawApplication = () => {
+    if (!team) return;
+    setConfirmModal({
+      isOpen: true,
+      title: "Withdraw Application",
+      iconType: "warning",
+      variant: "warning",
+      confirmText: "Withdraw Application",
+      description: (
+        <span>
+          Are you sure you want to withdraw your candidate application to <strong className="text-text-main font-semibold">{team.name}</strong>?
+        </span>
+      ),
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await applicationsApi.withdrawApplication(team.id);
+          setApplied(false);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          setToastMessage("Application withdrawn.");
+          setTimeout(() => setToastMessage(null), 4000);
+        } catch (err: any) {
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+          setToastMessage(err.message || "Failed to withdraw application.");
+          setTimeout(() => setToastMessage(null), 4000);
+        }
+      },
+    });
   };
 
   if (loading) {
@@ -475,10 +615,11 @@ export function TeamDetailPage() {
       : Math.max(team.members.length, 4));
   const userUni = profile?.university || contextProfile?.university || userUniversity || "";
   const teamUni = team.university || team.event?.university || team.event?.location || "";
+  const targetOrgId = team.orgId || (team.event as any)?.orgId;
   const isRestrictedEvent = Boolean(
     team.event &&
     !team.event.isGlobal &&
-    (!userUni || !teamUni || userUni.toLowerCase().trim() !== teamUni.toLowerCase().trim())
+    (!targetOrgId || (orgId !== targetOrgId && !userOrgIds.includes(targetOrgId)))
   );
 
   const checkSkillMatch = (skill: string) => {
@@ -584,16 +725,16 @@ export function TeamDetailPage() {
         </div>
       </div>
 
-      {/* Conditional Layout: Leader Management Dashboard vs Standard Squad Dossier */}
-      {isUserLeader ? (
-        /* ================= LEADER MANAGEMENT DASHBOARD ================= */
+      {/* Conditional Layout: Squad Management Dashboard (Leader & Members) vs Standard Squad Dossier (Non-Members) */}
+      {isUserInTeam ? (
+        /* ================= SQUAD MANAGEMENT / MEMBER DASHBOARD ================= */
         <div className="space-y-8">
           <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-primary-light text-primary-action border border-primary-border">
-                    Squad Leader Dashboard
+                    {isUserLeader ? "Squad Leader Dashboard" : "Squad Dashboard"}
                   </span>
                   <span className="text-xs text-text-muted">• {team.event?.title || "Upcoming Event"}</span>
                 </div>
@@ -645,16 +786,16 @@ export function TeamDetailPage() {
             </div>
           </div>
 
-          {/* Leader: Role : Technologies Needed Section */}
+          {/* Squad Roles & Allocations Section */}
           <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-black text-text-main font-heading flex items-center gap-2">
                   <Layers className="w-5 h-5 text-primary-action" />
-                  <span>Role : Technologies Needed</span>
+                  <span>Squad Roles & Allocations</span>
                 </h2>
                 <p className="text-xs text-text-muted mt-0.5">
-                  Structured capability vacancies, required tech stacks, and spot allocations for your squad.
+                  Overview of configured squad roles, assigned teammates, and required technologies.
                 </p>
               </div>
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface-dim text-text-muted border border-border-main self-start sm:self-auto shrink-0">
@@ -665,69 +806,92 @@ export function TeamDetailPage() {
             {team.roles && team.roles.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {team.roles.map((role) => {
-                  const assignedMember = team.members.find(
-                    (m) => m.userId === role.assignedToId || m.id === role.assignedToId
-                  );
-                  const isAssignedToMe = Boolean(
-                    profile && (role.assignedToId === profile.id || role.assignedToId === profile.userId)
-                  );
-
-                  const isFilled = (role.spots ?? 1) === 0;
+                  const assignedMembersMap = new Map<string, typeof team.members[0]>();
+                  (team.members || []).forEach((m) => {
+                    const isDirect = Boolean(
+                      role.assignedToId && (m.userId === role.assignedToId || m.id === role.assignedToId)
+                    );
+                    const isRole = Boolean(m.role && m.role.toLowerCase() === role.title.toLowerCase());
+                    const isTitle = Boolean(m.title && m.title.toLowerCase() === role.title.toLowerCase());
+                    if (isDirect || isRole || isTitle) {
+                      assignedMembersMap.set(m.userId || m.id, m);
+                    }
+                  });
+                  const assignedMembers = Array.from(assignedMembersMap.values());
+                  const remainingSpots = role.spots ?? 0;
+                  const isFilled = remainingSpots === 0;
 
                   return (
                     <div
                       key={role.id || role.title}
-                      className={`p-4 rounded-xl border transition-all space-y-3 shadow-2xs ${
-                        isFilled
-                          ? "bg-surface border-border-main"
-                          : "bg-surface-dim border-border-main/80"
-                      }`}
+                      className="p-5 sm:p-6 rounded-2xl border border-border-main bg-surface shadow-xs space-y-4 flex flex-col justify-between"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-bold text-text-main font-heading truncate">
-                            {role.title}
-                          </h4>
-                          <p className="text-[11px] text-text-muted mt-0.5 truncate">
-                            {isFilled ? (
-                              <span>
-                                Filled by{" "}
-                                <strong className="font-semibold text-text-main">
-                                  {isAssignedToMe
-                                    ? "You (Squad Leader)"
-                                    : assignedMember?.name
-                                    ? `${assignedMember.name}${assignedMember.role === "Leader" ? " (Squad Leader)" : ""}`
-                                    : "Active Teammate"}
-                                </strong>
-                              </span>
-                            ) : (
-                              <span>
-                                {role.spots || 1} spot{(role.spots || 1) > 1 ? "s" : ""} open
-                                {isAssignedToMe ? " • 1 claimed by you" : ""}
-                              </span>
-                            )}
-                          </p>
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-base sm:text-lg font-bold text-text-main font-heading truncate">
+                              {role.title}
+                            </h3>
+                            <p className="text-xs text-text-muted mt-1">
+                              {assignedMembers.length > 0 ? (
+                                <span>
+                                  Filled by{" "}
+                                  {assignedMembers.map((m, idx) => {
+                                    const isMe = Boolean(
+                                      profile && (m.userId === profile.id || m.userId === profile.userId)
+                                    );
+                                    return (
+                                      <React.Fragment key={m.id || m.userId || idx}>
+                                        {idx > 0 && <span className="text-text-muted font-normal">, </span>}
+                                        <Link
+                                          to={m.userId ? `/profile/${m.userId}` : `/profile`}
+                                          className="font-bold text-text-main hover:text-primary-action transition-colors cursor-pointer"
+                                        >
+                                          {m.name || "Teammate"}
+                                          {isMe ? " (You)" : ""}
+                                        </Link>
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                  {remainingSpots > 0 && (
+                                    <span className="text-text-muted font-normal">
+                                      {" "}• {remainingSpots} spot{remainingSpots > 1 ? "s" : ""} open
+                                    </span>
+                                  )}
+                                </span>
+                              ) : isFilled ? (
+                                <span>
+                                  Filled by <strong className="font-semibold text-text-main">Active Teammate</strong>
+                                </span>
+                              ) : (
+                                <span className="text-text-muted">
+                                  Vacant • {remainingSpots || 1} spot{(remainingSpots || 1) > 1 ? "s" : ""} open
+                                </span>
+                              )}
+                            </p>
+                          </div>
+
+                          <span
+                            className={`text-xs font-bold px-2.5 py-1 rounded-lg shrink-0 ${
+                              isFilled
+                                ? "bg-surface-dim text-text-muted border border-border-main"
+                                : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                            }`}
+                          >
+                            {isFilled ? "Filled" : `${remainingSpots || 1} Open`}
+                          </span>
                         </div>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${
-                            isFilled
-                              ? "bg-primary-action/10 text-primary-action border border-primary-action/20"
-                              : "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-                          }`}
-                        >
-                          {isFilled ? (isAssignedToMe ? "Your Role" : "Filled") : "Recruiting"}
-                        </span>
                       </div>
 
-                      <div className="space-y-1.5 pt-1 border-t border-border-main/50">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                      <div className="space-y-2 pt-3 border-t border-border-main">
+                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-text-muted block">
                           Technologies Needed:
                         </span>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex flex-wrap gap-2">
                           {role.skills.map((skill) => (
                             <span
                               key={skill}
-                              className="text-xs font-medium px-2 py-0.5 rounded-md bg-surface-dim text-text-main border border-border-main"
+                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-surface-dim text-text-main border border-border-main"
                             >
                               {skill}
                             </span>
@@ -739,15 +903,15 @@ export function TeamDetailPage() {
                 })}
               </div>
             ) : (
-              <div className="p-4 rounded-xl border border-border-main bg-surface-dim space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+              <div className="p-5 rounded-2xl border border-border-main bg-surface-dim space-y-3">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-text-muted block">
                   Technologies Needed:
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {team.requirements.map((req) => (
                     <span
                       key={req}
-                      className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-surface text-text-main border border-border-main"
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-surface text-text-main border border-border-main"
                     >
                       {req}
                     </span>
@@ -781,8 +945,8 @@ export function TeamDetailPage() {
                     key={app.id}
                     application={app}
                     defaultExpanded={false}
-                    onAccept={handleAcceptApplicant}
-                    onDecline={handleDeclineApplicant}
+                    onAccept={isUserLeader ? handleAcceptApplicant : undefined}
+                    onDecline={isUserLeader ? handleDeclineApplicant : undefined}
                   />
                 ))}
               </div>
@@ -807,36 +971,38 @@ export function TeamDetailPage() {
                 </p>
               </div>
 
-              {/* Role-Specific Invite Input with custom dropdown */}
-              <form onSubmit={handleSendInvite} className="flex flex-wrap items-center gap-2">
-                {team.roles && team.roles.length > 0 && (
-                  <RoleSelectDropdown
-                    roles={team.roles}
-                    selectedRoleId={selectedRoleId}
-                    onChange={setSelectedRoleId}
-                  />
-                )}
+              {/* Role-Specific Invite Input with custom dropdown (Leader only) */}
+              {isUserLeader && (
+                <form onSubmit={handleSendInvite} className="flex flex-wrap items-center gap-2">
+                  {team.roles && team.roles.length > 0 && (
+                    <RoleSelectDropdown
+                      roles={team.roles}
+                      selectedRoleId={selectedRoleId}
+                      onChange={setSelectedRoleId}
+                    />
+                  )}
 
-                <div className="relative">
-                  <Mail className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="Teammate email..."
-                    className="text-xs pl-8 pr-3 py-2 border border-border-main bg-surface-dim text-text-main placeholder:text-text-muted rounded-xl outline-hidden focus:border-primary-action focus:ring-1 focus:ring-primary-action w-44 sm:w-48"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isInviting}
-                  className="px-3 py-2 bg-primary-action hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shrink-0 shadow-xs"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{isInviting ? "Inviting..." : "Send Invite"}</span>
-                </button>
-              </form>
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="Teammate email..."
+                      className="text-xs pl-8 pr-3 py-2 border border-border-main bg-surface-dim text-text-main placeholder:text-text-muted rounded-xl outline-hidden focus:border-primary-action focus:ring-1 focus:ring-primary-action w-44 sm:w-48"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isInviting}
+                    className="px-3 py-2 bg-primary-action hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shrink-0 shadow-xs"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{isInviting ? "Inviting..." : "Send Invite"}</span>
+                  </button>
+                </form>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -901,7 +1067,7 @@ export function TeamDetailPage() {
                           <LogOut className="w-3 h-3" />
                           <span>Leave</span>
                         </button>
-                      ) : (
+                      ) : isUserLeader ? (
                         <button
                           onClick={() => handleRemoveMember(member.userId || member.id, member.name)}
                           className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 rounded-lg transition-all cursor-pointer w-full"
@@ -910,7 +1076,7 @@ export function TeamDetailPage() {
                           <UserMinus className="w-3 h-3" />
                           <span>Kick/Remove</span>
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -959,13 +1125,15 @@ export function TeamDetailPage() {
                           </div>
                         </div>
 
-                        <button
-                          onClick={() => handleCancelInvite(inv.id, inv.email)}
-                          className="px-2 py-1 text-[10px] font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 rounded-lg transition-all cursor-pointer shrink-0"
-                          title="Cancel invitation"
-                        >
-                          Cancel
-                        </button>
+                        {isUserLeader && (
+                          <button
+                            onClick={() => handleCancelInvite(inv.id, inv.email)}
+                            className="px-2 py-1 text-[10px] font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 rounded-lg transition-all cursor-pointer shrink-0"
+                            title="Cancel invitation"
+                          >
+                            Cancel
+                          </button>
+                        )}
                       </div>
                     ))}
                 </div>
@@ -1015,7 +1183,7 @@ export function TeamDetailPage() {
               {isRestrictedEvent && (
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 flex items-center gap-2.5 text-xs text-amber-600 font-medium">
                   <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>This squad belongs to an institution-restricted event ({team.university || "Campus-only"}). Applications are restricted to students of this institution.</span>
+                  <span>This squad belongs to an organization-restricted event ({team.university || "Organization-only"}). Applications are restricted to members of this organization in Clerk.</span>
                 </div>
               )}
 
@@ -1077,7 +1245,7 @@ export function TeamDetailPage() {
                     {team.roles
                       .filter((r) => (r.spots ?? 1) > 0)
                       .map((role) => {
-                      const isOptimalRole = (team.bestMatchingRole?.roleTitle || recommendation?.bestMatchingRole?.roleTitle) === role.title;
+                      const isOptimalRole = activeBestMatchingRole?.roleTitle === role.title;
                       const matchingSkillsCount = role.skills.filter((s) => checkSkillMatch(s)).length;
 
                       return (
@@ -1292,7 +1460,7 @@ export function TeamDetailPage() {
                 ) : isRestrictedEvent ? (
                   <div className="w-full py-2.5 px-3 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-xl border border-border-main flex items-center justify-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-text-muted" />
-                    <span>Campus Restricted • {team.university || "Campus-only"}</span>
+                    <span>Organization Restricted • {team.university || "Organization-only"}</span>
                   </div>
                 ) : (
                   <SignInButton mode="modal">
@@ -1311,7 +1479,7 @@ export function TeamDetailPage() {
                   taxonomyScore: taxonomyScore,
                   fulfilledRequirements: fulfilledCount,
                   totalRequirements: team.requirements.length,
-                  bestMatchingRole: team.bestMatchingRole || recommendation?.bestMatchingRole,
+                  bestMatchingRole: activeBestMatchingRole,
                   roles: team.roles,
                   teamLeadName: team.members.find((m) => m.role === "Leader")?.name || team.members[0]?.name || "Team Lead",
                   teamLeadUniversity: team.university,
@@ -1342,8 +1510,8 @@ export function TeamDetailPage() {
         </div>
       )}
 
-      {/* Apply Team Modal */}
-      {!isUserLeader && !isRestrictedEvent && isSignedIn && team.members.length < totalSpots && (
+      {/* Apply Team Modal (Only for non-members) */}
+      {!isUserInTeam && !isRestrictedEvent && isSignedIn && team.members.length < totalSpots && (
         <ApplyTeamModal
           isOpen={isApplyModalOpen}
           onClose={() => setIsApplyModalOpen(false)}
@@ -1354,7 +1522,7 @@ export function TeamDetailPage() {
             eventTitle: team.event?.title || "Hackathon",
             requirements: team.requirements,
             roles: team.roles,
-            bestMatchingRole: team.bestMatchingRole || recommendation?.bestMatchingRole,
+            bestMatchingRole: activeBestMatchingRole,
             university: team.university,
             members: team.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
           }}
@@ -1375,6 +1543,24 @@ export function TeamDetailPage() {
           onDecline={handleDeclineInvite}
         />
       )}
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+        iconType={confirmModal.iconType}
+        isLoading={confirmModal.isLoading}
+        onConfirm={confirmModal.onConfirm}
+        onClose={() => {
+          if (!confirmModal.isLoading) {
+            setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          }
+        }}
+      />
     </div>
   );
 }

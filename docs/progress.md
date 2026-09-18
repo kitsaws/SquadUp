@@ -8,6 +8,18 @@ Following the completion of **Task 3: "Create Team" UI & Page Integrations with 
 
 ## Completed
 
+- **Strict Open-Role Capacity Guard in AI Recommendation Engine & UI (Completed):**
+  - **Backend Engine & AI Service:**
+    - Filtered candidate roles in `recommendation.engine.ts` strictly to open roles (`!r.assigned_to_id && (r.spots === undefined ? true : r.spots > 0)`).
+    - Guaranteed that filled roles ($spots \le 0$ or assigned) are never evaluated or recommended as `bestMatchingRole`.
+    - Implemented fallback to general team requirement scoring (`bestMatchingRole: null`) when all squad roles are filled.
+    - Forwarded `spots` and `assignedToId` in `AIService.getRecommendations` mapping.
+    - Added automated parity test suite verifying open vs filled role recommendations.
+  - **Frontend UI & Presentation Safeguards:**
+    - `SmartRecommendationPanel.tsx`: Added `isBestRoleAvailable` guard to hide the "Optimal Role Match" highlight card if the role is filled or has 0 spots remaining.
+    - `TeamDetailPage.tsx`: Added `activeBestMatchingRole` memo to ensure only open roles are highlighted with `⭐ Best Match` or passed to application modals.
+    - `TeamsPage.tsx` & `ApplyTeamModal.tsx`: Guarded optimal role banners and pre-selection to open positions.
+
 - **Task 3 — "Create Team" Feature, Interactive Role Builder & Dynamic Slot Decrementing Model (Completed):**
   - **Comprehensive `CreateTeamModal.tsx` Component:**
     - Dual-mode operation: Locked event banner context (when opened from `EventDetailPage`) vs. Searchable fuzzy-filtered event select (when opened from `TeamsPage`).
@@ -235,6 +247,20 @@ Following the completion of **Task 3: "Create Team" UI & Page Integrations with 
 - **Clerk Organization Membership Cloud Synchronization (`auth.utils.ts`, `organizer.controller.ts`, `Onboarding.tsx`):**
   - Implemented `linkUserToOrganization` using Clerk Backend SDK (`clerkClient.organizations.createOrganizationMembership`), automatically provisioning cloud memberships and capturing `clerkMemberId` in PostgreSQL.
   - Integrated `useClerk().setActive({ organization: clerkOrgId })` in `Onboarding.tsx` so Clerk's frontend session and issued JWT tokens recognize the active university organization immediately.
+- **Strict Open-Role Capacity Guard for AI Recommendations (`recommendation.engine.ts`, `ai.service.ts`, `SmartRecommendationPanel.tsx`, `TeamDetailPage.tsx`, `TeamsPage.tsx`, `ApplyTeamModal.tsx`):**
+  - **Backend Filtering:** Recommendation engine filters role evaluation strictly for open roles (`!r.assigned_to_id && (r.spots === undefined ? true : r.spots > 0)`). Falls back to team-level requirement evaluation when all roles are filled (`bestMatchingRole: null`).
+  - **Frontend Safeguards:** Prevents displaying "Optimal Role Match" cards or applying recommended badges to full/closed positions.
+- **Squad Dashboard View for All Squad Members & Read-Only Delegation (`TeamDetailPage.tsx`, `team.controller.ts`, `CandidateApplicationTile.tsx`):**
+  - **Unified Squad View:** Regular squad members now see the Squad Dashboard layout (telemetry metrics, configured roles, incoming application telemetry, and squad roster).
+  - **Mutation Restrictions:** Accept/Decline candidate applications, kicking teammates, and sending or cancelling invitations are restricted strictly to the Squad Leader.
+  - **Recommendation Isolation:** The Candidate Recommendation panel and apply flows are restricted exclusively to prospective candidates (non-members and unauthenticated visitors).
+- **Squad Roles & Allocations UI with Multi-Slot Member Attribution (`TeamDetailPage.tsx`):**
+  - Upgraded the squad roles section into a clear card grid showing Role Title, status badge (`Filled` or `X Open`), member attribution (`Filled by <Name>`) with profile links, and support for listing multiple members assigned to multi-slot roles in the same card.
+  - Formatted "TECHNOLOGIES NEEDED" section with rounded technology skill tags.
+- **Custom Confirmation Modal Framework (`ConfirmModal.tsx` & `TeamDetailPage.tsx`):**
+  - Replaced browser `alert()` and `confirm()` dialogs with styled, accessible modal dialogs supporting multiple variants (`danger`, `warning`, `primary`) and async loading states for leaving squads, removing members, cancelling invites, and withdrawing applications.
+- **Organization-Based Campus Eligibility Enforcement (`EventDetailPage.tsx`, `event.controller.ts`, `TeamDetailPage.tsx`):**
+  - Replaced free-text university string checks with Clerk `orgId` / `organizationMemberships` verification as the single source of truth for restricted event participation and squad formation eligibility.
 - **Decoupled Relational Database:**
   - `UserTaxonomy` (1:1 with `User`), `TeamTaxonomy` (1:1 with `Team`), and `UserPreferences` (1:1 with `User`).
   - `Organization`, `OrganizationMembership`, `Organizer`, `OrganizerMember`, and `TeamApplication` models.

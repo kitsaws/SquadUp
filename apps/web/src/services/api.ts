@@ -163,7 +163,9 @@ export interface TeamItem {
     isGlobal: boolean;
     location: string;
     university?: string;
+    orgId?: string | null;
   };
+  orgId?: string | null;
   requirements: string[];
   requirementNodeIds?: string[];
   roles?: TeamRoleItem[];

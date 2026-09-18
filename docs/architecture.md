@@ -83,6 +83,7 @@ $$\text{TTL} = \max(300, (\text{eventDate} + 3\text{ days}) - \text{now})$$
 3. Candidate teams are scored via in-process `TaxonomyService.getRecommendations`:
    - Precomputes User Pre-Scoring Vector ($O(K \times N)$ in < 2ms).
    - Scores candidates via $O(1)$ lookups (< 10ms for 10,000 teams).
+   - Evaluates match fit strictly against open designated roles (`spots > 0` and unassigned) to provide `bestMatchingRole` (or falls back to overall team requirements if all roles are occupied).
    - Keeps pure `taxonomyScore` ($0.0 - 1.0$).
    - Categorizes top candidates into `BEST`, `GOOD_DIFFERENT_UNIVERSITY`, and `SAME_UNIVERSITY_LOWER_SCORE`.
    - Generates transparent, requirement-by-requirement LCA explanations.

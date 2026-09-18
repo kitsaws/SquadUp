@@ -44,6 +44,7 @@ export interface TeamCardData {
   category?: RecommendationTier;
   isEligible?: boolean;
   isGlobal?: boolean;
+  orgId?: string | null;
   description?: string;
   isUserLeader?: boolean;
   isUserMember?: boolean;

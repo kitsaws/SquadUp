@@ -88,7 +88,7 @@ function renderNotificationIcon(type: string) {
 export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, isSignedIn } = useUserContext();
+  const { user, profile, email, isSignedIn } = useUserContext();
   const { themeMode, toggleThemeMode, isDark } = usePalette();
   const {
     notifications,
@@ -126,13 +126,7 @@ export function Navbar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-
-  const userEmail =
-    user?.primaryEmailAddress?.emailAddress ||
-    user?.emailAddresses?.[0]?.emailAddress ||
-    profile?.email ||
-    "";
-  const isSuperAdmin = isAdminEmail(userEmail);
+  const isSuperAdmin = isAdminEmail(email);
 
   const navLinks = [
     { label: "Home", path: "/" },

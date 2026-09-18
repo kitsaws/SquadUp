@@ -50,6 +50,11 @@ export const listTeams = async (req: Request, res: Response) => {
   let callerDbId: string | null = null;
   let userTaxNodeIds: string[] = [];
   let userUniversity: string | null = null;
+  let callerUserOrgIds: string[] = [];
+
+  if (auth.orgId) {
+    callerUserOrgIds.push(auth.orgId);
+  }
 
   if (auth.userId) {
     try {
@@ -61,6 +66,9 @@ export const listTeams = async (req: Request, res: Response) => {
         include: {
           taxonomy: true,
           profile: true,
+          organizationMemberships: {
+            include: { organization: true },
+          },
         },
       });
 
@@ -68,6 +76,15 @@ export const listTeams = async (req: Request, res: Response) => {
         userTaxNodeIds = userWithTax.taxonomy.taxonomyNodeIds;
       }
       userUniversity = userWithTax?.profile?.university || null;
+
+      if (userWithTax?.organizationMemberships) {
+        for (const m of userWithTax.organizationMemberships) {
+          if (m.organization?.clerkOrgId) {
+            callerUserOrgIds.push(m.organization.clerkOrgId);
+          }
+        }
+      }
+      callerUserOrgIds = [...new Set(callerUserOrgIds)];
     } catch {
       // Unauthenticated / fallback
     }
@@ -145,6 +162,7 @@ export const listTeams = async (req: Request, res: Response) => {
               isGlobal: true,
               location: true,
               description: true,
+              orgId: true,
             },
           },
           taxonomy: true,
@@ -220,6 +238,7 @@ export const listTeams = async (req: Request, res: Response) => {
               isGlobal: team.event.isGlobal,
               location: team.event.location,
               university: team.university,
+              orgId: team.event.orgId,
             }
             : undefined,
           orgId: team.orgId,
@@ -283,8 +302,10 @@ export const listTeams = async (req: Request, res: Response) => {
       // Sort results
       if (sort === "fit_desc") {
         processedTeams.sort((a, b) => {
-          const isEligibleA = a.event?.isGlobal || (userUniversity && a.university && a.university.toLowerCase() === userUniversity.toLowerCase()) ? 1 : 0;
-          const isEligibleB = b.event?.isGlobal || (userUniversity && b.university && b.university.toLowerCase() === userUniversity.toLowerCase()) ? 1 : 0;
+          const aOrg = a.orgId || a.event?.orgId;
+          const bOrg = b.orgId || b.event?.orgId;
+          const isEligibleA = a.event?.isGlobal || (aOrg && callerUserOrgIds.includes(aOrg)) ? 1 : 0;
+          const isEligibleB = b.event?.isGlobal || (bOrg && callerUserOrgIds.includes(bOrg)) ? 1 : 0;
           if (isEligibleB !== isEligibleA) return isEligibleB - isEligibleA;
 
           const scoreA = a.taxonomyScore ?? 0;
@@ -353,6 +374,7 @@ export const listTeams = async (req: Request, res: Response) => {
               date: true,
               isGlobal: true,
               location: true,
+              orgId: true,
             },
           },
           taxonomy: true,
@@ -395,6 +417,7 @@ export const listTeams = async (req: Request, res: Response) => {
             isGlobal: team.event.isGlobal,
             location: team.event.location,
             university: team.university,
+            orgId: team.event.orgId,
           }
           : undefined,
         orgId: team.orgId,
@@ -675,7 +698,7 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
           createdAt: inv.createdAt.toISOString(),
         }))
         : undefined,
-      applications: isLeader
+      applications: isMember || isLeader
         ? team.applications.map((app) => ({
           id: app.id,
           teamId: app.teamId,
@@ -747,23 +770,23 @@ export const createTeam = async (req: Request<{}, {}, CreateTeamRequest>, res: R
   }
 
   if (!targetEvent.isGlobal) {
-    const userProfile = await prisma.profile.findUnique({ where: { userId: userInDb.id } });
     const userOrgMembership = await prisma.organizationMembership.findFirst({
-      where: { userId: userInDb.id },
+      where: {
+        userId: userInDb.id,
+        OR: [
+          ...(targetEvent.orgId ? [{ organization: { clerkOrgId: targetEvent.orgId } }] : []),
+          ...(targetEvent.organizationId ? [{ organizationId: targetEvent.organizationId }] : []),
+        ],
+      },
       include: { organization: true },
     });
 
-    const userUni = (userProfile?.university || "").toLowerCase().trim();
-    const eventLoc = (targetEvent.location || "").toLowerCase().trim();
-    const matchesOrg = Boolean(
-      (targetEvent.orgId && userOrgMembership?.organization?.clerkOrgId === targetEvent.orgId) ||
-      (targetEvent.organizationId && userOrgMembership?.organizationId === targetEvent.organizationId)
-    );
-    const matchesLocation = Boolean(userUni && eventLoc && userUni === eventLoc);
+    const matchesActiveOrg = Boolean(orgId && targetEvent.orgId && orgId === targetEvent.orgId);
+    const matchesMembership = Boolean(userOrgMembership);
 
-    if (!matchesOrg && !matchesLocation) {
+    if (!matchesActiveOrg && !matchesMembership) {
       return res.status(403).json({
-        error: "Cannot create team: This event is restricted to students of its host institution.",
+        error: "Cannot create team: This event is restricted to members of the host organization (Clerk Organization ID mismatch).",
       });
     }
   }
@@ -894,6 +917,7 @@ export const createTeam = async (req: Request<{}, {}, CreateTeamRequest>, res: R
 
     // Invalidate caches
     await CacheService.invalidateTeam(team.id);
+    await CacheService.del(`profile:${userInDb.id}`);
 
     // Asynchronously dispatch notifications and emails for created invites
     try {
@@ -1134,6 +1158,9 @@ export const deleteTeam = async (req: Request<{ id: string }>, res: Response) =>
 
     // Invalidate caches
     await CacheService.invalidateTeam(id);
+    for (const m of existingTeam.members) {
+      await CacheService.del(`profile:${m.userId}`);
+    }
 
     return res.json({ message: "Team deleted successfully." });
   } catch (error) {
@@ -1273,19 +1300,13 @@ export const sendTeamInvites = async (
         const userOrgIds = recipientUser.organizationMemberships
           .map((m) => m.organization?.clerkOrgId || m.organization?.id)
           .filter((id): id is string => Boolean(id));
-        const userUni = (recipientUser.profile?.university || "").toLowerCase().trim();
 
         const matchesOrg = Boolean(teamOrgId && userOrgIds.includes(teamOrgId));
-        const matchesUni = Boolean(
-          teamUniversity &&
-          userUni &&
-          (teamUniversity === userUni || teamUniversity.includes(userUni) || userUni.includes(teamUniversity))
-        );
 
-        if (!matchesOrg && !matchesUni) {
+        if (!matchesOrg) {
           failedInvites.push({
             email: inv.email,
-            reason: `Campus restriction: ${inv.email} belongs to a different university (${recipientUser.profile?.university || "unaffiliated"}) and cannot join this campus-restricted squad.`,
+            reason: `Organization restriction: ${inv.email} is not a member of the required organization (${teamOrgId}) and cannot join this restricted squad.`,
           });
           continue;
         }
@@ -1675,20 +1696,27 @@ export const applyToTeam = async (
       return res.status(404).json({ error: "Team not found." });
     }
 
-    // 1. Hard Eligibility Check: If event is not global, verify university matching
+    // 1. Hard Eligibility Check: If event is not global, verify Clerk organization matching
     if (!team.event.isGlobal) {
-      const userWithProfile = await prisma.user.findUnique({
-        where: { id: userInDb.id },
-        include: { profile: true },
+      const targetOrgId = team.orgId || team.event.orgId;
+      const targetOrganizationId = team.organizationId || team.event.organizationId;
+
+      const userOrgMembership = await prisma.organizationMembership.findFirst({
+        where: {
+          userId: userInDb.id,
+          OR: [
+            ...(targetOrgId ? [{ organization: { clerkOrgId: targetOrgId } }] : []),
+            ...(targetOrganizationId ? [{ organizationId: targetOrganizationId }] : []),
+          ],
+        },
       });
 
-      const userUni = userWithProfile?.profile?.university?.toLowerCase() || "";
-      const teamUni = (team.university || team.event.location || "").toLowerCase();
-      const orgMatches = orgId && team.orgId && orgId === team.orgId;
+      const matchesActiveOrg = Boolean(orgId && targetOrgId && orgId === targetOrgId);
+      const matchesMembership = Boolean(userOrgMembership);
 
-      if (!orgMatches && (!userUni || !teamUni || userUni !== teamUni)) {
+      if (!matchesActiveOrg && !matchesMembership) {
         return res.status(403).json({
-          error: "Cannot apply: This team belongs to an institution-restricted event.",
+          error: "Cannot apply: This team belongs to an organization-restricted event. You must be a member of the event's organization (Clerk Organization ID mismatch).",
         });
       }
     }
@@ -1894,12 +1922,11 @@ export const getIncomingApplications = async (req: Request, res: Response) => {
   const statusFilter = (req.query.status as string)?.trim() || undefined;
 
   try {
-    const ledTeams = await prisma.team.findMany({
+    const userTeams = await prisma.team.findMany({
       where: {
         members: {
           some: {
             userId: userInDb.id,
-            role: "Leader",
           },
         },
         ...(teamId ? { id: teamId } : {}),
@@ -1924,7 +1951,7 @@ export const getIncomingApplications = async (req: Request, res: Response) => {
 
     const incomingList: IncomingApplicationResponse[] = [];
 
-    for (const team of ledTeams) {
+    for (const team of userTeams) {
       const teamReqNodes = team.taxonomy?.requirementNodeIds || [];
       const teamReqs = team.requirements || [];
 
@@ -2420,6 +2447,7 @@ export const leaveTeam = async (req: Request<{ id: string }>, res: Response) => 
         // Sole leader and only member: delete team
         await prisma.team.delete({ where: { id } });
         await CacheService.invalidateTeam(id);
+        await CacheService.del(`profile:${userInDb.id}`);
         return res.json({ message: "You were the sole member. Team deleted successfully." });
       } else {
         // Transfer leadership to the earliest remaining member and unassign departing leader's role
@@ -2435,6 +2463,8 @@ export const leaveTeam = async (req: Request<{ id: string }>, res: Response) => 
           ...roleReopenSteps,
         ]);
         await CacheService.invalidateTeam(id);
+        await CacheService.del(`profile:${userInDb.id}`);
+        await CacheService.del(`profile:${newLeader.userId}`);
 
         // Notify newly appointed squad leader
         await NotificationService.createNotification({

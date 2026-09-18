@@ -198,30 +198,40 @@ export function CandidateApplicationTile({
             </div>
           </div>
 
-          {/* Leader Decision Actions */}
+          {/* Decision Actions (Leader only) */}
           {application.status === "PENDING" && (
-            <div className="pt-3 border-t border-border-main flex flex-wrap items-center justify-between gap-3">
-              <div className="text-xs text-text-muted">
-                Accepting <strong className="text-text-main">{application.name}</strong> adds them as a squad member.
-              </div>
+            onAccept || onDecline ? (
+              <div className="pt-3 border-t border-border-main flex flex-wrap items-center justify-between gap-3">
+                <div className="text-xs text-text-muted">
+                  Accepting <strong className="text-text-main">{application.name}</strong> adds them as a squad member.
+                </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onDecline?.(application.id)}
-                  className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg text-xs font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 transition-all shadow-2xs cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Decline</span>
-                </button>
-                <button
-                  onClick={() => onAccept?.(application.id)}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Accept to Squad</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  {onDecline && (
+                    <button
+                      onClick={() => onDecline(application.id)}
+                      className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg text-xs font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 transition-all shadow-2xs cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Decline</span>
+                    </button>
+                  )}
+                  {onAccept && (
+                    <button
+                      onClick={() => onAccept(application.id)}
+                      className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Accept to Squad</span>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="pt-3 border-t border-border-main flex items-center justify-between text-xs text-text-muted">
+                <span>Application Status: <strong className="text-amber-500 font-semibold">Under Review by Squad Leader</strong></span>
+              </div>
+            )
           )}
         </div>
       )}

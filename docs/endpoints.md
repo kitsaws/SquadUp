@@ -619,6 +619,65 @@ Leader removes a member from the team.
 - **Path:** `/api/teams/:id/members/:userId`
 - **Auth:** Required (Leader only)
 
+### 6.8 AI Smart Team Recommendations
+Runs candidate capability nodes against eligible candidate squads in-process (< 15ms) using the deterministic single-parent taxonomy graph. Evaluates candidate fit strictly against open designated roles (`spots > 0` and unassigned) to return `bestMatchingRole`, or falls back to squad requirement scoring (`bestMatchingRole: null`) if all roles are occupied.
+
+- **Method:** `POST`
+- **Path:** `/api/teams/recommendations`
+- **Auth:** Required
+- **Request Body:**
+  ```json
+  {
+    "eventId": "cmu25...", // Optional: filter to squads in this event
+    "sameUniversityOnly": false, // Optional: filter strictly to user's campus
+    "topK": 50 // Optional: max recommendations (default 50)
+  }
+  ```
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "recommendations": [
+      {
+        "rank": 1,
+        "teamId": "cmu25...",
+        "teamName": "AI Agents Guild",
+        "university": "Stanford University",
+        "description": "Autonomous dev tooling",
+        "requirements": ["FastAPI", "React", "Docker"],
+        "taxonomyScore": 0.95,
+        "sameUniversity": true,
+        "isGlobal": true,
+        "isEligible": true,
+        "recommendationCategory": "BEST",
+        "fulfilledRequirementsCount": 3,
+        "totalRequirementsCount": 3,
+        "bestMatchingRole": {
+          "roleId": "cmrole123",
+          "roleTitle": "Frontend Architect",
+          "score": 0.95,
+          "fulfilledCount": 3,
+          "totalCount": 3,
+          "skills": ["React", "TypeScript", "Tailwind CSS"]
+        },
+        "requirementBreakdown": [
+          {
+            "requirementNodeId": "fastapi",
+            "requirementName": "FastAPI",
+            "bestUserSkillName": "FastAPI",
+            "score": 1.0,
+            "matchType": "exact",
+            "explanationText": "Direct canonical exact match with 'FastAPI' (Score: 1.0)",
+            "isStrong": true
+          }
+        ]
+      }
+    ],
+    "totalEligibleCandidates": 14,
+    "userUniversity": "Stanford University",
+    "userTaxonomyNodesCount": 12
+  }
+  ```
+
 ---
 
 ## 7. Team Applications Endpoints (`/api/teams` & `/api/applications`)

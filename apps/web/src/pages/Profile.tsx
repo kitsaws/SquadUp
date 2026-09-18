@@ -529,7 +529,7 @@ export function Profile() {
                         href={formatGithubUrl(profile.githubUrl)}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-text-main cursor-pointer hover:text-primary-action transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-lg text-xs font-semibold text-text-main cursor-pointer hover:underline"
                         title="View GitHub Profile"
                       >
                         <GithubIcon className="w-3.5 h-3.5 text-text-main" />

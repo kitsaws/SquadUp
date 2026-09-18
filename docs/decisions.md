@@ -468,6 +468,75 @@ Previous implementations relied purely on binary assignment (`assignedToId === n
 ### Status
 Accepted
 
+---
+
+## [Strict Open-Role Capacity Guard for AI Recommendations]
+
+### Decision
+The deterministic taxonomy recommendation engine (`recommendation.engine.ts`) strictly evaluates open roles (`spots > 0` and unassigned) when generating role-level match recommendations (`bestMatchingRole`). Any role with 0 remaining spots or an active assignment is completely excluded from candidate role evaluation. If all structured roles in a squad have 0 open spots, the engine sets `bestMatchingRole: null` and falls back to evaluating overall team-level requirements. Corresponding frontend views (`SmartRecommendationPanel`, `TeamDetailPage`, `TeamsPage`, `ApplyTeamModal`) enforce identical availability guards.
+
+### Context
+Prior to this safeguard, when all slots for a designated role were filled (e.g. the team leader or an accepted teammate took the only available slot), the engine fell back to evaluating all roles, resulting in the system recommending full/closed positions as the candidate's "Optimal Role Match".
+
+### Consequences
+- **Positive:** Candidates are only ever guided toward actionable, vacant positions in squads; zero misleading recommendation cards in the UI; clean fallback to general squad skill alignment when all designated roles are taken.
+- **Negative:** None.
+
+### Status
+Accepted
+
+---
+
+## [Squad Dashboard Access & Read-Only Application Telemetry for Squad Members]
+
+### Decision
+All authenticated team members (both Squad Leader and regular members) access the unified Squad Dashboard view on `TeamDetailPage.tsx`, granting them visibility into live recruitment metrics, squad roster, and incoming candidate applications. Mutation authority (accepting/declining applications, kicking members, and dispatching/cancelling invitations) remains strictly restricted to the Squad Leader. Recommendation panels and candidacy dossiers are restricted exclusively to prospective candidates and unauthenticated visitors.
+
+### Context
+Previously, non-leader squad members were shown the generic candidate dossier view with recommendation panels suggesting that they apply to the team they were already part of. Furthermore, squad members had no visibility into team vacancy progress or candidate submissions.
+
+### Consequences
+- **Positive:** Team members can collaborate, see who is applying, and stay informed on vacancy fill rates without risk of unauthorized team mutations.
+- **Negative:** Requires dual checks in backend controllers (`isMember || isLeader` for read queries, `isLeader` for mutations).
+
+### Status
+Accepted
+
+---
+
+## [Multi-Slot Squad Role Allocation & Member Attribution Model]
+
+### Decision
+Squad roles (`TeamRole`) support multi-seat allocations (`spots: Int`). The UI maps all team members filling vacancies in a designated role onto a single unified role card (`Filled by <Name1>, <Name2>`), displaying real-time vacancy status (`Filled` or `X Open`) and required technology stacks.
+
+### Context
+Squads frequently recruit multiple individuals for identical responsibilities (e.g., 2 Frontend Developers or 3 Researchers). Displaying fragmented cards or only showing the first assigned member caused confusion regarding who was responsible for which technical scope.
+
+### Consequences
+- **Positive:** Intuitive, transparent overview of who fills which capability vacancy; clean support for multi-seat roles with zero duplicate cards.
+- **Negative:** Requires mapping both `assignedToId` and `member.role` matches during roster aggregation.
+
+### Status
+Accepted
+
+---
+
+## [Clerk Organization Membership as Single Source of Truth for Campus Eligibility]
+
+### Decision
+Event eligibility and restricted squad creation are evaluated strictly against cryptographic Clerk organization memberships (`orgId` and `user.organizationMemberships`) rather than free-form text strings (e.g. `Profile.university`).
+
+### Context
+Users could previously enter arbitrary strings in profile university fields, potentially allowing cross-institutional leakage into private campus hackathons.
+
+### Consequences
+- **Positive:** Strict, tamper-proof campus boundaries governed by institutional single-sign-on and Clerk organization credentials.
+- **Negative:** Unaffiliated users cannot create teams for institution-restricted events until their organization membership is provisioned.
+
+### Status
+Accepted
+
+
 
 
 

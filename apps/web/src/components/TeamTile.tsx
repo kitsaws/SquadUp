@@ -1,5 +1,6 @@
 import React from "react";
 import { Users, ArrowRight, Check, Sparkles } from "lucide-react";
+import { useUser, useAuth } from "@clerk/react";
 import { RecommendationBadge, SkillTag } from "./Badges";
 import { TeamCardData } from "./TeamCard";
 import { useUserContext } from "../contexts/UserContext";
@@ -20,6 +21,11 @@ export function TeamTile({
   hasApplied = false,
 }: TeamTileProps) {
   const { isSignedIn, userVerifiedSkills, userUniversity } = useUserContext();
+  const { orgId } = useAuth();
+  const { user } = useUser();
+  const userOrgIds = (user?.organizationMemberships || []).map((m) => m.organization.id);
+  const teamOrgId = team.orgId;
+
   const maxCapacity =
     team.maxCapacity ||
     (team.roles && team.roles.length > 0
@@ -32,7 +38,7 @@ export function TeamTile({
 
   const isCampusRestricted = Boolean(
     team.isGlobal === false &&
-    (!userUniversity || !team.university || userUniversity.toLowerCase().trim() !== team.university.toLowerCase().trim())
+    (!teamOrgId || (orgId !== teamOrgId && !userOrgIds.includes(teamOrgId)))
   );
 
   // Accent colors based on recommendation tier
