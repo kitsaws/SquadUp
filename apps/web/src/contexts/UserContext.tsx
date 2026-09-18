@@ -16,6 +16,7 @@ export interface UserContextType {
   userVerifiedSkills: string[];
   userUniversity: string | null;
   hasResume: boolean;
+  isOnboardingComplete: boolean;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -104,6 +105,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const userUniversity = profile?.university || null;
   const hasResume = Boolean(profile?.lastResumeUploadedAt || profile?.resumePdfUrl || (profile as any)?.hasResume);
 
+  const hasLocalFlag = user?.id ? localStorage.getItem(`squadup_onboarding_done_${user.id}`) === "true" : false;
+  const hasUniversity = Boolean(profile?.university || profile?.organizationName);
+  const hasSkills = Boolean(profile?.skills && profile.skills.length > 0);
+  const hasTitle = Boolean(profile?.title);
+  const hasEducation = Boolean(profile?.education && (profile.education as any).length > 0);
+  const hasExperience = Boolean(profile?.experience && (profile.experience as any).length > 0);
+  const hasProjects = Boolean(profile?.projects && (profile.projects as any).length > 0);
+  const hasAchievements = Boolean(profile?.achievements && (profile.achievements as any).length > 0);
+
+  const isOnboardingComplete =
+    hasLocalFlag ||
+    hasUniversity ||
+    hasSkills ||
+    hasTitle ||
+    hasResume ||
+    hasEducation ||
+    hasExperience ||
+    hasProjects ||
+    hasAchievements;
+
   return (
     <UserContext.Provider
       value={{
@@ -119,6 +140,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         userVerifiedSkills,
         userUniversity,
         hasResume,
+        isOnboardingComplete,
       }}
     >
       {children}

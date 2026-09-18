@@ -126,11 +126,18 @@ export function Navbar() {
   }, []);
 
 
+  const userEmail =
+    user?.primaryEmailAddress?.emailAddress ||
+    user?.emailAddresses?.[0]?.emailAddress ||
+    profile?.email ||
+    "";
+  const isSuperAdmin = userEmail.toLowerCase() === "nagpalswastik@gmail.com";
+
   const navLinks = [
     { label: "Home", path: "/" },
     { label: "Events", path: "/events" },
     { label: "Teams", path: "/teams" },
-    { label: "Playground", path: "/playground", isSpecial: true },
+    ...(isSuperAdmin ? [{ label: "Playground", path: "/playground", isSpecial: true }] : []),
   ];
 
   const navContainerRef = useRef<HTMLElement>(null);

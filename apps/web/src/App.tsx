@@ -30,6 +30,27 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, profile, isLoaded, isSignedIn } = useUserContext();
+  if (!isLoaded) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-primary-action border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+  const userEmail =
+    user?.primaryEmailAddress?.emailAddress ||
+    user?.emailAddresses?.[0]?.emailAddress ||
+    profile?.email ||
+    "";
+  const isSuperAdmin = isSignedIn && userEmail.toLowerCase() === "nagpalswastik@gmail.com";
+  if (!isSuperAdmin) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+}
+
 export function App() {
   return (
     <PaletteProvider>
@@ -67,7 +88,14 @@ export function App() {
               />
               <Route path="/profile/:id" element={<Profile />} />
               <Route path="/profile/:candidateId" element={<Profile />} />
-              <Route path="/playground" element={<PlaygroundPage />} />
+              <Route
+                path="/playground"
+                element={
+                  <AdminRoute>
+                    <PlaygroundPage />
+                  </AdminRoute>
+                }
+              />
               <Route path="/resume-upload" element={<LegacyResumeUpload />} />
             </Routes>
           </OnboardingGuard>

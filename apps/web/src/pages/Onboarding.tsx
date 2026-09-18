@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useClerk } from "@clerk/react";
 import { useUserContext } from "../contexts/UserContext";
@@ -13,7 +13,15 @@ export function Onboarding() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setActive } = useClerk();
-  const { user, profile, refreshProfile, isSignedIn, isLoaded } = useUserContext();
+  const { user, profile, refreshProfile, isOnboardingComplete, isSignedIn, isLoaded } = useUserContext();
+
+  // If the user already completed onboarding prior to visiting this page, bounce them away immediately
+  const wasAlreadyOnboarded = useRef(isOnboardingComplete);
+  useEffect(() => {
+    if (wasAlreadyOnboarded.current) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
 
   // Navigation steps: 1 = University, 2 = Profile Choice, 3 = Resume Processing Success
   const stepParam = parseInt(searchParams.get("step") || "1", 10);
