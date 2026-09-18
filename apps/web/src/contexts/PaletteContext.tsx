@@ -258,11 +258,14 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
       });
   }, [isSignedIn, setThemeMode]);
 
-  const updateToken = (key: keyof PaletteTokens, value: string) => {
-    setPalette((prev) => ({ ...prev, [key]: value }));
-  };
+  const updateToken = useCallback((key: keyof PaletteTokens, value: string) => {
+    setPalette((prev) => {
+      if (prev[key] === value) return prev;
+      return { ...prev, [key]: value };
+    });
+  }, []);
 
-  const loadPreset = (name: string) => {
+  const loadPreset = useCallback((name: string) => {
     if (PALETTE_PRESETS[name]) {
       setPalette(PALETTE_PRESETS[name]);
       return;
@@ -274,13 +277,13 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
     if (found) {
       setPalette(PALETTE_PRESETS[found]);
     }
-  };
+  }, []);
 
-  const resetPalette = () => {
+  const resetPalette = useCallback(() => {
     setPalette(isDark ? DEFAULT_DARK_PALETTE : DEFAULT_LIGHT_PALETTE);
-  };
+  }, [isDark]);
 
-  const exportCss = () => {
+  const exportCss = useCallback(() => {
     return `/* SquadUp 2.0 Exported CSS Tokens (Paste into styles.css @theme or :root) */
 @theme {
   --color-primary-action: ${palette.primaryAction};
@@ -305,9 +308,9 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
   --sq-text-muted: ${palette.textMuted};
   --sq-border: ${palette.border};
 }`;
-  };
+  }, [palette]);
 
-  const exportJson = () => {
+  const exportJson = useCallback(() => {
     return JSON.stringify(
       {
         name: "SquadUp 2.0 Custom Theme",
@@ -316,7 +319,7 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
       null,
       2
     );
-  };
+  }, [palette]);
 
   return (
     <PaletteContext.Provider

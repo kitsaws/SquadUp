@@ -428,15 +428,22 @@ export const teamsApi = {
   createTeam: async (data: {
     eventId: string;
     name: string;
-    requirements: string[];
+    description?: string;
+    roles?: TeamRoleItem[];
+    leaderRoleIndex?: number;
+    requirements?: string[];
     invites?: string[];
-  }): Promise<{ message: string; teamId: string }> => {
-    const res = await request<{ message: string; teamId: string }>("/teams", {
+    roleInvites?: Array<{ email: string; roleId?: string; roleTitle?: string; roleSkills?: string[] }>;
+  }): Promise<{ message: string; teamId: string; requirementNodeIds?: string[] }> => {
+    const res = await request<{ message: string; teamId: string; requirementNodeIds?: string[] }>("/teams", {
       method: "POST",
       body: JSON.stringify(data),
     });
     CacheService.invalidatePrefix("sq:teams:");
     CacheService.invalidatePrefix("sq:recs:");
+    CacheService.invalidatePrefix("sq:events:");
+    CacheService.invalidatePrefix("sq:profile:");
+    CacheService.invalidatePrefix("sq:public_profile:");
     return res;
   },
 
@@ -459,6 +466,8 @@ export const teamsApi = {
     });
     CacheService.invalidatePrefix("sq:teams:");
     CacheService.invalidatePrefix("sq:recs:");
+    CacheService.invalidatePrefix("sq:profile:");
+    CacheService.invalidatePrefix("sq:public_profile:");
     return res;
   },
 
@@ -468,6 +477,8 @@ export const teamsApi = {
     });
     CacheService.invalidatePrefix("sq:teams:");
     CacheService.invalidatePrefix("sq:recs:");
+    CacheService.invalidatePrefix("sq:profile:");
+    CacheService.invalidatePrefix("sq:public_profile:");
     return res;
   },
 
@@ -477,6 +488,8 @@ export const teamsApi = {
     });
     CacheService.invalidatePrefix("sq:teams:");
     CacheService.invalidatePrefix("sq:recs:");
+    CacheService.invalidatePrefix("sq:profile:");
+    CacheService.invalidatePrefix("sq:public_profile:");
     return res;
   },
 
@@ -586,6 +599,8 @@ export const applicationsApi = {
     });
     CacheService.invalidatePrefix("sq:teams:");
     CacheService.invalidatePrefix("sq:recs:");
+    CacheService.invalidatePrefix("sq:profile:");
+    CacheService.invalidatePrefix("sq:public_profile:");
     return res;
   },
 
@@ -727,10 +742,15 @@ export const invitesApi = {
     return request<{ totalInvites: number; invites: TeamInviteItem[] }>("/teams/invites/my-invites");
   },
 
-  acceptInvite: (inviteId: string): Promise<{ message: string; teamId?: string }> => {
-    return request<{ message: string; teamId?: string }>(`/teams/invites/${inviteId}/accept`, {
+  acceptInvite: async (inviteId: string): Promise<{ message: string; teamId?: string }> => {
+    const res = await request<{ message: string; teamId?: string }>(`/teams/invites/${inviteId}/accept`, {
       method: "POST",
     });
+    CacheService.invalidatePrefix("sq:teams:");
+    CacheService.invalidatePrefix("sq:recs:");
+    CacheService.invalidatePrefix("sq:profile:");
+    CacheService.invalidatePrefix("sq:public_profile:");
+    return res;
   },
 
   declineInvite: (inviteId: string): Promise<{ message: string }> => {

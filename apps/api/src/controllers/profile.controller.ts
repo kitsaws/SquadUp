@@ -313,31 +313,31 @@ export const updateProfile = async (
 
 export const getProfileById = async (req: Request, res: Response) => {
   const auth = getAuth(req);
-  if (!auth.userId) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
   const { targetUserId } = req.params;
   if (!targetUserId) {
     return res.status(400).json({ error: "targetUserId is required." });
   }
 
-  let currentUserInDb;
-  try {
-    currentUserInDb = await getOrCreateUserByClerkId(auth.userId);
-  } catch (error) {
-    return res.status(500).json({ error: "Failed to verify current user." });
+  let currentUserInDb = null;
+  if (auth.userId) {
+    try {
+      currentUserInDb = await getOrCreateUserByClerkId(auth.userId);
+    } catch (error) {
+      console.warn("[Profile API] Could not verify viewer user profile:", error);
+    }
   }
 
   // Check if current user id == id from url
-  const isCurrentViewer =
-    currentUserInDb.id === targetUserId ||
-    currentUserInDb.clerkId === targetUserId ||
-    auth.userId === targetUserId;
+  const isCurrentViewer = Boolean(
+    currentUserInDb &&
+    (currentUserInDb.id === targetUserId ||
+      currentUserInDb.clerkId === targetUserId ||
+      auth.userId === targetUserId)
+  );
 
-  const cacheKey = `profile:${currentUserInDb.id}`;
+  const cacheKey = currentUserInDb ? `profile:${currentUserInDb.id}` : null;
 
-  if (isCurrentViewer) {
+  if (isCurrentViewer && cacheKey) {
     const cached = await CacheService.get<any>(cacheKey);
     if (cached) {
       return res.json(cached);
@@ -461,7 +461,7 @@ export const getProfileById = async (req: Request, res: Response) => {
       updatedAt: user.updatedAt.toISOString(),
     };
 
-    if (isCurrentViewer) {
+    if (isCurrentViewer && cacheKey) {
       await CacheService.set(cacheKey, responsePayload, 300);
     }
 

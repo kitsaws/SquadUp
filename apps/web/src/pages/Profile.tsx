@@ -143,45 +143,64 @@ export function Profile() {
   const [expandedProjects, setExpandedProjects] = useState<Record<number, boolean>>({});
   const [bannerConfig, setBannerConfig] = useState<BannerConfig | null>(null);
 
-  // Load custom banner preference from profile object or local storage
+  // Load custom banner preference from profile object or local storage (strictly for logged in user)
+  const profileBanner = profile?.bannerConfig;
+  const bannerJson = JSON.stringify(profileBanner);
+  const profileUserId = profile?.userId || profile?.id;
+
   useEffect(() => {
-    const userStorageKey = profile?.userId || profile?.id || urlId;
-    if (profile?.bannerConfig) {
-      setBannerConfig(profile.bannerConfig);
-      if (userStorageKey) {
-        try {
-          localStorage.setItem(`squadup_banner_${userStorageKey}`, JSON.stringify(profile.bannerConfig));
-        } catch {
-          // ignore
-        }
-      }
-      if (profile.bannerConfig.syncTheme) {
-        const activeColor =
-          profile.bannerConfig.type === "gradient" && profile.bannerConfig.gradient
-            ? profile.bannerConfig.gradient.color2 || profile.bannerConfig.gradient.color1
-            : "#ec4899";
-        updateToken("primaryAction", activeColor);
-      }
-    } else if (userStorageKey) {
-      // Optimistic load from localStorage if profile does not have bannerConfig yet
-      try {
-        const saved = localStorage.getItem(`squadup_banner_${userStorageKey}`);
-        if (saved) {
-          const parsed: BannerConfig = JSON.parse(saved);
-          setBannerConfig(parsed);
-          if (parsed.syncTheme) {
-            const activeColor =
-              parsed.type === "gradient" && parsed.gradient
-                ? parsed.gradient.color2 || parsed.gradient.color1
-                : "#ec4899";
-            updateToken("primaryAction", activeColor);
+    if (!profile) {
+      setBannerConfig(null);
+      return;
+    }
+
+    if (isOwner) {
+      const userStorageKey = profileUserId || user?.id;
+      if (profileBanner) {
+        setBannerConfig(profileBanner);
+        if (userStorageKey) {
+          try {
+            localStorage.setItem(`squadup_banner_${userStorageKey}`, bannerJson);
+          } catch {
+            // ignore
           }
         }
-      } catch (err) {
-        console.warn("[Profile] Failed to load banner config from localStorage:", err);
+        if (profileBanner.syncTheme) {
+          const activeColor =
+            profileBanner.type === "gradient" && profileBanner.gradient
+              ? profileBanner.gradient.color2 || profileBanner.gradient.color1
+              : "#ec4899";
+          updateToken("primaryAction", activeColor);
+        }
+      } else if (userStorageKey) {
+        // Optimistic load from localStorage if profile does not have bannerConfig yet
+        try {
+          const saved = localStorage.getItem(`squadup_banner_${userStorageKey}`);
+          if (saved) {
+            const parsed: BannerConfig = JSON.parse(saved);
+            setBannerConfig(parsed);
+            if (parsed.syncTheme) {
+              const activeColor =
+                parsed.type === "gradient" && parsed.gradient
+                  ? parsed.gradient.color2 || parsed.gradient.color1
+                  : "#ec4899";
+              updateToken("primaryAction", activeColor);
+            }
+          } else {
+            setBannerConfig(null);
+          }
+        } catch (err) {
+          console.warn("[Profile] Failed to load banner config from localStorage:", err);
+          setBannerConfig(null);
+        }
+      } else {
+        setBannerConfig(null);
       }
+    } else {
+      // Candidate / other user view: set local banner for profile card display only, never mutate viewer's theme or localStorage
+      setBannerConfig(profileBanner || null);
     }
-  }, [profile?.userId, profile?.id, profile?.bannerConfig, urlId]);
+  }, [bannerJson, profileUserId, isOwner, user?.id, updateToken]);
 
   // Auto-refresh profile only once when background resume parsing completes
   const prevUploadingRef = useRef(isUploading);
