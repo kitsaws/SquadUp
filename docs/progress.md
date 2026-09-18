@@ -160,7 +160,7 @@ Following the completion of **Task 3: "Create Team" UI & Page Integrations with 
     - Local disk persistence of uploaded resume PDFs under `uploads/resumes/`.
     - Inline browser streaming routes (`GET /api/resume/view` and `GET /api/resume/view/:targetUserId`) for rendering in `<iframe src="...">` or viewer.
     - 24-hour rate limit per user tracked on `Profile.lastResumeUploadedAt` with HTTP 429 response.
-    - Testing/dev bypass for designated emails (`nagpalswastik@gmail.com`, `razediff0@gmail.com`) and `BYPASS_RESUME_RATE_LIMIT=true`.
+    - Testing/dev bypass for designated emails via `RATE_LIMIT_BYPASS_EMAILS` and `BYPASS_RESUME_RATE_LIMIT=true`.
   - **University & Sub-Organizers API (`/api/organizers`):**
     - University `Organization` model mapping to Clerk `orgId` (`/universities`).
     - Sub-organizer `Organizer` model for university clubs and societies (e.g. ACM, Robotics, GDSC).

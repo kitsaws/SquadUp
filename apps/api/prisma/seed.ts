@@ -98,8 +98,9 @@ async function main() {
   // =========================================================================
   console.log("\n👤 Ensuring Presenter Account (Swastik Nagpal)...");
 
-  const presenterClerkId = "user_3JNnb2vmTMZz3dTHLk5iXdgahTf";
-  const presenterEmail = "nagpalswastik@gmail.com";
+  const presenterClerkId = process.env.SEED_PRESENTER_CLERK_ID || "user_3JNnb2vmTMZz3dTHLk5iXdgahTf";
+  const presenterEmail = process.env.ADMIN_EMAIL || process.env.SEED_PRESENTER_EMAIL || "admin@squadup.dev";
+  const presenterName = process.env.SEED_PRESENTER_NAME || "Swastik Nagpal";
 
   let presenterUser = await prisma.user.findUnique({
     where: { clerkId: presenterClerkId },
@@ -111,7 +112,7 @@ async function main() {
       data: {
         clerkId: presenterClerkId,
         email: presenterEmail,
-        name: "Swastik Nagpal",
+        name: presenterName,
       },
       include: { profile: true },
     });

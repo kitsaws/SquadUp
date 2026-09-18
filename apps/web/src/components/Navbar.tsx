@@ -21,6 +21,7 @@ import { useUserContext } from "../contexts/UserContext";
 import { usePalette } from "../contexts/PaletteContext";
 import { useNotifications } from "../contexts/NotificationContext";
 import { SearchModal } from "./SearchModal";
+import { isAdminEmail } from "../utils/admin";
 
 function formatTimeAgo(dateString: string): string {
   const date = new Date(dateString);
@@ -131,7 +132,7 @@ export function Navbar() {
     user?.emailAddresses?.[0]?.emailAddress ||
     profile?.email ||
     "";
-  const isSuperAdmin = userEmail.toLowerCase() === "nagpalswastik@gmail.com";
+  const isSuperAdmin = isAdminEmail(userEmail);
 
   const navLinks = [
     { label: "Home", path: "/" },

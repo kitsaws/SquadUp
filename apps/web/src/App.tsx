@@ -14,6 +14,7 @@ import { PlaygroundPage } from "./pages/PlaygroundPage";
 import { Onboarding } from "./pages/Onboarding";
 import { OnboardingGuard } from "./components/onboarding/OnboardingGuard";
 import { Home as LegacyResumeUpload } from "./pages/Home";
+import { isAdminEmail } from "./utils/admin";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useUserContext();
@@ -44,7 +45,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
     user?.emailAddresses?.[0]?.emailAddress ||
     profile?.email ||
     "";
-  const isSuperAdmin = isSignedIn && userEmail.toLowerCase() === "nagpalswastik@gmail.com";
+  const isSuperAdmin = isSignedIn && isAdminEmail(userEmail);
   if (!isSuperAdmin) {
     return <Navigate to="/" replace />;
   }

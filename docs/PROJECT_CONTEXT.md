@@ -121,6 +121,9 @@ SquadUp utilizes a **Consolidated Node.js Backend Architecture** (`apps/api`):
 | `EMAIL_FROM` | Sender display string (e.g., `"SquadUp Platform <notifications@squadup.dev>"`). |
 | `APP_FRONTEND_URL` | Base frontend URL for email deep-links (e.g., `http://localhost:5173`). |
 | `BYPASS_RESUME_RATE_LIMIT` | Set to `"true"` in development to bypass 24h resume upload cooldown. |
+| `VITE_ADMIN_EMAILS` | Comma-separated admin email list for frontend UI & routing access (e.g., `/playground`). |
+| `ADMIN_EMAILS` | Comma-separated admin email list for backend administration & seed fallback. |
+| `RATE_LIMIT_BYPASS_EMAILS` | Comma-separated email list allowed to bypass 24h resume upload cooldown. |
 
 *(See `.env.example` in the root folder for templates).*
 

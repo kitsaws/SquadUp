@@ -16,16 +16,20 @@ if (!fs.existsSync(RESUME_STORAGE_DIR)) {
   fs.mkdirSync(RESUME_STORAGE_DIR, { recursive: true });
 }
 
-// User-approved emails that bypass the 24-hour rate limit during testing/dev
-export const RATE_LIMIT_BYPASS_EMAILS = [
-  "nagpalswastik@gmail.com",
-  "razediff0@gmail.com",
-];
+// User-configured emails that bypass the 24-hour rate limit during testing/dev
+export const getRateLimitBypassEmails = (): string[] => {
+  const envEmails = process.env.RATE_LIMIT_BYPASS_EMAILS || process.env.ADMIN_EMAILS || "";
+  return envEmails
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+};
 
 export function isResumeRateLimitBypassed(email: string): boolean {
   if (process.env.BYPASS_RESUME_RATE_LIMIT === "true") return true;
   if (process.env.NODE_ENV === "development") return true;
-  return RATE_LIMIT_BYPASS_EMAILS.includes(email.toLowerCase());
+  const bypassList = getRateLimitBypassEmails();
+  return bypassList.includes(email.toLowerCase());
 }
 
 export const uploadResume = async (req: Request, res: Response<UploadResumeResponse | { error: string; nextAvailableAt?: string }>) => {
