@@ -12,6 +12,11 @@ import eventRoutes from "./routes/event.routes.js";
 import organizerRoutes from "./routes/organizer.routes.js";
 import applicationRoutes from "./routes/application.routes.js";
 import preferencesRoutes from "./routes/preferences.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
+
+// Background Job Workers
+import "./queues/ai.queue.js";
+import "./queues/email.queue.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
@@ -36,6 +41,7 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/organizers", organizerRoutes);
 app.use("/api/applications", applicationRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 
 // General Endpoints

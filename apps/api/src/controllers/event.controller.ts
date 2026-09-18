@@ -10,6 +10,7 @@ import {
 } from "@squadup/shared";
 import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
 import { CacheService } from "../services/cache.service.js";
+import { NotificationService } from "../services/notification.service.js";
 
 const prisma = new PrismaClient();
 
@@ -292,6 +293,18 @@ export const createEvent = async (
 
     // Invalidate event list cache
     await CacheService.invalidatePattern("events:list:*");
+
+    // Broadcast notification to students of this campus/location
+    const eventCampus = newEvent.location || (userInDb.profile as any)?.university;
+    if (eventCampus) {
+      NotificationService.broadcastCampusEvent({
+        eventId: newEvent.id,
+        eventTitle: newEvent.title,
+        university: eventCampus,
+        organizerName: userInDb.name,
+        eventDate: newEvent.date,
+      }).catch((e) => console.warn("[Event API] Failed to broadcast campus event notification:", e));
+    }
 
     return res.status(201).json({
       id: newEvent.id,
