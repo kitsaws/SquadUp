@@ -25,8 +25,8 @@ export const RoleSelectDropdown: React.FC<RoleSelectDropdownProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Filter strictly to open/unfilled roles
-  const openRoles = roles.filter((r) => !r.assignedToId && (r.spots ?? 1) > 0);
+  // Filter strictly to open/unfilled roles (spots > 0)
+  const openRoles = roles.filter((r) => (r.spots ?? 1) > 0);
 
   // Find currently selected role
   const selectedRole = openRoles.find((r) => r.id === selectedRoleId);

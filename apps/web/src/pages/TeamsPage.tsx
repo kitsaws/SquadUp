@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { SignInButton } from "@clerk/react";
 import {
   Search,
@@ -30,6 +30,7 @@ import { TeamCard, TeamCardData } from "../components/TeamCard";
 import { TeamTile } from "../components/TeamTile";
 import { CategoryLegend } from "../components/CategoryLegend";
 import { ApplyTeamModal } from "../components/ApplyTeamModal";
+import { CreateTeamModal } from "../components/CreateTeamModal";
 import { RecommendationBadge, ScopeBadge, SkillTag } from "../components/Badges";
 import { CompatibilityScoreRing } from "../components/CompatibilityScoreRing";
 import { ViewModeToggle, ViewMode } from "../components/ViewModeToggle";
@@ -45,9 +46,13 @@ import { CacheService } from "../services/cache.service";
 type SortOption = "FIT_DESC" | "FIT_ASC" | "SPOTS_DESC" | "NAME_ASC";
 
 export function TeamsPage() {
+  const navigate = useNavigate();
   const { isSignedIn, userVerifiedSkills, profile: userProfile, userUniversity } = useUserContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const teamIdParam = searchParams.get("id");
+
+  // Create Team Modal State
+  const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
 
   // Live teams state & pagination
   const [teams, setTeams] = useState<TeamCardData[]>([]);
@@ -250,7 +255,13 @@ export function TeamsPage() {
           avatarUrl: m.avatarUrl || m.profilePicture,
           profilePicture: m.profilePicture || m.avatarUrl,
         })),
-        maxCapacity: t.maxCapacity || 4,
+        maxCapacity:
+          t.maxCapacity ||
+          (t.roles && t.roles.length > 0
+            ? (t.members || []).length + t.roles.reduce((acc, r) => acc + (r.spots ?? 0), 0)
+            : t.requirements && t.requirements.length > 0
+            ? Math.max((t.members || []).length, t.requirements.length)
+            : Math.max((t.members || []).length, 4)),
         isUserLeader: t.isLeader || false,
         isUserMember: t.isMember || false,
       }));
@@ -398,7 +409,7 @@ export function TeamsPage() {
 
     const openRoles =
       team.roles && team.roles.length > 0
-        ? team.roles.filter((r) => !r.assignedToId && (r.spots ?? 1) > 0)
+        ? team.roles.filter((r) => (r.spots ?? 1) > 0)
         : [];
 
     const rolesList =
@@ -676,7 +687,7 @@ export function TeamsPage() {
               Current Roster
             </span>
             <span className="text-text-muted font-medium">
-              {team.members.length} / {team.maxCapacity || 4} spots filled
+              {team.members.length} / {team.maxCapacity || (team.roles && team.roles.length > 0 ? team.members.length + team.roles.reduce((acc, r) => acc + (r.spots ?? 0), 0) : team.requirements && team.requirements.length > 0 ? Math.max(team.members.length, team.requirements.length) : Math.max(team.members.length, 4))} spots filled
             </span>
           </div>
 
@@ -704,7 +715,7 @@ export function TeamsPage() {
 
         {/* Action Footer */}
         <div className="pt-4 border-t border-border-main flex items-center gap-3">
-          {team.members.length >= (team.maxCapacity || 4) ? (
+          {team.members.length >= (team.maxCapacity || (team.roles && team.roles.length > 0 ? team.members.length + team.roles.reduce((acc, r) => acc + (r.spots ?? 0), 0) : team.requirements && team.requirements.length > 0 ? Math.max(team.members.length, team.requirements.length) : Math.max(team.members.length, 4))) ? (
             <>
               <span className="flex-1 py-2.5 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-xl border border-border-main">
                 Squad Full • No Open Spots
@@ -832,14 +843,37 @@ export function TeamsPage() {
             Browse hackathon teams recruiting talent. Ranked globally by AI taxonomy fit.
           </p>
         </div>
-        <button
-          onClick={() => loadTeams(true)}
-          title="Refresh Squads List"
-          className="self-start md:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-muted hover:text-text-main text-xs font-semibold transition-all cursor-pointer"
-        >
-          <RotateCw className="w-3.5 h-3.5" />
-          <span>Refresh</span>
-        </button>
+        <div className="flex items-center gap-2.5 self-start md:self-auto">
+          {isSignedIn ? (
+            <button
+              type="button"
+              onClick={() => setIsCreateTeamOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-action hover:bg-primary-hover text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create Team</span>
+            </button>
+          ) : (
+            <SignInButton mode="modal">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-action hover:bg-primary-hover text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Team</span>
+              </button>
+            </SignInButton>
+          )}
+
+          <button
+            onClick={() => loadTeams(true)}
+            title="Refresh Squads List"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-muted hover:text-text-main text-xs font-semibold transition-all cursor-pointer"
+          >
+            <RotateCw className="w-3.5 h-3.5" />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       {/* Search & Filter Bar */}
@@ -1298,6 +1332,15 @@ export function TeamsPage() {
           onSubmit={handleApplySuccess}
         />
       )}
+
+      {/* Create Team Modal */}
+      <CreateTeamModal
+        isOpen={isCreateTeamOpen}
+        onClose={() => setIsCreateTeamOpen(false)}
+        onSuccess={(newTeamId) => {
+          navigate(`/team/${newTeamId}`);
+        }}
+      />
     </div>
   );
 }
