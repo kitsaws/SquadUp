@@ -23,6 +23,7 @@ export interface UserPreferences {
   emailNotifications: boolean;
   teamInvitesNotification: boolean;
   applicationUpdates: boolean;
+  eventNotifications?: boolean;
   marketingEmails: boolean;
 
   // 3. Default Options & Matching Preferences

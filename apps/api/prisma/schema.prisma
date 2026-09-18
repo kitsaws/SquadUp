@@ -26,6 +26,7 @@ model User {
   organizerMemberships    OrganizerMember[]
   organizationMemberships OrganizationMembership[]
   teamApplications        TeamApplication[]
+  notifications           Notification[]
 }
 
 model Profile {
@@ -162,15 +163,16 @@ model Team {
 }
 
 model TeamRole {
-  id           String      @id @default(cuid())
+  id           String       @id @default(cuid())
   teamId       String
-  team         Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  title        String      // e.g. "Frontend Developer", "AI / ML Specialist"
-  skills       String[]    // e.g. ["NextJS", "Tailwindcss", "TypeScript"]
-  spots        Int         @default(1)
-  assignedToId String?     // User ID of member who filled this role (if filled)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  team         Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  title        String       // e.g. "Frontend Developer", "AI / ML Specialist"
+  skills       String[]     // e.g. ["NextJS", "Tailwindcss", "TypeScript"]
+  spots        Int          @default(1)
+  assignedToId String?      // User ID of member who filled this role (if filled)
+  invites      TeamInvite[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   @@index([teamId])
 }
@@ -199,14 +201,18 @@ model TeamMember {
 }
 
 model TeamInvite {
-  id        String   @id @default(cuid())
-  teamId    String
-  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  senderId  String
-  sender    User     @relation("SentInvites", fields: [senderId], references: [id], onDelete: Cascade)
-  email     String   // Email of the person being invited
-  status    String   @default("PENDING") // PENDING, ACCEPTED, DECLINED
-  createdAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  teamId     String
+  team       Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  roleId     String?
+  role       TeamRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  roleTitle  String?
+  roleSkills String[]  @default([]) // Snapshot of required technologies/skills
+  senderId   String
+  sender     User      @relation("SentInvites", fields: [senderId], references: [id], onDelete: Cascade)
+  email      String    // Email of the person being invited
+  status     String    @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  createdAt  DateTime  @default(now())
 
   @@unique([teamId, email])
 }
@@ -240,6 +246,7 @@ model UserPreferences {
   emailNotifications      Boolean  @default(true)
   teamInvitesNotification Boolean  @default(true)
   applicationUpdates      Boolean  @default(true)
+  eventNotifications      Boolean  @default(true) // Alerts for newly hosted campus events & hackathons
   marketingEmails         Boolean  @default(false)
 
   // 3. Default Options & Matching Preferences
@@ -250,4 +257,24 @@ model UserPreferences {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String    // "TEAM_INVITE", "APPLICATION_RECEIVED", "APPLICATION_ACCEPTED", "APPLICATION_REJECTED", "TEAM_JOINED", "EVENT_ANNOUNCEMENT"
+  title     String
+  message   String
+  link      String?   // e.g. "/team/t-123?inviteId=inv-456"
+  data      Json?     // Context payload: { teamId, inviteId, roleId, roleTitle, roleSkills, eventId, eventTitle, senderName }
+  isRead    Boolean   @default(false)
+  expiresAt DateTime? // TTL timestamp
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
 

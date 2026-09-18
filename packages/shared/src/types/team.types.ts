@@ -35,11 +35,28 @@ export interface UpdateTeamRequest {
   university?: string;
 }
 
+export interface RoleInvitePayload {
+  email: string;
+  roleId?: string;
+  roleTitle?: string;
+  roleSkills?: string[];
+}
+
 export interface TeamInviteResponse {
   id: string;
   teamId: string;
+  teamName?: string;
+  eventId?: string;
+  eventTitle?: string;
+  isGlobal?: boolean;
   senderId: string;
+  senderName?: string;
   email: string;
+  roleId?: string | null;
+  roleTitle?: string | null;
+  roleSkills?: string[];
+  membersCount?: number;
+  requirements?: string[];
   status: string;
   createdAt: string;
 }
@@ -81,7 +98,17 @@ export interface CreateApplicationRequest {
 }
 
 export interface SendTeamInvitesRequest {
-  invites: string[];
+  invites: Array<string | RoleInvitePayload>;
+  roleId?: string;
+  roleTitle?: string;
+  roleSkills?: string[];
+}
+
+export interface SendTeamInvitesResponse {
+  message: string;
+  successful?: string[];
+  failed?: Array<{ email: string; reason: string }>;
+  invitedEmails?: string[];
 }
 
 export interface TeamDetailResponse {

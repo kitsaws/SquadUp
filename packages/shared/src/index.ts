@@ -28,5 +28,6 @@ export * from "./types/event.types.js";
 export * from "./types/taxonomy.types.js";
 export * from "./types/organizer.types.js";
 export * from "./types/preferences.types.js";
+export * from "./types/notification.types.js";
 
 
