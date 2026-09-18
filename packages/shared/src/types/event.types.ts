@@ -4,6 +4,7 @@ export interface CreateEventRequest {
   date: string; // ISO 8601 string
   location?: string;
   organizerProfileId?: string;
+  orgId?: string;
   isGlobal?: boolean;
 }
 
@@ -13,6 +14,7 @@ export interface UpdateEventRequest {
   date?: string; // ISO 8601 string
   location?: string;
   organizerProfileId?: string;
+  orgId?: string;
   isGlobal?: boolean;
 }
 

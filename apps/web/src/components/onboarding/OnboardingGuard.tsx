@@ -7,11 +7,11 @@ interface OnboardingGuardProps {
 }
 
 export function OnboardingGuard({ children }: OnboardingGuardProps) {
-  const { isSignedIn, isLoaded, isOnboardingComplete, hasInitialProfileLoaded } = useUserContext();
+  const { isSignedIn, isLoaded, isUserReady, isOnboardingComplete, profile } = useUserContext();
   const location = useLocation();
 
   // If auth is still loading, or if signed in and initial profile hasn't loaded yet, do NOT make redirect decisions
-  if (!isLoaded || (isSignedIn && !hasInitialProfileLoaded)) {
+  if (!isLoaded || (isSignedIn && (!isUserReady && !profile))) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-text-muted">
         <div className="w-8 h-8 border-3 border-primary-action border-t-transparent rounded-full animate-spin" />

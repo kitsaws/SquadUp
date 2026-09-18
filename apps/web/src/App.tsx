@@ -32,7 +32,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, profile, isLoaded, isSignedIn } = useUserContext();
+  const { email, user, profile, isLoaded, isSignedIn } = useUserContext();
   if (!isLoaded) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
@@ -40,12 +40,13 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  const userEmail =
+  const resolvedEmail =
+    email ||
     user?.primaryEmailAddress?.emailAddress ||
     user?.emailAddresses?.[0]?.emailAddress ||
     profile?.email ||
     "";
-  const isSuperAdmin = isSignedIn && isAdminEmail(userEmail);
+  const isSuperAdmin = isSignedIn && isAdminEmail(resolvedEmail);
   if (!isSuperAdmin) {
     return <Navigate to="/" replace />;
   }
@@ -53,6 +54,30 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 export function App() {
+  const { isLoaded, isSignedIn, hasInitialProfileLoaded, profile } = useUserContext();
+
+  const isUserReady = isLoaded && (!isSignedIn || hasInitialProfileLoaded || Boolean(profile));
+
+  if (!isUserReady) {
+    return (
+      <PaletteProvider>
+        <div className="min-h-screen bg-canvas flex flex-col items-center justify-center gap-4 text-text-main select-none transition-colors duration-200">
+          <div className="relative flex items-center justify-center">
+            {/* Outer soft pulse ring */}
+            <div className="absolute w-16 h-16 rounded-2xl bg-primary-action/15 animate-ping" />
+            <div className="relative w-14 h-14 rounded-2xl bg-surface border border-border-main flex items-center justify-center shadow-lg">
+              <div className="w-6 h-6 border-3 border-primary-action border-t-transparent rounded-full animate-spin" />
+            </div>
+          </div>
+          <div className="flex flex-col items-center gap-1.5 text-center">
+            <span className="text-base font-semibold tracking-tight text-text-main">SquadUp</span>
+            <span className="text-xs text-text-muted animate-pulse">Syncing your workspace profile...</span>
+          </div>
+        </div>
+      </PaletteProvider>
+    );
+  }
+
   return (
     <PaletteProvider>
       <div className="min-h-screen flex flex-col font-sans transition-colors duration-200 bg-canvas text-text-main">

@@ -11,6 +11,7 @@ export interface EventCardData {
   dateStr: string;
   location: string;
   isGlobal: boolean;
+  orgId?: string | null;
   daysRemaining: number;
   description: string;
   tracks?: string[];

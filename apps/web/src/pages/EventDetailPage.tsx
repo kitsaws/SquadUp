@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Sparkles,
 } from "lucide-react";
+import { useUser, useAuth } from "@clerk/react";
 import { useUserContext } from "../contexts/UserContext";
 import {
   eventsApi,
@@ -70,6 +71,7 @@ function mapEventToCardData(item: EventItem): EventCardData {
     dateStr: formatEventDate(item.date),
     location: item.location,
     isGlobal: item.isGlobal,
+    orgId: item.orgId,
     daysRemaining: calculateDaysRemaining(item.date),
     description: item.description,
     tracks: item.tracks && item.tracks.length > 0 ? item.tracks : ["General", "Open Track"],
@@ -82,6 +84,8 @@ export function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isSignedIn, profile } = useUserContext();
+  const { orgId } = useAuth();
+  const { user } = useUser();
 
   const [event, setEvent] = useState<EventCardData | null>(null);
   const [eventTeams, setEventTeams] = useState<TeamCardData[]>([]);
@@ -94,10 +98,16 @@ export function EventDetailPage() {
   const isEligibleToCreateTeam = useMemo(() => {
     if (!event) return false;
     if (event.isGlobal) return true;
-    const userUni = (profile?.university || "").toLowerCase().trim();
-    const eventLoc = (event.location || "").toLowerCase().trim();
-    return Boolean(userUni && eventLoc && userUni === eventLoc);
-  }, [event, profile]);
+    if (!event.orgId) return false;
+
+    const activeOrgId = orgId;
+    const userOrgIds = (user?.organizationMemberships || []).map((m) => m.organization.id);
+
+    return Boolean(
+      (activeOrgId && activeOrgId === event.orgId) ||
+      userOrgIds.includes(event.orgId)
+    );
+  }, [event, orgId, user]);
 
   useEffect(() => {
     let isMounted = true;
@@ -302,7 +312,7 @@ export function EventDetailPage() {
                 type="button"
                 onClick={() => setIsCreateTeamOpen(true)}
                 disabled={!isEligibleToCreateTeam}
-                title={!isEligibleToCreateTeam ? `Restricted to students of ${event.location}` : undefined}
+                title={!isEligibleToCreateTeam ? `Restricted to members of organization (${event.organizerName || event.location || "Host Organization"})` : undefined}
                 className="w-full px-4 py-2.5 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors text-center cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="w-4 h-4" /> Start a Squad

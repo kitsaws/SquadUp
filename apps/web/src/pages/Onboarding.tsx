@@ -15,17 +15,16 @@ export function Onboarding() {
   const { setActive } = useClerk();
   const { user, profile, refreshProfile, isOnboardingComplete, isSignedIn, isLoaded } = useUserContext();
 
-  // If the user already completed onboarding prior to visiting this page, bounce them away immediately
-  const wasAlreadyOnboarded = useRef(isOnboardingComplete);
-  useEffect(() => {
-    if (wasAlreadyOnboarded.current) {
-      navigate("/", { replace: true });
-    }
-  }, [navigate]);
-
   // Navigation steps: 1 = University, 2 = Profile Choice, 3 = Resume Processing Success
   const stepParam = parseInt(searchParams.get("step") || "1", 10);
   const [step, setStep] = useState<number>(stepParam >= 1 && stepParam <= 3 ? stepParam : 1);
+
+  // If the user already completed onboarding prior to visiting this page, bounce them away unless on step 3 (completion)
+  useEffect(() => {
+    if (isLoaded && isSignedIn && isOnboardingComplete && step !== 3) {
+      navigate("/", { replace: true });
+    }
+  }, [isLoaded, isSignedIn, isOnboardingComplete, step, navigate]);
 
   // University state
   const [universities, setUniversities] = useState<OrganizationItem[]>([]);

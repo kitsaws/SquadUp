@@ -6,8 +6,10 @@ import { CacheService } from "../services/cache.service";
 export interface UserContextType {
   isSignedIn: boolean;
   isLoaded: boolean;
+  isUserReady: boolean;
   user: ReturnType<typeof useUser>["user"] | null;
   profile: UserProfileResponse | null;
+  email: string | null;
   isLoadingProfile: boolean;
   hasInitialProfileLoaded: boolean;
   profileError: string | null;
@@ -54,11 +56,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!isSignedIn || !user?.id) {
       setProfile(null);
       setProfileError(null);
+      setIsLoadingProfile(false);
       setHasInitialProfileLoaded(true);
       return;
     }
 
     setProfileError(null);
+    setIsLoadingProfile(true);
 
     try {
       const data = await profileApi.getProfile({
@@ -82,9 +86,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (isSignedIn && user?.id) {
       // If we don't have profile in memory yet, check cache synchronously for this user ID
       const cached = CacheService.get<UserProfileResponse>(`sq:profile:${user.id}`, "local");
-      if (cached && !profile) {
+      if (cached) {
         setProfile(cached.data);
         setHasInitialProfileLoaded(true);
+        setIsLoadingProfile(false);
       }
       refreshProfile();
     } else if (isLoaded && !isSignedIn) {
@@ -125,13 +130,24 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     hasProjects ||
     hasAchievements;
 
+  const email =
+    user?.primaryEmailAddress?.emailAddress ||
+    user?.emailAddresses?.[0]?.emailAddress ||
+    profile?.email ||
+    null;
+
+  // User state is ready when auth is loaded AND either user is not signed in OR initial profile is loaded / present
+  const isUserReady = isLoaded && (!isSignedIn || hasInitialProfileLoaded || Boolean(profile));
+
   return (
     <UserContext.Provider
       value={{
         isSignedIn: Boolean(isSignedIn),
         isLoaded,
+        isUserReady,
         user: user || null,
         profile,
+        email,
         isLoadingProfile,
         hasInitialProfileLoaded,
         profileError,

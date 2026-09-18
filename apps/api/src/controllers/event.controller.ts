@@ -32,22 +32,47 @@ export const listEvents = async (req: Request, res: Response) => {
   }
 
   try {
+    const userOrgIds: string[] = [];
+    if (userOrgId) {
+      userOrgIds.push(userOrgId);
+    }
+    if (auth.userId) {
+      const userInDb = await prisma.user.findUnique({
+        where: { clerkId: auth.userId },
+        select: {
+          organizationMemberships: {
+            select: {
+              organization: { select: { clerkOrgId: true } },
+            },
+          },
+        },
+      });
+      if (userInDb?.organizationMemberships) {
+        for (const m of userInDb.organizationMemberships) {
+          if (m.organization?.clerkOrgId) {
+            userOrgIds.push(m.organization.clerkOrgId);
+          }
+        }
+      }
+    }
+    const distinctUserOrgIds = [...new Set(userOrgIds)];
+
     const andClauses: Prisma.EventWhereInput[] = [];
 
     // Scope filtering
     if (scope === "global") {
       andClauses.push({ isGlobal: true });
     } else if (scope === "org") {
-      if (userOrgId) {
-        andClauses.push({ isGlobal: false, orgId: userOrgId });
+      if (distinctUserOrgIds.length > 0) {
+        andClauses.push({ isGlobal: false, orgId: { in: distinctUserOrgIds } });
       } else {
         andClauses.push({ isGlobal: false });
       }
     } else {
       // scope === 'all'
-      if (userOrgId) {
+      if (distinctUserOrgIds.length > 0) {
         andClauses.push({
-          OR: [{ isGlobal: true }, { orgId: userOrgId }],
+          OR: [{ isGlobal: true }, { orgId: { in: distinctUserOrgIds } }],
         });
       }
     }
@@ -242,7 +267,7 @@ export const createEvent = async (
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { title, description, date, location, isGlobal, organizerProfileId } = req.body;
+  const { title, description, date, location, isGlobal, organizerProfileId, orgId: bodyOrgId } = req.body;
 
   if (!title || !description || !date) {
     return res.status(400).json({ error: "Title, description, and date are required." });
@@ -278,6 +303,8 @@ export const createEvent = async (
       }
     }
 
+    const targetOrgId = orgId || bodyOrgId || null;
+
     const newEvent = await prisma.event.create({
       data: {
         title,
@@ -286,7 +313,7 @@ export const createEvent = async (
         location,
         organizerId: userInDb.id,
         organizerProfileId: organizerProfileId || null,
-        orgId: orgId || null,
+        orgId: targetOrgId,
         isGlobal: isGlobal ?? false,
       },
     });
@@ -335,7 +362,7 @@ export const updateEvent = async (
   }
 
   const { id } = req.params;
-  const { title, description, date, location, isGlobal, organizerProfileId } = req.body;
+  const { title, description, date, location, isGlobal, organizerProfileId, orgId: bodyOrgId } = req.body;
 
   let userInDb;
   try {
@@ -383,6 +410,7 @@ export const updateEvent = async (
         ...(location !== undefined && { location }),
         ...(isGlobal !== undefined && { isGlobal }),
         ...(organizerProfileId !== undefined && { organizerProfileId: organizerProfileId || null }),
+        ...(bodyOrgId !== undefined && { orgId: bodyOrgId || null }),
       },
     });
 

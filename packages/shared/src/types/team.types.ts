@@ -125,6 +125,7 @@ export interface TeamDetailResponse {
     isGlobal: boolean;
     location?: string | null;
     university?: string | null;
+    orgId?: string | null;
   };
   orgId?: string | null;
   requirements: string[];

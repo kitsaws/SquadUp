@@ -21,6 +21,7 @@ import {
   Wrench,
   Briefcase,
 } from "lucide-react";
+import { useUser, useAuth } from "@clerk/react";
 import { useUserContext } from "../contexts/UserContext";
 import { eventsApi, teamsApi, EventItem, TeamRoleItem } from "../services/api";
 import { ScopeBadge } from "./Badges";
@@ -175,6 +176,8 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
   initialEvent,
 }) => {
   const { profile, userUniversity, refreshProfile } = useUserContext();
+  const { user } = useUser();
+  const { orgId } = useAuth();
 
   // Selected Event State
   const [selectedEventId, setSelectedEventId] = useState<string>(
@@ -302,14 +305,20 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
     return eventsList.find((e) => e.id === selectedEventId) || null;
   }, [lockedEvent, eventsList, selectedEventId]);
 
-  // Check event eligibility
+  // Check event eligibility based on Clerk orgId
   const isEligibleForSelectedEvent = useMemo(() => {
     if (!activeEvent) return true;
     if (activeEvent.isGlobal) return true;
-    const userUni = (profile?.university || userUniversity || "").toLowerCase().trim();
-    const eventLoc = (activeEvent.location || "").toLowerCase().trim();
-    return Boolean(userUni && eventLoc && userUni === eventLoc);
-  }, [activeEvent, profile, userUniversity]);
+    if (!activeEvent.orgId) return false;
+
+    const activeOrgId = orgId;
+    const userOrgIds = (user?.organizationMemberships || []).map((m) => m.organization.id);
+
+    return Boolean(
+      (activeOrgId && activeOrgId === activeEvent.orgId) ||
+      userOrgIds.includes(activeEvent.orgId)
+    );
+  }, [activeEvent, orgId, user]);
 
   // Handle Preset Selection
   const handleApplyPreset = (presetId: string) => {
@@ -453,7 +462,7 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
 
     if (!isEligibleForSelectedEvent) {
       setErrorMessage(
-        "This event is restricted to students of its host campus. You cannot create a squad for it."
+        "This event is restricted to members of its host organization. You cannot create a squad for it."
       );
       return;
     }
@@ -709,7 +718,7 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
             {!isEligibleForSelectedEvent && (
               <p className="text-[11px] text-rose-500 font-semibold flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" />
-                This event is locked to students of {activeEvent?.location}. You are currently affiliated with {profile?.university || "a different institution"}.
+                This event is restricted to members of organization ({activeEvent?.location || "Host Organization"}). You are not currently a member of this organization in Clerk.
               </p>
             )}
           </div>
