@@ -706,8 +706,8 @@ Leader removes a member from the team.
 
 ## 7. Team Invites (`/api/teams`)
 
-### 7.1 Send Team Invites
-Leader invites email addresses.
+### 7.1 Send Role-Based Team Invites
+Squad Leader invites email addresses with optional designated `TeamRole` assignment and required technologies. Sends in-app PostgreSQL notification + real-time Redis Pub/Sub alert to registered users, and auto-provisions pending invite record.
 
 - **Method:** `POST`
 - **Path:** `/api/teams/:id/invites`
@@ -715,12 +715,36 @@ Leader invites email addresses.
 - **Request Body:**
   ```json
   {
+    "roleId": "cmrole123",
+    "roleTitle": "Full Stack Lead",
+    "roleSkills": ["React", "Node.js", "PostgreSQL"],
     "invites": ["sarah@college.edu", "david@college.edu"]
+  }
+  ```
+  *or with batch `roleInvites`:*
+  ```json
+  {
+    "roleInvites": [
+      {
+        "email": "sarah@college.edu",
+        "roleId": "cmrole123",
+        "roleTitle": "Full Stack Lead",
+        "roleSkills": ["React", "Node.js"]
+      }
+    ]
+  }
+  ```
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "message": "2 invitation(s) sent successfully.",
+    "successful": ["sarah@college.edu", "david@college.edu"],
+    "failed": []
   }
   ```
 
 ### 7.2 Get My Pending Invites
-Fetches all invites addressed to the logged-in user's email address.
+Fetches all pending invites addressed to the logged-in user's email address with enriched role metadata.
 
 - **Method:** `GET`
 - **Path:** `/api/teams/invites/my-invites`
@@ -731,35 +755,65 @@ Fetches all invites addressed to the logged-in user's email address.
     "totalInvites": 1,
     "invites": [
       {
-        "id": "cmu25...",
-        "teamId": "cmu25...",
+        "id": "cminv25...",
+        "teamId": "cmteam25...",
         "teamName": "AI Agents Guild",
-        "eventId": "cmu25...",
+        "eventId": "cmevent25...",
         "eventTitle": "TreeHacks 2026",
         "isGlobal": true,
         "senderName": "Jane Doe",
+        "senderId": "cmuser1...",
+        "email": "sarah@college.edu",
+        "roleId": "cmrole123",
+        "roleTitle": "Full Stack Lead",
+        "roleSkills": ["React", "Node.js", "PostgreSQL"],
         "membersCount": 3,
         "requirements": ["React", "FastAPI"],
-        "createdAt": "2026-09-15T09:00:00.000Z"
+        "status": "PENDING",
+        "createdAt": "2026-09-18T09:00:00.000Z"
       }
     ]
   }
   ```
 
 ### 7.3 Accept Team Invite
+Accepts the invitation. If the invite designated a `roleId`, atomically assigns the role spot to the user, claims the spot, adds user to `TeamMember`, and sends a live `TEAM_JOINED` notification to the squad leader.
+
 - **Method:** `POST`
 - **Path:** `/api/teams/invites/:inviteId/accept`
 - **Auth:** Required (must match invite email)
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "message": "You have joined AI Agents Guild as Full Stack Lead!",
+    "teamId": "cmteam25...",
+    "roleTitle": "Full Stack Lead"
+  }
+  ```
 
 ### 7.4 Decline Team Invite
 - **Method:** `POST`
 - **Path:** `/api/teams/invites/:inviteId/decline`
 - **Auth:** Required (must match invite email)
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "message": "Invitation declined."
+  }
+  ```
 
 ### 7.5 Cancel Pending Invite
+Squad leader cancels an outgoing pending invitation.
+
 - **Method:** `DELETE`
 - **Path:** `/api/teams/:id/invites/:inviteId`
 - **Auth:** Required (Leader only)
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "message": "Invitation cancelled."
+  }
+  ```
 
 ---
 
@@ -1004,4 +1058,98 @@ Runs user capability nodes against eligible candidate teams using the V2 Pure Ta
 | **Membership** | `organizationMembership.created` | Upserts `OrganizationMembership` (`org:admin` vs `org:member`). **Auto-synchronizes `Profile.university`** with organization name. Invalidates team caches. |
 | | `organizationMembership.updated` | Updates membership role. Auto-synchronizes `Profile.university`. Invalidates team caches. |
 | | `organizationMembership.deleted` | Removes `OrganizationMembership` record. Resets `Profile.university = null` if user leaves that university. Invalidates team caches. |
+
+---
+
+## 11. Notifications & Real-Time SSE Stream (`/api/notifications`)
+
+SquadUp uses PostgreSQL for durable notification storage with TTL (`expiresAt`) and Redis Pub/Sub multiplexed over HTTP Server-Sent Events (SSE) for sub-millisecond client broadcasts.
+
+### 11.1 List User Notifications
+Returns paginated in-app notifications and the current total unread counter. Respects TTL expiration filtering.
+
+- **Method:** `GET`
+- **Path:** `/api/notifications`
+- **Auth:** Required
+- **Query Parameters:**
+  - `page`: Page number (default: `1`).
+  - `limit`: Items per page (default: `30`).
+  - `unreadOnly`: `"true"` | `"false"` (default: `false`).
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "notifications": [
+      {
+        "id": "cmnotif123",
+        "userId": "cmuser456",
+        "type": "TEAM_INVITE",
+        "title": "Squad Invitation: NeuroVision Health",
+        "message": "Alex Rivera invited you to join NeuroVision Health as ML Engineer.",
+        "link": "/team/cmteam789?inviteId=cminv999",
+        "data": {
+          "teamId": "cmteam789",
+          "inviteId": "cminv999",
+          "roleId": "cmrole123",
+          "roleTitle": "ML Engineer",
+          "teamName": "NeuroVision Health",
+          "senderName": "Alex Rivera"
+        },
+        "isRead": false,
+        "expiresAt": "2026-10-18T09:00:00.000Z",
+        "createdAt": "2026-09-18T09:00:00.000Z",
+        "updatedAt": "2026-09-18T09:00:00.000Z"
+      }
+    ],
+    "unreadCount": 1,
+    "total": 1,
+    "page": 1,
+    "limit": 30,
+    "totalPages": 1
+  }
+  ```
+
+### 11.2 Mark Single Notification as Read
+- **Method:** `PATCH`
+- **Path:** `/api/notifications/:id/read`
+- **Auth:** Required
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "message": "Notification marked as read.",
+    "id": "cmnotif123"
+  }
+  ```
+
+### 11.3 Mark All Notifications as Read
+- **Method:** `PATCH`
+- **Path:** `/api/notifications/read-all`
+- **Auth:** Required
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "message": "All notifications marked as read."
+  }
+  ```
+
+### 11.4 Real-Time Notification SSE Stream
+Subscribes the client to a live HTTP Server-Sent Events stream. The server attaches the client to Redis Pub/Sub channels for user-specific alerts (`sq:user:<userId>`) and campus-wide event announcements (`sq:campus:<orgId>`). Keepalive heartbeats are sent every 25 seconds.
+
+- **Method:** `GET`
+- **Path:** `/api/notifications/stream`
+- **Auth:** Required (`Authorization: Bearer <clerk_jwt>`)
+- **Headers:** `Accept: text/event-stream`
+- **Stream Format:**
+  ```http
+  HTTP/1.1 200 OK
+  Content-Type: text/event-stream
+  Cache-Control: no-cache
+  Connection: keep-alive
+
+  data: {"type":"CONNECTED","userId":"cmuser456","timestamp":"2026-09-18T09:00:00.000Z"}
+
+  data: {"type":"NOTIFICATION_CREATED","notification":{"id":"cmnotif123","type":"TEAM_INVITE","title":"...","message":"...","link":"...","data":{...},"isRead":false,"createdAt":"..."}}
+
+  : keepalive 1726650025000
+  ```
+
 

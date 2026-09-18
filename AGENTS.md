@@ -13,8 +13,10 @@ To avoid breaking existing functionality, you must read the following architectu
 3. **[decisions.md](docs/decisions.md)**: The Architecture Decision Log. Read this so you don't undo intentional design choices.
 4. **[database.md](docs/database.md)**: Details on PostgreSQL, Prisma, decoupled taxonomy models, and the Clerk authentication decoupling.
 5. **[recommendation_system.md](docs/recommendation_system.md)**: Complete guide to the 143-node taxonomy hierarchy, V2 multi-source extraction, pure compatibility scoring, and categorization.
-6. **[progress.md](docs/progress.md)**: The current state of the project, including completed features and immediate next steps.
-7. **[endpoints.md](docs/endpoints.md)**: Complete REST API specification and developer contract for frontend developers.
+6. **[cache.md](docs/cache.md)**: Redis L3 distributed caching, frontend multi-tier SWR, cache keys, TTLs, and invalidation rules.
+7. **[job_queues.md](docs/job_queues.md)**: BullMQ background queues (`ai-tasks`, `email-tasks`), worker lifecycles, and asynchronous processing.
+8. **[progress.md](docs/progress.md)**: The current state of the project, including completed features and immediate next steps.
+9. **[endpoints.md](docs/endpoints.md)**: Complete REST API specification and developer contract for frontend developers.
 
 
 ## 🏛️ Source of Truth

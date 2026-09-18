@@ -400,14 +400,74 @@ Accepted
 The entire frontend application (`apps/web`) strictly uses semantic design tokens mapped to CSS custom properties (`var(--sq-*)`) defined in `apps/web/src/styles.css` under `:root` and `.dark`. Hardcoded Tailwind color classes (`bg-white`, `text-slate-*`, `border-slate-*`, etc.) and manual per-component `dark:*` class overrides are prohibited.
 
 ### Context
-Manual per-component `dark:*` overrides and hardcoded grayscale classes cause color divergence, poor contrast, maintenance bottlenecks, and broken themes when adding customizable presets or switching palettes dynamically. By standardizing on semantic tokens (`bg-canvas`, `bg-surface`, `bg-surface-dim`, `border-border-main`, `text-text-main`, `text-text-muted`, `bg-primary-action`, etc.), toggling between Light, Dark, System, and custom presets dynamically cascades across every surface, text element, and card without component-level color logic.
+---
+
+## [Role Vacancy Lifecycle & Dynamic Unassignment on Member Departure]
+
+### Decision
+When any member departs or is removed from a team (`leaveTeam`, `removeTeamMember`, or user deletion via webhook), any `TeamRole` occupied by that user (`assignedToId: userId`) is atomically unassigned (`assignedToId: null`) within the same database transaction. The role immediately re-appears as vacant across all squad cards, directory listings, and invitation dropdowns.
+
+### Context
+Previously, removing a member or having a member leave a squad left their `TeamRole` in an assigned state (`assignedToId: <departedUserId>`). This caused the role to appear filled in squad dashboards even though the member was no longer in the roster, blocking new candidate recruitment.
 
 ### Consequences
-- **Positive:** Instant, flawless theme cascades; unified WCAG AA contrast; zero per-component dark mode maintenance overhead; seamless support for user-defined primary colors and curated presets (`SquadUp 2.0 Default`, `Dark Theme`, `Emerald Focus`, `High Contrast Slate`).
-- **Negative:** Developers must use established semantic tokens instead of arbitrary utility colors.
+- **Positive:** Perfect transactional consistency between `TeamMember` and `TeamRole`. Departed positions automatically open up for recruitment without manual leader interventions.
+- **Negative:** None.
 
 ### Status
 Accepted
+
+---
+
+## [Pattern-Based Multi-Key Redis Cache Invalidation]
+
+### Decision
+All squad mutations (`createTeam`, `updateTeam`, `deleteTeam`, `leaveTeam`, `removeTeamMember`, `sendTeamInvites`, `acceptInvite`, `declineInvite`, `cancelInvite`, `applyToTeam`, `withdrawApplication`, `acceptApplication`, `rejectApplication`) execute pattern-based Redis scanning via `CacheService.invalidateTeam(teamId)`, purging user-scoped keys (`team:<teamId>:*`), anonymous keys (`team:<teamId>:anon`), team listings (`teams:list:*`), and event feeds (`events:*`).
+
+### Context
+Squad detail pages use caller-scoped cache keys (`team:<id>:<callerDbId>`) to support customized match scores and personalized action controls. Direct `redis.del('team:' + id)` calls failed to invalidate user-specific cache keys, causing stale data to persist across page reloads.
+
+### Consequences
+- **Positive:** Guaranteed cache invalidation across all authenticated and anonymous viewers upon any squad or membership state change.
+- **Negative:** Slightly higher Redis command overhead during invalidations (mitigated by bounded scan sizes).
+
+### Status
+Accepted
+
+---
+
+## [Decoupled Email Job Queue Architecture with BullMQ and Nodemailer]
+
+### Decision
+Out-of-band email notifications (such as team invitations and institutional alerts) are dispatched asynchronously through a dedicated BullMQ queue (`email-tasks` in `email.queue.ts`) backed by Redis, processed by decoupled background workers via `EmailService` and Nodemailer SMTP transport.
+
+### Context
+Sending email invites synchronously inside HTTP controllers introduces network latency, blocks API response times, and leads to unhandled request timeouts if the external SMTP gateway experiences intermittent latency or rate limiting.
+
+### Consequences
+- **Positive:** Sub-10ms API controller response times; automatic retry policies with exponential backoff; dead-letter queue isolation for transient mail server outages.
+- **Negative:** Requires active Redis connection for queue persistence.
+
+### Status
+Accepted
+
+---
+
+## [Real-Time Notification Multiplexing via Redis Pub/Sub and HTTP SSE]
+
+### Decision
+Live user notifications are persisted durably in PostgreSQL with auto-expiration TTLs (`expiresAt`) and multiplexed instantaneously through Redis Pub/Sub channels (`sq:user:<userId>`) into HTTP Server-Sent Events (`/api/notifications/stream`). The frontend maintains a persistent SSE connection with Bearer authentication and 25-second keepalive heartbeats.
+
+### Context
+Polling `/api/notifications` periodically creates unnecessary database load and delays notifications. Full WebSockets introduce stateful connection management complexity and proxy friction. HTTP SSE over HTTP/1.1 or HTTP/2 provides standard uni-directional streaming with native browser reconnect semantics.
+
+### Consequences
+- **Positive:** Instant sub-millisecond notification delivery to active users; zero client polling overhead; transparent reconnect support.
+- **Negative:** Requires long-running HTTP connections on the API server.
+
+### Status
+Accepted
+
 
 
 

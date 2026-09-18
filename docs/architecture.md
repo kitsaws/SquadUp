@@ -10,9 +10,9 @@ The system is designed to provide ultra-fast standard web API responses while se
 
 - **Frontend (`apps/web`):** React application built with Vite. Communicates with the Backend API over HTTP.
 - **Backend API (`apps/api`):** Node.js Express application written in TypeScript. It is the primary gateway for all frontend requests, directly manages the PostgreSQL database via Prisma, hosts the in-process deterministic Taxonomy & Recommendation Engine, acts as producer/worker for the job queue, and interfaces with the Redis caching layer.
-- **Job Queue:** BullMQ backed by Redis. Orchestrates asynchronous resume processing and profile synthesis in the background without blocking the Node event loop.
-- **Caching Layer:** Redis (`ioredis`) managed via `CacheService` for list queries and dynamic event TTL caching.
-- **Database:** PostgreSQL.
+- **Job Queue:** BullMQ backed by Redis (`ai-tasks` for AI resume parsing, `email-tasks` for email invitations). See **[job_queues.md](job_queues.md)** for architecture and worker lifecycles.
+- **Caching Layer:** Redis (`ioredis`) managed via `CacheService` on the backend and multi-tier SWR on the frontend. See **[cache.md](cache.md)** for key schemes and invalidation patterns.
+- **Database:** PostgreSQL managed via Prisma. See **[database.md](database.md)** for data models.
 - **Authentication:** Clerk SDK, providing JWTs and managing university organizations.
 
 ## Request/Data Flows

@@ -4,9 +4,53 @@ This document provides a snapshot of the current state of the SquadUp project. I
 
 ## Current Focus
 
-Following the completion of **Task 1: TeamRole Model & Taxonomy Recommendation Engine Upgrade**, immediate upcoming focus is **Task 2: Role-Based Teammate Invites, Lifecycle Modals & Live Notifications Backend (with Redis Pub/Sub)**.
+Following the completion of **Task 1: TeamRole Model & Taxonomy Recommendation Engine Upgrade** and **Task 2: Role-Based Teammate Invites, Lifecycle Modals & Live Notifications Backend (with Redis Pub/Sub)**, immediate upcoming focus is **Task 3: Dynamic Role Spot Decrementing, Capacity Rings & Lifecycle Visuals**.
 
 ## Completed
+
+- **Task 2 — Role-Based Teammate Invites, Lifecycle Modals, Email Queue & Live Notifications (Completed):**
+  - **Relational Notification Database Model & TTL Support:**
+    - Created `Notification` model in PostgreSQL (Prisma) with `userId`, `type` (`TEAM_INVITE`, `APPLICATION_RECEIVED`, `APPLICATION_ACCEPTED`, `APPLICATION_REJECTED`, `TEAM_JOINED`, `TEAM_MEMBER_LEFT`, `EVENT_ANNOUNCEMENT`), `title`, `message`, `link`, `data`, `isRead`, and `expiresAt` (TTL auto-expiration).
+    - Added database indexes on `[userId, isRead]`, `[userId, createdAt]`, and `[expiresAt]` for high-concurrency feed performance.
+    - Updated `TeamInvite` model with `roleId`, `role` (`TeamRole`), `roleTitle`, and `roleSkills` snapshot array.
+    - Updated `UserPreferences` with `eventNotifications` toggle.
+  - **Redis Pub/Sub & HTTP Server-Sent Events (SSE) Multiplexing:**
+    - Created `PubSubService` (`pubsub.service.ts`) managing persistent Redis publisher and subscriber clients with automatic reconnection.
+    - Multiplexes per-user channels (`sq:user:<userId>`) and campus-wide broadcast channels (`sq:campus:<orgId>`) into live SSE connections.
+    - SSE stream endpoint (`GET /api/notifications/stream`) with Bearer token authentication and 25s keepalive heartbeats.
+  - **Comprehensive Notification Service & Lifecycle Integration:**
+    - Created `NotificationService` (`notification.service.ts`) honoring user preference guards (`teamInvitesNotification`, `applicationUpdates`, `eventNotifications`).
+    - Wired notifications across all squad and event lifecycle events:
+      - **Squad Invitation Dispatch** $\to$ `TEAM_INVITE` notification with deep link to candidate modal.
+      - **Candidate Application Submission** $\to$ `APPLICATION_RECEIVED` notification sent to squad leader.
+      - **Application Accepted** $\to$ `APPLICATION_ACCEPTED` notification with team dossier link.
+      - **Application Declined** $\to$ `APPLICATION_REJECTED` notification with `XCircle` styling.
+      - **Teammate Accepts Squad Invite** $\to$ `TEAM_JOINED` notification sent to squad leader and sender; atomically claims designated role spot (`assignedToId`).
+      - **Teammate Leaves Squad** $\to$ `TEAM_MEMBER_LEFT` notification sent to squad leader; role unassigned (`assignedToId: null`) and marked vacant.
+      - **Squad Leader Leaves Squad** $\to$ Leadership transferred to earliest remaining member, new leader receives notification.
+      - **Teammate Removed by Leader** $\to$ `TEAM_MEMBER_LEFT` notification sent to removed member; role unassigned.
+      - **New College Event Created** $\to$ `EVENT_ANNOUNCEMENT` notification broadcast to all students of that campus organization.
+  - **Asynchronous Email Notification Queue (BullMQ & Nodemailer):**
+    - Created `email.queue.ts` (`email-tasks` BullMQ queue) and worker processing queued email jobs with retry policies and exponential backoff.
+    - Implemented `EmailService` (`email.service.ts`) with Nodemailer SMTP transport for automated team invite emails with dynamic join links.
+  - **Robust Cache Invalidation Strategy (`cache.service.ts`):**
+    - Implemented pattern-based multi-key invalidation (`invalidateTeam`) scanning and purging `team:<id>*`, `teams:list:*`, `teams:*`, and `events:*` to prevent stale cache entries across user-specific and anonymous views.
+    - Reduced `getTeamById` cache TTL to 120s for tight consistency.
+  - **Interactive Team Invite Modal (`TeamInviteModal.tsx`) & Role Selection Dropdown (`RoleSelectDropdown.tsx`):**
+    - High-aesthetic modal presenting squad title, host event badge, sender name, designated role title, and required technologies & skills with `SkillTag` badges.
+    - Dedicated Accept and Decline actions with loading spinners, error handling, and instant navigation.
+    - Dropdown with custom option rendering, vacant role filtering, and dynamic badge display.
+  - **Squad Dossier Upgrades (`TeamDetailPage.tsx`):**
+    - Role selector dropdown in Leader Invite section displaying available spots and technologies for each position.
+    - Outgoing pending invitations list with email, assigned role, relative timestamp, and Leader Cancel action.
+    - Candidate invitation banner alerting invited users directly when viewing the team, with "Review & Accept Invite" button opening `TeamInviteModal`.
+    - Dynamic member card actions showing "Leave Squad" button for active members and occupant badges ("Filled by You" vs "Filled by [Name]").
+  - **Global Real-Time Notification Bell, Popover & Floating Toast (`Navbar.tsx` & `NotificationContext.tsx`):**
+    - Created `NotificationContext` with fetch-based SSE stream reader supporting Bearer JWT auth, optimistic updates, and toast alerts.
+    - Connected Navbar notification bell to live unread badge, popover dropdown with category icons (`Sparkles`, `Calendar`, `CheckCircle2`, `XCircle`, `UserMinus`, `UserCheck`, `Users`), relative timestamps (`formatTimeAgo`), mark single/all as read, and empty state.
+    - Added floating real-time SSE toast banner with 1-click navigation and dismiss.
+  - **User Preferences Modal Toggle:**
+    - Added "Campus Event Announcements" toggle to `UserPreferencesModal.tsx` synchronized with PostgreSQL and `UserPreferences`.
 
 - **Task 1 — TeamRole Model, 151-Node Taxonomy Hierarchy & Role-Based Recommendation Engine (`apps/api`, `apps/web`):**
   - **Relational `TeamRole` Database Model:**
