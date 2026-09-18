@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
-import { SignInButton } from "@clerk/react";
+import { SignInButton, useUser, useAuth } from "@clerk/react";
 import {
   Search,
   SlidersHorizontal,
@@ -48,6 +48,9 @@ type SortOption = "FIT_DESC" | "FIT_ASC" | "SPOTS_DESC" | "NAME_ASC";
 export function TeamsPage() {
   const navigate = useNavigate();
   const { isSignedIn, userVerifiedSkills, profile: userProfile, userUniversity } = useUserContext();
+  const { orgId } = useAuth();
+  const { user } = useUser();
+  const userOrgIds = useMemo(() => (user?.organizationMemberships || []).map((m) => m.organization.id), [user]);
   const [searchParams, setSearchParams] = useSearchParams();
   const teamIdParam = searchParams.get("id");
 
@@ -240,6 +243,7 @@ export function TeamsPage() {
         eventTitle: t.event?.title || "Collegiate Hackathon",
         university: t.university || t.event?.university || t.event?.location || "External Campus",
         isGlobal: t.event?.isGlobal ?? (t as any).isGlobal ?? true,
+        orgId: t.orgId || (t.event as any)?.orgId || null,
         requirements: t.requirements || [],
         requirementBreakdown: t.requirementBreakdown,
         roles: t.roles,
@@ -379,10 +383,13 @@ export function TeamsPage() {
   ): "perfect" | "partial" | "none" => {
     if (!isSignedIn || !userVerifiedSkills || userVerifiedSkills.length === 0) return "none";
 
-    // 1. Check if bestMatchingRole matches this role
+    // 1. Check if bestMatchingRole matches this role (and role is open)
     if (team.bestMatchingRole && team.bestMatchingRole.roleTitle.toLowerCase().trim() === role.title.toLowerCase().trim()) {
-      if (team.bestMatchingRole.score >= 0.85) return "perfect";
-      if (team.bestMatchingRole.score >= 0.40) return "partial";
+      const isRoleOpen = !team.roles || team.roles.length === 0 || team.roles.some((r) => r.title.toLowerCase().trim() === role.title.toLowerCase().trim() && (r.spots === undefined || r.spots > 0) && !r.assignedToId);
+      if (isRoleOpen) {
+        if (team.bestMatchingRole.score >= 0.85) return "perfect";
+        if (team.bestMatchingRole.score >= 0.40) return "partial";
+      }
     }
 
     const skills = role.skills || [];
@@ -404,13 +411,19 @@ export function TeamsPage() {
   const renderInspectionPanel = (team: TeamCardData, isInline = false) => {
     const isCampusRestricted = Boolean(
       team.isGlobal === false &&
-      (!myCampus || !team.university || myCampus.toLowerCase().trim() !== team.university.toLowerCase().trim())
+      (!team.orgId || (orgId !== team.orgId && !userOrgIds.includes(team.orgId)))
     );
 
     const openRoles =
       team.roles && team.roles.length > 0
         ? team.roles.filter((r) => (r.spots ?? 1) > 0)
         : [];
+
+    const isBestRoleOpen = Boolean(
+      team.bestMatchingRole &&
+      (!team.roles || team.roles.length === 0 || openRoles.some((r) => (team.bestMatchingRole?.roleId && (r as any).id === team.bestMatchingRole.roleId) || r.title.toLowerCase().trim() === team.bestMatchingRole?.roleTitle?.toLowerCase().trim()))
+    );
+    const validBestRole = isBestRoleOpen ? team.bestMatchingRole : undefined;
 
     const rolesList =
       openRoles.length > 0
@@ -533,9 +546,9 @@ export function TeamsPage() {
               />
               <div className="space-y-0.5 text-xs text-text-muted min-w-0 flex-1">
                 <p className="font-semibold text-text-main truncate">
-                  {team.bestMatchingRole ? (
+                  {validBestRole ? (
                     <span>
-                      Optimal Role: <strong className="text-primary-action font-bold">{team.bestMatchingRole.roleTitle}</strong>
+                      Optimal Role: <strong className="text-primary-action font-bold">{validBestRole.roleTitle}</strong>
                     </span>
                   ) : team.neededRequirement ? (
                     `Actively seeking ${team.neededRequirement} lead`
@@ -546,8 +559,8 @@ export function TeamsPage() {
                   )}
                 </p>
                 <p className="text-[11px] text-text-muted leading-snug">
-                  {team.bestMatchingRole
-                    ? `Matching ${team.bestMatchingRole.fulfilledCount} of ${team.bestMatchingRole.totalCount} required role competencies.`
+                  {validBestRole
+                    ? `Matching ${validBestRole.fulfilledCount} of ${validBestRole.totalCount} required role competencies.`
                     : team.category
                     ? "Your verified resume skills align with the squad's target architecture."
                     : "Compare required skills against your verified profile competencies below."}
@@ -572,7 +585,7 @@ export function TeamsPage() {
                   rolesList.map((role, idx) => {
                     const matchStatus = getRoleMatchStatus(role, team);
                     const isOptimalRole =
-                      team.bestMatchingRole?.roleTitle?.toLowerCase().trim() === role.title.toLowerCase().trim();
+                      validBestRole?.roleTitle?.toLowerCase().trim() === role.title.toLowerCase().trim();
                     const roleSkills = role.skills || [];
                     const matchedCount = roleSkills.filter((s) => checkSkillMatch(s, team)).length;
 
@@ -843,12 +856,12 @@ export function TeamsPage() {
             Browse hackathon teams recruiting talent. Ranked globally by AI taxonomy fit.
           </p>
         </div>
-        <div className="flex items-center gap-2.5 self-start md:self-auto">
+        <div className="flex flex-col items-center gap-2.5 self-start md:self-auto">
           {isSignedIn ? (
             <button
               type="button"
               onClick={() => setIsCreateTeamOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-action hover:bg-primary-hover text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-4 rounded-xl bg-primary-action hover:bg-primary-hover text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Create Team</span>
@@ -868,7 +881,7 @@ export function TeamsPage() {
           <button
             onClick={() => loadTeams(true)}
             title="Refresh Squads List"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-muted hover:text-text-main text-xs font-semibold transition-all cursor-pointer"
+            className="inline-flex w-full justify-center items-center gap-1.5 px-3 py-2 rounded-xl border border-border-main bg-surface hover:bg-surface-dim text-text-muted hover:text-text-main text-xs font-semibold transition-all cursor-pointer"
           >
             <RotateCw className="w-3.5 h-3.5" />
             <span>Refresh</span>
@@ -1217,7 +1230,7 @@ export function TeamsPage() {
               {teams.map((team) => {
                 const isRestricted = Boolean(
                   team.isGlobal === false &&
-                  (!myCampus || !team.university || myCampus.toLowerCase().trim() !== team.university.toLowerCase().trim())
+                  (!team.orgId || (orgId !== team.orgId && !userOrgIds.includes(team.orgId)))
                 );
                 return (
                   <div key={team.id} id={`team-card-${team.id}`} className="h-full scroll-mt-24">
@@ -1243,7 +1256,7 @@ export function TeamsPage() {
                 const isSelected = inspectedTeam?.id === team.id;
                 const isRestricted = Boolean(
                   team.isGlobal === false &&
-                  (!myCampus || !team.university || myCampus.toLowerCase().trim() !== team.university.toLowerCase().trim())
+                  (!team.orgId || (orgId !== team.orgId && !userOrgIds.includes(team.orgId)))
                 );
                 return (
                   <div key={team.id} id={`team-tile-${team.id}`} className="w-full scroll-mt-24">

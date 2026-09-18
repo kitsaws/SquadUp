@@ -13,10 +13,15 @@ interface ApplyTeamModalProps {
 export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamModalProps) {
   const { user } = useUser();
   const configuredRoleTitles = team.roles && team.roles.length > 0
-    ? team.roles.filter((r) => (r.spots ?? 1) > 0).map((r) => r.title)
+    ? team.roles.filter((r) => (r.spots ?? 1) > 0 && !r.assignedToId).map((r) => r.title)
     : [];
 
-  const defaultRole = team.bestMatchingRole?.roleTitle
+  const isBestRoleOpen = Boolean(
+    team.bestMatchingRole?.roleTitle &&
+    (!team.roles || team.roles.length === 0 || configuredRoleTitles.some((t) => t.toLowerCase().trim() === team.bestMatchingRole?.roleTitle?.toLowerCase().trim()))
+  );
+
+  const defaultRole = (isBestRoleOpen && team.bestMatchingRole?.roleTitle)
     ? team.bestMatchingRole.roleTitle
     : configuredRoleTitles[0]
     ? configuredRoleTitles[0]
@@ -117,7 +122,7 @@ export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamMod
             </label>
             <div className="flex flex-wrap gap-2">
               {roles.map((role) => {
-                const isRecommended = team.bestMatchingRole?.roleTitle === role;
+                const isRecommended = isBestRoleOpen && team.bestMatchingRole?.roleTitle === role;
                 const isSelected = selectedRole === role;
 
                 return (

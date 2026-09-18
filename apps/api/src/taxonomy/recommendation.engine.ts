@@ -98,61 +98,62 @@ export class V2RecommendationEngine {
       const hasStructuredRoles = Boolean(team.roles && team.roles.length > 0);
 
       if (hasStructuredRoles && team.roles && team.roles.length > 0) {
-        // Evaluate fit per role, prioritizing open roles (spots > 0)
-        const openRoles = team.roles.filter((r) => !r.assigned_to_id && (r.spots ?? 1) > 0);
-        const candidateRolesToEvaluate = openRoles.length > 0 ? openRoles : team.roles;
+        // Evaluate fit per role, STRICTLY for open roles (spots > 0 and !assigned_to_id)
+        const openRoles = team.roles.filter((r) => !r.assigned_to_id && (r.spots === undefined ? true : r.spots > 0));
 
-        let bestRole: (typeof team.roles)[0] | null = null;
-        let bestRoleScore = -1;
-        let bestRoleStrongCnt = 0;
-        let bestRoleReqMatches: Array<[string, number, string | null, StructuralFeatures | null]> = [];
+        if (openRoles.length > 0) {
+          let bestRole: (typeof team.roles)[0] | null = null;
+          let bestRoleScore = -1;
+          let bestRoleStrongCnt = 0;
+          let bestRoleReqMatches: Array<[string, number, string | null, StructuralFeatures | null]> = [];
 
-        for (const role of candidateRolesToEvaluate) {
-          const roleReqIds = role.requirement_node_ids || [];
-          if (roleReqIds.length === 0) continue;
+          for (const role of openRoles) {
+            const roleReqIds = role.requirement_node_ids || [];
+            if (roleReqIds.length === 0) continue;
 
-          let roleScoreSum = 0.0;
-          let roleStrong = 0;
-          const matches: Array<[string, number, string | null, StructuralFeatures | null]> = [];
+            let roleScoreSum = 0.0;
+            let roleStrong = 0;
+            const matches: Array<[string, number, string | null, StructuralFeatures | null]> = [];
 
-          for (const rId of roleReqIds) {
-            const item = userVector[rId];
-            const scoreVal = item ? item.score : 0.0;
-            const bestSkill = item ? item.bestSkill : null;
-            const bestFeats = item ? item.bestFeats : null;
+            for (const rId of roleReqIds) {
+              const item = userVector[rId];
+              const scoreVal = item ? item.score : 0.0;
+              const bestSkill = item ? item.bestSkill : null;
+              const bestFeats = item ? item.bestFeats : null;
 
-            if (scoreVal >= strongThreshold) roleStrong += 1;
-            roleScoreSum += scoreVal;
-            matches.push([rId, scoreVal, bestSkill, bestFeats]);
+              if (scoreVal >= strongThreshold) roleStrong += 1;
+              roleScoreSum += scoreVal;
+              matches.push([rId, scoreVal, bestSkill, bestFeats]);
+            }
+
+            const avgRoleScore = Number((roleScoreSum / roleReqIds.length).toFixed(4));
+            if (avgRoleScore > bestRoleScore) {
+              bestRoleScore = avgRoleScore;
+              bestRole = role;
+              bestRoleStrongCnt = roleStrong;
+              bestRoleReqMatches = matches;
+            }
           }
 
-          const avgRoleScore = Number((roleScoreSum / roleReqIds.length).toFixed(4));
-          if (avgRoleScore > bestRoleScore) {
-            bestRoleScore = avgRoleScore;
-            bestRole = role;
-            bestRoleStrongCnt = roleStrong;
-            bestRoleReqMatches = matches;
+          if (bestRole && bestRoleScore >= 0) {
+            scoredTeams.push({
+              taxScore: bestRoleScore,
+              strongCnt: bestRoleStrongCnt,
+              totalReqs: bestRole.requirement_node_ids.length,
+              team,
+              isEligible,
+              reqMatches: bestRoleReqMatches,
+              bestMatchingRole: {
+                role_id: bestRole.role_id,
+                role_title: bestRole.role_title,
+                score: bestRoleScore,
+                fulfilled_count: bestRoleStrongCnt,
+                total_count: bestRole.requirement_node_ids.length,
+                skills: bestRole.raw_skills || [],
+              },
+            });
+            continue;
           }
-        }
-
-        if (bestRole && bestRoleScore >= 0) {
-          scoredTeams.push({
-            taxScore: bestRoleScore,
-            strongCnt: bestRoleStrongCnt,
-            totalReqs: bestRole.requirement_node_ids.length,
-            team,
-            isEligible,
-            reqMatches: bestRoleReqMatches,
-            bestMatchingRole: {
-              role_id: bestRole.role_id,
-              role_title: bestRole.role_title,
-              score: bestRoleScore,
-              fulfilled_count: bestRoleStrongCnt,
-              total_count: bestRole.requirement_node_ids.length,
-              skills: bestRole.raw_skills || [],
-            },
-          });
-          continue;
         }
       }
 

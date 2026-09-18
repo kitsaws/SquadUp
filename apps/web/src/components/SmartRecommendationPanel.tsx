@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   CheckCircle2,
   ShieldCheck,
@@ -102,6 +102,22 @@ export function SmartRecommendationPanel({
 
   const category = recommendation.category;
   const userSkills = recommendation.userVerifiedSkills || [];
+
+  // Guard best matching role against filled roles with 0 spots remaining
+  const isBestRoleAvailable = useMemo(() => {
+    if (!recommendation.bestMatchingRole) return false;
+    if (recommendation.roles && recommendation.roles.length > 0) {
+      const match = recommendation.roles.find(
+        (r) =>
+          (recommendation.bestMatchingRole?.roleId && r.id === recommendation.bestMatchingRole.roleId) ||
+          r.title.toLowerCase().trim() === recommendation.bestMatchingRole?.roleTitle.toLowerCase().trim()
+      );
+      if (!match || (match.spots !== undefined && match.spots <= 0) || match.assignedToId) {
+        return false;
+      }
+    }
+    return true;
+  }, [recommendation.bestMatchingRole, recommendation.roles]);
 
   // State for on-demand compatibility calculation for non-recommended / general squads
   const [isCalculating, setIsCalculating] = useState(false);
@@ -348,7 +364,7 @@ export function SmartRecommendationPanel({
         </div>
 
         {/* Best Matching Role Highlight Card */}
-        {recommendation.bestMatchingRole && (
+        {recommendation.bestMatchingRole && isBestRoleAvailable && (
           <div className="p-4 rounded-2xl bg-gradient-to-br from-primary-action/10 via-primary-light to-surface border border-primary-action/30 space-y-3 shadow-xs">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2.5">

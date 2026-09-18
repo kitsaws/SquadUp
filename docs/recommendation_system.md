@@ -180,15 +180,23 @@ Comparing candidate skill $U$ against team requirement $R$ is strictly direction
 
 ## 7. Role-Based Matching (`TeamRole` & `bestMatchingRole`)
 
-Implemented in [`apps/api/src/taxonomy/recommendation.engine.ts`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/api/src/taxonomy/recommendation.engine.ts).
+Implemented in [`apps/api/src/taxonomy/recommendation.engine.ts`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/api/src/taxonomy/recommendation.engine.ts) and [`apps/api/src/services/ai.service.ts`](file:///e:/Programming/Projects%202026/Squad%20Up/main/apps/api/src/services/ai.service.ts).
 
 A squad is not merely an amorphous list of tags; it consists of structured roles (e.g. *Frontend Lead*, *AI Specialist*, *DevOps Engineer*).
 
 ### How Role-Level Scoring Works:
 1. When a team defines roles, each role's skills are resolved into requirement nodes stored in `TeamTaxonomy.roleTaxonomies`.
-2. For each open role ($spots > 0$), the recommendation engine computes the user's compatibility score against that role's specific requirements:
+2. **Strict Open-Role Filtering ($spots > 0$ and unassigned):**
+   - The engine filters candidates strictly by:
+     ```ts
+     const openRoles = team.roles.filter(
+       (r) => !r.assigned_to_id && (r.spots === undefined ? true : r.spots > 0)
+     );
+     ```
+   - Roles that are filled (`spots === 0` or `assigned_to_id !== null`) are **never evaluated or recommended** as the optimal role match.
+3. For each available open role, the recommendation engine computes the user's compatibility score against that role's specific requirements:
    $$\text{Role Score} = \frac{1}{|R_{\text{role}}|} \sum_{r \in R_{\text{role}}} \text{best\_score}(r)$$
-3. The role with the highest score is attached as `bestMatchingRole`:
+4. The highest scoring available open role is attached as `bestMatchingRole`:
    ```json
    {
      "roleId": "cmrole123",
@@ -199,7 +207,14 @@ A squad is not merely an amorphous list of tags; it consists of structured roles
      "skills": ["React", "TypeScript", "Tailwind CSS"]
    }
    ```
-4. This enables candidates on `TeamsPage` or `TeamDetailPage` to immediately see which specific open seat they fit best.
+5. **Full-Capacity Squad Fallback (`openRoles.length === 0`):**
+   - If all structured roles in a squad are filled, the engine skips role recommendation, sets `bestMatchingRole: null`, and evaluates the team's overall technical requirements (`team.requirement_node_ids`).
+   - The candidate receives an accurate general squad technical alignment score without showing a phantom or unavailable role card.
+
+### Frontend Presentation & UI Safeguards
+1. **`SmartRecommendationPanel.tsx`:** Uses `isBestRoleAvailable` guard to hide the "Optimal Role Match" card if the role has 0 spots remaining or is assigned.
+2. **`TeamDetailPage.tsx`:** Computes `activeBestMatchingRole` with `useMemo`, ensuring that the `⭐ Best Match` highlight badge and application modal only point to genuinely open vacancies.
+3. **`TeamsPage.tsx` & `ApplyTeamModal.tsx`:** Filter out filled roles from default pre-selection and optimal role indicators.
 
 ---
 

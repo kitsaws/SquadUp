@@ -143,6 +143,8 @@ export class AIService {
             role_title: roleTitle,
             requirement_node_ids: reqNodeIds,
             raw_skills: rawSkills,
+            spots: r.spots,
+            assigned_to_id: r.assignedToId || (r as any).assigned_to_id || null,
           };
         }),
         is_global: ct.is_global,

@@ -101,14 +101,14 @@ export class TaxonomyResolver {
     const norm = this.normalize(rawInput);
     const ctx = (entityContext || "").toLowerCase();
 
-    // 1. Direct Multi-Alias match
+    // 1. Direct Case-Sensitive or Multi-Alias match
     let candidateNodeIds: string[] = [];
-    if (this.aliasMultiLookup[norm] && this.aliasMultiLookup[norm].length > 0) {
+    if (this.caseSensitiveLookup[stripped]) {
+      candidateNodeIds = [this.caseSensitiveLookup[stripped]];
+    } else if (this.aliasMultiLookup[norm] && this.aliasMultiLookup[norm].length > 0) {
       candidateNodeIds = [...this.aliasMultiLookup[norm]];
     } else if (this.canonicalLookup[norm]) {
       candidateNodeIds = [this.canonicalLookup[norm]];
-    } else if (this.caseSensitiveLookup[stripped]) {
-      candidateNodeIds = [this.caseSensitiveLookup[stripped]];
     } else {
       // Word boundary match
       const wordsInInput = ` ${norm} `;
