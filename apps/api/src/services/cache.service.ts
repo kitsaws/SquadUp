@@ -73,6 +73,40 @@ export class CacheService {
   }
 
   /**
+   * Invalidates all cached entries for a given team ID (all user variants + anon),
+   * all paginated team lists, and related event caches.
+   */
+  static async invalidateTeam(teamId: string): Promise<void> {
+    try {
+      await Promise.allSettled([
+        this.del(`team:${teamId}`),
+        this.invalidatePattern(`team:${teamId}*`),
+        this.invalidatePattern(`team:${teamId}:*`),
+        this.invalidatePattern('teams:list:*'),
+        this.invalidatePattern('teams:*'),
+        this.invalidatePattern('events:*'),
+      ]);
+    } catch (err) {
+      console.warn(`[CacheService] Failed to invalidate team cache for "${teamId}":`, err);
+    }
+  }
+
+  /**
+   * Invalidates all team and event caches across the board.
+   */
+  static async invalidateAllTeams(): Promise<void> {
+    try {
+      await Promise.allSettled([
+        this.invalidatePattern('team:*'),
+        this.invalidatePattern('teams:*'),
+        this.invalidatePattern('events:*'),
+      ]);
+    } catch (err) {
+      console.warn('[CacheService] Failed to invalidate all team caches:', err);
+    }
+  }
+
+  /**
    * Computes a dynamic TTL for an event:
    * (seconds until event + 3 days). Minimum 300s, maximum 14 days (1,209,600s).
    */

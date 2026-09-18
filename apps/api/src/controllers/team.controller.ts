@@ -15,6 +15,8 @@ import {
 import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
 import { AIService } from "../services/ai.service.js";
 import { CacheService } from "../services/cache.service.js";
+import { NotificationService } from "../services/notification.service.js";
+import { queueTeamInvitationEmail } from "../queues/email.queue.js";
 
 const prisma = new PrismaClient();
 
@@ -175,12 +177,12 @@ export const listTeams = async (req: Request, res: Response) => {
       // In-process deterministic recommendation scoring (< 15ms)
       const recommendations = userTaxNodeIds.length > 0
         ? await AIService.getRecommendations({
-            userId: callerDbId || "anonymous",
-            userTaxonomyNodeIds: userTaxNodeIds,
-            userUniversity,
-            candidateTeams: candidatePayloads,
-            topK: allTeams.length,
-          })
+          userId: callerDbId || "anonymous",
+          userTaxonomyNodeIds: userTaxNodeIds,
+          userUniversity,
+          candidateTeams: candidatePayloads,
+          topK: allTeams.length,
+        })
         : [];
 
       const recsMap = new Map(recommendations.map((r) => [r.teamId, r]));
@@ -197,13 +199,13 @@ export const listTeams = async (req: Request, res: Response) => {
           eventId: team.eventId,
           event: team.event
             ? {
-                id: team.event.id,
-                title: team.event.title,
-                date: team.event.date.toISOString(),
-                isGlobal: team.event.isGlobal,
-                location: team.event.location,
-                university: team.university,
-              }
+              id: team.event.id,
+              title: team.event.title,
+              date: team.event.date.toISOString(),
+              isGlobal: team.event.isGlobal,
+              location: team.event.location,
+              university: team.university,
+            }
             : undefined,
           orgId: team.orgId,
           requirements: team.requirements,
@@ -371,13 +373,13 @@ export const listTeams = async (req: Request, res: Response) => {
         eventId: team.eventId,
         event: team.event
           ? {
-              id: team.event.id,
-              title: team.event.title,
-              date: team.event.date.toISOString(),
-              isGlobal: team.event.isGlobal,
-              location: team.event.location,
-              university: team.university,
-            }
+            id: team.event.id,
+            title: team.event.title,
+            date: team.event.date.toISOString(),
+            isGlobal: team.event.isGlobal,
+            location: team.event.location,
+            university: team.university,
+          }
           : undefined,
         orgId: team.orgId,
         requirements: team.requirements,
@@ -492,7 +494,14 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
             },
           },
         },
-        invites: true,
+        invites: {
+          include: {
+            role: true,
+            sender: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
         applications: {
           include: {
             user: {
@@ -596,13 +605,13 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
       eventId: team.eventId,
       event: team.event
         ? {
-            id: team.event.id,
-            title: team.event.title,
-            date: team.event.date.toISOString(),
-            isGlobal: team.event.isGlobal,
-            location: team.event.location,
-            university: team.university,
-          }
+          id: team.event.id,
+          title: team.event.title,
+          date: team.event.date.toISOString(),
+          isGlobal: team.event.isGlobal,
+          location: team.event.location,
+          university: team.university,
+        }
         : undefined,
       orgId: team.orgId,
       requirements: team.requirements,
@@ -633,32 +642,40 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
       // Only include pending invites and applications for team members/leader
       invites: isMember || isLeader
         ? team.invites.map((inv) => ({
-            id: inv.id,
-            teamId: inv.teamId,
-            senderId: inv.senderId,
-            email: inv.email,
-            status: inv.status,
-            createdAt: inv.createdAt.toISOString(),
-          }))
+          id: inv.id,
+          teamId: inv.teamId,
+          teamName: team.name,
+          eventId: team.eventId,
+          eventTitle: team.event?.title,
+          isGlobal: team.event?.isGlobal,
+          senderId: inv.senderId,
+          senderName: inv.sender?.name,
+          email: inv.email,
+          roleId: inv.roleId || inv.role?.id || null,
+          roleTitle: inv.roleTitle || inv.role?.title || null,
+          roleSkills: inv.roleSkills?.length > 0 ? inv.roleSkills : (inv.role?.skills || []),
+          status: inv.status,
+          createdAt: inv.createdAt.toISOString(),
+        }))
         : undefined,
       applications: isLeader
         ? team.applications.map((app) => ({
-            id: app.id,
-            teamId: app.teamId,
-            userId: app.userId,
-            message: app.message,
-            status: app.status,
-            createdAt: app.createdAt.toISOString(),
-            applicant: {
-              id: app.user.id,
-              name: app.user.name,
-              email: app.user.email,
-              university: app.user.profile?.university || null,
-              skills: app.user.profile?.skills || [],
-              title: app.user.profile?.title || null,
-              taxonomyNodeIds: app.user.taxonomy?.taxonomyNodeIds || [],
-            },
-          }))
+          id: app.id,
+          teamId: app.teamId,
+          userId: app.userId,
+          message: app.message,
+          status: app.status,
+          createdAt: app.createdAt.toISOString(),
+          applicant: {
+            id: app.user.id,
+            name: app.user.name,
+            email: app.user.email,
+            university: app.user.profile?.university || null,
+            skills: app.user.profile?.skills || [],
+            title: app.user.profile?.title || null,
+            taxonomyNodeIds: app.user.taxonomy?.taxonomyNodeIds || [],
+          },
+        }))
         : undefined,
       isLeader,
       isMember,
@@ -672,8 +689,8 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
       updatedAt: team.updatedAt.toISOString(),
     };
 
-    // Cache generic team detail for 15 minutes (900s)
-    await CacheService.set(cacheKey, payload, 900);
+    // Cache team detail for 2 minutes (120s)
+    await CacheService.set(cacheKey, payload, 120);
 
     return res.json(payload);
   } catch (error) {
@@ -778,8 +795,7 @@ export const createTeam = async (req: Request<{}, {}, CreateTeamRequest>, res: R
     });
 
     // Invalidate caches
-    await CacheService.invalidatePattern("teams:list:*");
-    await CacheService.invalidatePattern("events:*");
+    await CacheService.invalidateTeam(team.id);
 
     return res.status(201).json({
       message: "Team created successfully",
@@ -897,8 +913,7 @@ export const updateTeam = async (
     });
 
     // Invalidate caches
-    await CacheService.del(`team:${id}`);
-    await CacheService.invalidatePattern("teams:list:*");
+    await CacheService.invalidateTeam(id);
 
     return res.json({
       message: "Team updated successfully.",
@@ -969,9 +984,7 @@ export const deleteTeam = async (req: Request<{ id: string }>, res: Response) =>
     });
 
     // Invalidate caches
-    await CacheService.del(`team:${id}`);
-    await CacheService.invalidatePattern("teams:list:*");
-    await CacheService.invalidatePattern("events:*");
+    await CacheService.invalidateTeam(id);
 
     return res.json({ message: "Team deleted successfully." });
   } catch (error) {
@@ -990,10 +1003,10 @@ export const sendTeamInvites = async (
   }
 
   const { id } = req.params;
-  const { invites } = req.body;
+  const { invites, roleId: topRoleId, roleTitle: topRoleTitle, roleSkills: topRoleSkills } = req.body;
 
   if (!invites || !Array.isArray(invites) || invites.length === 0) {
-    return res.status(400).json({ error: "An array of emails is required." });
+    return res.status(400).json({ error: "An array of emails or invite objects is required." });
   }
 
   let userInDb;
@@ -1006,7 +1019,16 @@ export const sendTeamInvites = async (
   try {
     const team = await prisma.team.findUnique({
       where: { id },
-      include: { members: true, invites: true },
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, email: true } },
+          },
+        },
+        invites: true,
+        roles: true,
+        event: { select: { id: true, title: true, isGlobal: true, orgId: true, location: true } },
+      },
     });
 
     if (!team) {
@@ -1020,28 +1042,169 @@ export const sendTeamInvites = async (
       return res.status(403).json({ error: "Forbidden. Only the team leader can send invites." });
     }
 
-    const uniqueEmails = [...new Set(invites.map((e) => e.trim().toLowerCase()))];
-    const existingInviteEmails = new Set(team.invites.map((i) => i.email.toLowerCase()));
-    const newEmails = uniqueEmails.filter((e) => !existingInviteEmails.has(e));
+    // Normalize invite items
+    const parsedInvites: Array<{
+      email: string;
+      roleId?: string | null;
+      roleTitle?: string | null;
+      roleSkills: string[];
+    }> = [];
 
-    if (newEmails.length === 0) {
-      return res.status(400).json({ message: "All specified emails already have pending invites." });
+    const existingInviteEmails = new Set(team.invites.map((i) => i.email.toLowerCase()));
+
+    for (const item of invites) {
+      let email = "";
+      let itemRoleId = topRoleId || null;
+      let itemRoleTitle = topRoleTitle || null;
+      let itemRoleSkills: string[] = topRoleSkills || [];
+
+      if (typeof item === "string") {
+        email = item.trim().toLowerCase();
+      } else if (item && typeof item === "object") {
+        email = (item.email || "").trim().toLowerCase();
+        if (item.roleId) itemRoleId = item.roleId;
+        if (item.roleTitle) itemRoleTitle = item.roleTitle;
+        if (item.roleSkills) itemRoleSkills = item.roleSkills;
+      }
+
+      if (!email) continue;
+      if (existingInviteEmails.has(email)) continue;
+
+      // If roleId provided, verify against team roles and auto-fill roleTitle & roleSkills
+      if (itemRoleId && team.roles) {
+        const matchedRole = team.roles.find((r) => r.id === itemRoleId);
+        if (matchedRole) {
+          if (!itemRoleTitle) itemRoleTitle = matchedRole.title;
+          if (itemRoleSkills.length === 0) itemRoleSkills = matchedRole.skills;
+        }
+      }
+
+      parsedInvites.push({
+        email,
+        roleId: itemRoleId,
+        roleTitle: itemRoleTitle,
+        roleSkills: itemRoleSkills,
+      });
     }
 
-    await prisma.teamInvite.createMany({
-      data: newEmails.map((email) => ({
-        teamId: id,
-        senderId: userInDb.id,
-        email,
-        status: "PENDING",
-      })),
-    });
+    if (parsedInvites.length === 0) {
+      return res.status(400).json({ error: "All specified emails already have pending invites." });
+    }
 
-    await CacheService.del(`team:${id}`);
+    const isCampusLocked = Boolean(team.event && !team.event.isGlobal);
+    const teamOrgId = team.orgId || team.event?.orgId;
+    const teamUniversity = (team.university || team.event?.location || "").toLowerCase().trim();
+
+    const createdInvites = [];
+    const failedInvites: Array<{ email: string; reason: string }> = [];
+
+    for (const inv of parsedInvites) {
+      // Check if already a squad member
+      const isAlreadyMember = team.members.some(
+        (m) => m.user?.email?.toLowerCase() === inv.email || m.userId === inv.email
+      );
+      if (isAlreadyMember) {
+        failedInvites.push({ email: inv.email, reason: "User is already a member of this squad." });
+        continue;
+      }
+
+      // Check if user exists in database to verify campus lock
+      const recipientUser = await prisma.user.findUnique({
+        where: { email: inv.email },
+        include: {
+          profile: true,
+          organizationMemberships: {
+            include: { organization: true },
+          },
+        },
+      });
+
+      // Campus Lock Verification: If event is campus-restricted and user is in DB
+      if (recipientUser && isCampusLocked) {
+        const userOrgIds = recipientUser.organizationMemberships
+          .map((m) => m.organization?.clerkOrgId || m.organization?.id)
+          .filter((id): id is string => Boolean(id));
+        const userUni = (recipientUser.profile?.university || "").toLowerCase().trim();
+
+        const matchesOrg = Boolean(teamOrgId && userOrgIds.includes(teamOrgId));
+        const matchesUni = Boolean(
+          teamUniversity &&
+          userUni &&
+          (teamUniversity === userUni || teamUniversity.includes(userUni) || userUni.includes(teamUniversity))
+        );
+
+        if (!matchesOrg && !matchesUni) {
+          failedInvites.push({
+            email: inv.email,
+            reason: `Campus restriction: ${inv.email} belongs to a different university (${recipientUser.profile?.university || "unaffiliated"}) and cannot join this campus-restricted squad.`,
+          });
+          continue;
+        }
+      }
+
+      // Create persistent database invite
+      const created = await (prisma as any).teamInvite.create({
+        data: {
+          teamId: id,
+          senderId: userInDb.id,
+          email: inv.email,
+          roleId: inv.roleId,
+          roleTitle: inv.roleTitle,
+          roleSkills: inv.roleSkills,
+          status: "PENDING",
+        },
+      });
+      createdInvites.push(created);
+
+      // If user exists in database, send real-time in-app notification & Redis Pub/Sub SSE
+      if (recipientUser) {
+        await NotificationService.createNotification({
+          userId: recipientUser.id,
+          type: "TEAM_INVITE",
+          title: "New Squad Invitation 🎯",
+          message: `${userInDb.name} invited you to join ${team.name}${inv.roleTitle ? ` as ${inv.roleTitle}` : ""}.`,
+          link: `/team/${team.id}?inviteId=${created.id}`,
+          data: {
+            teamId: team.id,
+            inviteId: created.id,
+            teamName: team.name,
+            roleId: inv.roleId,
+            roleTitle: inv.roleTitle,
+            roleSkills: inv.roleSkills,
+            eventId: team.eventId,
+            eventTitle: team.event?.title,
+            senderName: userInDb.name,
+          },
+        });
+      }
+
+      // Enqueue asynchronous background invitation email via BullMQ
+      await queueTeamInvitationEmail({
+        toEmail: inv.email,
+        teamName: team.name,
+        eventTitle: team.event?.title || "Hackathon Sprint",
+        roleTitle: inv.roleTitle,
+        roleSkills: inv.roleSkills,
+        senderName: userInDb.name,
+        inviteId: created.id,
+        teamId: team.id,
+      });
+    }
+
+    await CacheService.invalidateTeam(id);
+
+    if (createdInvites.length === 0 && failedInvites.length > 0) {
+      return res.status(400).json({
+        error: failedInvites[0].reason,
+        failed: failedInvites,
+        successful: [],
+      });
+    }
 
     return res.status(201).json({
-      message: `Sent ${newEmails.length} invite(s) successfully.`,
-      invitedEmails: newEmails,
+      message: `Sent ${createdInvites.length} invite(s) successfully.${failedInvites.length > 0 ? ` (${failedInvites.length} failed)` : ""}`,
+      successful: createdInvites.map((p) => p.email),
+      failed: failedInvites,
     });
   } catch (error) {
     console.error("[Team API] Error sending invites:", error);
@@ -1069,6 +1232,9 @@ export const getMyInvites = async (req: Request, res: Response) => {
         status: "PENDING",
       },
       include: {
+        role: {
+          select: { id: true, title: true, skills: true, spots: true, assignedToId: true },
+        },
         team: {
           include: {
             event: {
@@ -1080,6 +1246,7 @@ export const getMyInvites = async (req: Request, res: Response) => {
                 location: true,
               },
             },
+            roles: true,
             _count: { select: { members: true } },
           },
         },
@@ -1099,9 +1266,15 @@ export const getMyInvites = async (req: Request, res: Response) => {
         eventId: inv.team.eventId,
         eventTitle: inv.team.event.title,
         isGlobal: inv.team.event.isGlobal,
+        senderId: inv.senderId,
         senderName: inv.sender.name,
+        email: inv.email,
+        roleId: inv.roleId || inv.role?.id || null,
+        roleTitle: inv.roleTitle || inv.role?.title || null,
+        roleSkills: inv.roleSkills && inv.roleSkills.length > 0 ? inv.roleSkills : (inv.role?.skills || []),
         membersCount: inv.team._count.members,
         requirements: inv.team.requirements,
+        status: inv.status,
         createdAt: inv.createdAt.toISOString(),
       })),
     });
@@ -1124,6 +1297,15 @@ export const acceptInvite = async (req: Request, res: Response) => {
   try {
     const invite = await prisma.teamInvite.findUnique({
       where: { id: inviteId },
+      include: {
+        role: true,
+        team: {
+          include: {
+            members: { include: { user: true } },
+            roles: true,
+          },
+        },
+      },
     });
 
     if (!invite) {
@@ -1147,24 +1329,73 @@ export const acceptInvite = async (req: Request, res: Response) => {
       });
     }
 
-    await prisma.$transaction([
+    // Check if already a member
+    const alreadyMember = invite.team.members.some((m) => m.userId === userInDb.id);
+
+    const transactionSteps: any[] = [
       prisma.teamInvite.update({
         where: { id: inviteId },
         data: { status: "ACCEPTED" },
       }),
-      prisma.teamMember.create({
+    ];
+
+    if (!alreadyMember) {
+      transactionSteps.push(
+        prisma.teamMember.create({
+          data: {
+            teamId: invite.teamId,
+            userId: userInDb.id,
+            role: (invite as any).roleTitle || "Member",
+          },
+        })
+      );
+    }
+
+    // If roleId was assigned and spot is open, claim the role for the user
+    if ((invite as any).roleId) {
+      const targetRole = invite.team.roles.find((r) => r.id === (invite as any).roleId);
+      if (targetRole && !targetRole.assignedToId) {
+        transactionSteps.push(
+          prisma.teamRole.update({
+            where: { id: (invite as any).roleId },
+            data: { assignedToId: userInDb.id },
+          })
+        );
+      }
+    }
+
+    await prisma.$transaction(transactionSteps);
+
+    // Notify the squad leader and sender
+    const leaderMember = invite.team.members.find((m) => m.role === "Leader");
+    const recipientsToNotify = new Set<string>();
+    if (leaderMember && leaderMember.userId !== userInDb.id) {
+      recipientsToNotify.add(leaderMember.userId);
+    }
+    if (invite.senderId && invite.senderId !== userInDb.id) {
+      recipientsToNotify.add(invite.senderId);
+    }
+
+    for (const recipientId of recipientsToNotify) {
+      await NotificationService.createNotification({
+        userId: recipientId,
+        type: "TEAM_JOINED",
+        title: "Teammate Joined Squad! 🤝",
+        message: `${userInDb.name} accepted the invitation to join ${invite.team.name}${(invite as any).roleTitle ? ` as ${(invite as any).roleTitle}` : ""}.`,
+        link: `/team/${invite.teamId}`,
         data: {
           teamId: invite.teamId,
-          userId: userInDb.id,
-          role: "Member",
+          teamName: invite.team.name,
+          memberId: userInDb.id,
+          memberName: userInDb.name,
+          roleTitle: (invite as any).roleTitle,
         },
-      }),
-    ]);
+      });
+    }
 
-    await CacheService.del(`team:${invite.teamId}`);
-    await CacheService.invalidatePattern("teams:list:*");
+    await CacheService.invalidateTeam(invite.teamId);
 
-    return res.status(200).json({ message: "Invite accepted successfully" });
+    return res.status(200).json({ message: "Invite accepted successfully", teamId: invite.teamId });
   } catch (error) {
     console.error("[Team API] Error accepting invite:", error);
     return res.status(500).json({ error: "Failed to accept invite." });
@@ -1204,7 +1435,7 @@ export const declineInvite = async (req: Request, res: Response) => {
       data: { status: "DECLINED" },
     });
 
-    await CacheService.del(`team:${invite.teamId}`);
+    await CacheService.invalidateTeam(invite.teamId);
 
     return res.json({ message: "Invite declined." });
   } catch (error) {
@@ -1249,7 +1480,7 @@ export const cancelInvite = async (req: Request<{ id: string; inviteId: string }
       where: { id: inviteId },
     });
 
-    await CacheService.del(`team:${id}`);
+    await CacheService.invalidateTeam(id);
 
     return res.json({ message: "Invite cancelled." });
   } catch (error) {
@@ -1347,7 +1578,26 @@ export const applyToTeam = async (
       },
     });
 
-    await CacheService.del(`team:${id}`);
+    await CacheService.invalidateTeam(id);
+
+    // Notify team leader of new candidate application
+    const leaderMember = team.members.find((m) => m.role === "Leader");
+    if (leaderMember && leaderMember.userId !== userInDb.id) {
+      await NotificationService.createNotification({
+        userId: leaderMember.userId,
+        type: "APPLICATION_RECEIVED",
+        title: "New Candidate Application 📥",
+        message: `${userInDb.name} applied to join ${team.name}.`,
+        link: `/team/${team.id}`,
+        data: {
+          teamId: team.id,
+          teamName: team.name,
+          applicationId: application.id,
+          candidateId: userInDb.id,
+          candidateName: userInDb.name,
+        },
+      });
+    }
 
     return res.status(201).json({
       message: "Application submitted successfully.",
@@ -1393,7 +1643,7 @@ export const withdrawApplication = async (req: Request<{ id: string }>, res: Res
       where: { id: existingApp.id },
     });
 
-    await CacheService.del(`team:${id}`);
+    await CacheService.invalidateTeam(id);
 
     return res.json({ message: "Application withdrawn successfully." });
   } catch (error) {
@@ -1724,7 +1974,7 @@ export const withdrawApplicationById = async (
       where: { id: applicationId },
     });
 
-    await CacheService.del(`team:${application.teamId}`);
+    await CacheService.invalidateTeam(application.teamId);
 
     return res.json({ message: "Application withdrawn successfully." });
   } catch (error) {
@@ -1855,8 +2105,20 @@ export const acceptApplication = async (
       }),
     ]);
 
-    await CacheService.del(`team:${application.teamId}`);
-    await CacheService.invalidatePattern("teams:list:*");
+    await CacheService.invalidateTeam(application.teamId);
+
+    // Notify candidate of acceptance
+    await NotificationService.createNotification({
+      userId: application.userId,
+      type: "APPLICATION_ACCEPTED",
+      title: "Application Accepted! 🎉",
+      message: `Congratulations! Your application to join ${application.team.name} was accepted.`,
+      link: `/team/${application.teamId}`,
+      data: {
+        teamId: application.teamId,
+        teamName: application.team.name,
+      },
+    });
 
     return res.json({ message: "Application accepted and member added." });
   } catch (error) {
@@ -1907,7 +2169,20 @@ export const rejectApplication = async (
       data: { status: "REJECTED" },
     });
 
-    await CacheService.del(`team:${application.teamId}`);
+    await CacheService.invalidateTeam(application.teamId);
+
+    // Notify candidate of rejection
+    await NotificationService.createNotification({
+      userId: application.userId,
+      type: "APPLICATION_REJECTED",
+      title: "Application Declined",
+      message: `Your application to join ${application.team.name} was declined.`,
+      link: `/teams`,
+      data: {
+        teamId: application.teamId,
+        teamName: application.team.name,
+      },
+    });
 
     return res.json({ message: "Application rejected." });
   } catch (error) {
@@ -1956,11 +2231,10 @@ export const leaveTeam = async (req: Request<{ id: string }>, res: Response) => 
       if (remainingMembers.length === 0) {
         // Sole leader and only member: delete team
         await prisma.team.delete({ where: { id } });
-        await CacheService.del(`team:${id}`);
-        await CacheService.invalidatePattern("teams:list:*");
+        await CacheService.invalidateTeam(id);
         return res.json({ message: "You were the sole member. Team deleted successfully." });
       } else {
-        // Transfer leadership to the earliest remaining member
+        // Transfer leadership to the earliest remaining member and unassign departing leader's role
         const newLeader = remainingMembers[0];
         await prisma.$transaction([
           prisma.teamMember.delete({
@@ -1970,18 +2244,60 @@ export const leaveTeam = async (req: Request<{ id: string }>, res: Response) => 
             where: { id: newLeader.id },
             data: { role: "Leader" },
           }),
+          prisma.teamRole.updateMany({
+            where: { teamId: id, assignedToId: userInDb.id },
+            data: { assignedToId: null },
+          }),
         ]);
-        await CacheService.del(`team:${id}`);
-        await CacheService.invalidatePattern("teams:list:*");
+        await CacheService.invalidateTeam(id);
+
+        // Notify newly appointed squad leader
+        await NotificationService.createNotification({
+          userId: newLeader.userId,
+          type: "TEAM_JOINED",
+          title: "👑 You are now Squad Leader!",
+          message: `${userInDb.name} left ${team.name}. Leadership of the squad has been transferred to you.`,
+          link: `/team/${id}`,
+          data: {
+            teamId: id,
+            teamName: team.name,
+            previousLeaderName: userInDb.name,
+          },
+        });
+
         return res.json({ message: `Left team successfully. Leadership transferred to ${newLeader.userId}.` });
       }
     } else {
-      // Non-leader member leaving
-      await prisma.teamMember.delete({
-        where: { id: memberRecord.id },
-      });
-      await CacheService.del(`team:${id}`);
-      await CacheService.invalidatePattern("teams:list:*");
+      // Non-leader member leaving: delete member and unassign any claimed role
+      await prisma.$transaction([
+        prisma.teamMember.delete({
+          where: { id: memberRecord.id },
+        }),
+        prisma.teamRole.updateMany({
+          where: { teamId: id, assignedToId: userInDb.id },
+          data: { assignedToId: null },
+        }),
+      ]);
+      await CacheService.invalidateTeam(id);
+
+      // Notify squad leader about teammate departure
+      const leaderMember = team.members.find((m) => m.role === "Leader");
+      if (leaderMember && leaderMember.userId !== userInDb.id) {
+        await NotificationService.createNotification({
+          userId: leaderMember.userId,
+          type: "TEAM_MEMBER_LEFT",
+          title: "Teammate Left Squad 👋",
+          message: `${userInDb.name} has left ${team.name}. Their role is now vacant.`,
+          link: `/team/${id}`,
+          data: {
+            teamId: id,
+            teamName: team.name,
+            memberId: userInDb.id,
+            memberName: userInDb.name,
+          },
+        });
+      }
+
       return res.json({ message: "Left team successfully." });
     }
   } catch (error) {
@@ -2039,16 +2355,34 @@ export const removeTeamMember = async (
       ? team.members.find((m) => m.userId === targetUser.id)
       : null;
 
-    if (!targetMember) {
+    if (!targetMember || !targetUser) {
       return res.status(404).json({ error: "Member not found in this team." });
     }
 
-    await prisma.teamMember.delete({
-      where: { id: targetMember.id },
-    });
+    await prisma.$transaction([
+      prisma.teamMember.delete({
+        where: { id: targetMember.id },
+      }),
+      prisma.teamRole.updateMany({
+        where: { teamId: id, assignedToId: targetUser.id },
+        data: { assignedToId: null },
+      }),
+    ]);
 
-    await CacheService.del(`team:${id}`);
-    await CacheService.invalidatePattern("teams:list:*");
+    await CacheService.invalidateTeam(id);
+
+    // Notify removed member
+    await NotificationService.createNotification({
+      userId: targetUser.id,
+      type: "TEAM_MEMBER_LEFT",
+      title: "Removed from Squad",
+      message: `You have been removed from the squad ${team.name}.`,
+      link: `/teams`,
+      data: {
+        teamId: id,
+        teamName: team.name,
+      },
+    });
 
     return res.json({ message: "Member removed from team successfully." });
   } catch (error) {
