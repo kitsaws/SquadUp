@@ -453,17 +453,17 @@ Accepted
 
 ---
 
-## [Real-Time Notification Multiplexing via Redis Pub/Sub and HTTP SSE]
+## [Dynamic Role Slot Decrementing & Capacity Model]
 
 ### Decision
-Live user notifications are persisted durably in PostgreSQL with auto-expiration TTLs (`expiresAt`) and multiplexed instantaneously through Redis Pub/Sub channels (`sq:user:<userId>`) into HTTP Server-Sent Events (`/api/notifications/stream`). The frontend maintains a persistent SSE connection with Bearer authentication and 25-second keepalive heartbeats.
+Each squad role (`TeamRole`) maintains a configurable slot count (`spots: Int`). When the team leader creates the team and designates their role, that role's open slot count is decremented by 1 (`spots = initialSpots - 1`) and assigned to the leader. When an invited candidate or applicant joins the squad under a role, open spots decrement by 1 (`spots: spots - 1`); when `spots === 0`, the role is fully occupied and ceases to appear as an open vacancy. Conversely, when a member departs or is removed, their occupied spot is incremented back (`spots: spots + 1`).
 
 ### Context
-Polling `/api/notifications` periodically creates unnecessary database load and delays notifications. Full WebSockets introduce stateful connection management complexity and proxy friction. HTTP SSE over HTTP/1.1 or HTTP/2 provides standard uni-directional streaming with native browser reconnect semantics.
+Previous implementations relied purely on binary assignment (`assignedToId === null` vs `assignedToId !== null`), which prevented squads from recruiting multiple members for the same role (e.g. 2 Backend Developers) and failed to model the team lead occupying a position without exhausting the entire role capacity if multiple positions were desired.
 
 ### Consequences
-- **Positive:** Instant sub-millisecond notification delivery to active users; zero client polling overhead; transparent reconnect support.
-- **Negative:** Requires long-running HTTP connections on the API server.
+- **Positive:** Full flexibility for squads of arbitrary size; seamless spot decrementing and re-opening on member departures; consistent vacancy checks across recommendations, directory listings, and invite dropdowns.
+- **Negative:** Requires atomic spot updates during member lifecycle transactions.
 
 ### Status
 Accepted

@@ -1,66 +1,52 @@
 # SquadUp
 
-**SquadUp** is a professional team-forming and event-hosting platform built specifically for universities, hackathons, and tech events. It empowers students to easily scout for teammates based on demonstrated technical capabilities, and allows event organizers to host and oversee events with university-level isolation.
+**SquadUp** is a professional team-forming and event-hosting platform built specifically for universities, hackathons, and tech events. It empowers students to easily scout for teammates based on demonstrated technical capabilities and structured squad roles, and allows event organizers to host and oversee events with university-level isolation.
 
-By leveraging AI and deterministic knowledge hierarchies, SquadUp eliminates the friction of manual data entry:
-1. **Automated Resume Parsing:** Automatically parses uploaded PDF resumes into clean, structured profiles using `pdfplumber` and the Groq LLM API.
-2. **V2 Multi-Source Evidence Extraction:** Extracts technical capabilities not just from claimed skills, but from practical projects and professional work experience with provenance text snippets.
-3. **Deterministic Taxonomy Matchmaking:** Replaces opaque vector embeddings with a validated 143-node single-parent knowledge tree, delivering ultra-fast (< 20ms over 10,000 teams), 100% explainable team recommendations without hallucinations.
+By leveraging AI and deterministic knowledge hierarchies, SquadUp eliminates the friction of manual data entry and unstructured matchmaking:
+1. **Automated AI Resume Parsing:** Parses uploaded PDF resumes into structured JSON profiles with 24-hour rate limiting and inline PDF streaming.
+2. **V2 Multi-Source Evidence Extraction:** Extracts technical capabilities from claimed skills (`0.65`), practical projects (`0.85`), and formal work experience (`1.00`) with concrete snippet provenance.
+3. **Deterministic 151-Node Taxonomy Matchmaking:** Evaluates candidates against structured squad positions (`TeamRole`) using an in-memory 151-node canonical knowledge hierarchy, delivering sub-15ms pure compatibility scoring and LCA decision path explanations with zero hallucinations.
+4. **Real-Time Live Notifications & Email Invites:** Delivers role-based invitations via transactional SMTP emails (Nodemailer + BullMQ) and instant browser push via Redis Pub/Sub Server-Sent Events (SSE).
 
 ---
 
 ## 🚀 Features
 
-### Currently Implemented
-- **Hybrid Microservice Architecture:** 
-  - Core **Node.js (Express + TypeScript)** backend managing standard CRUD, Clerk authentication, Prisma ORM, and BullMQ queue producers.
-  - Pure & stateless **Python (FastAPI)** AI microservice running text extraction, deterministic taxonomy resolution, and in-memory graph matching algorithms.
-- **Asynchronous Job Queuing:** Powered by **Redis** and **BullMQ**, offloading computationally heavy resume parsing and profile ingestion from the Node event loop.
-- **AI Resume Parsing with V2 Evidence Extraction:**
-  - Extracts explicit skills, projects (with technologies and bullet points), and work experience.
-  - Multi-source extraction maps capabilities with weighted evidence: Skills (`0.65`), Projects (`0.85`), and Work Experience (`1.00`).
-- **Deterministic 143-Node Knowledge Hierarchy:**
-  - Single-parent graph rooted at `computer_science`.
+### Implemented & Operational
+- **Consolidated Node.js Backend:**
+  - High-performance Express + TypeScript API managing CRUD, Clerk authentication, Prisma ORM, BullMQ queue workers, and in-process taxonomy matchmaking.
+- **Asynchronous Job Queues (BullMQ & Redis):**
+  - `ai-tasks`: Non-blocking PDF text extraction (`pdfjs-dist`) and Groq LLM profile synthesis (`llama-3.3-70b-versatile`).
+  - `email-tasks`: Asynchronous email invitation and alert delivery via Nodemailer SMTP.
+- **Deterministic 151-Node Knowledge Hierarchy:**
+  - In-memory single-parent graph rooted at `computer_science` with precalculated depths and ancestry tables.
   - 3-Layer deterministic resolver: Case-sensitive exact $\to$ Normalized alias $\to$ Whole-token phrase boundary $\to$ Strict fallback (zero hallucinations).
-- **Directional Structural Matching Engine ($U \to R$):**
-  - Directional 7-rule scoring (exact match `1.0`, specific-satisfies-broad `0.95`, broad-vs-specific `0.45`, siblings `0.65`, subdomain `0.25 - 0.50`, root collision `0.00`).
-  - Requirement coverage calculation and transparent Lowest Common Ancestor (LCA) decision path explanations.
-- **Blazing-Fast Pre-Scoring Vector Optimization:**
-  - User skills are evaluated against all 143 nodes once at request start (< 2ms).
-  - Scoring 10,000 candidate teams takes ~5–10ms in pure Python.
-- **Hard Event Eligibility & 3 Presentation Categories:**
-  - Hard constraint filtering based on `isGlobal` and university scoping applied before scoring.
-  - Pure compatibility scores ($0.0 - 1.0$) categorized into:
-    - 🟢 `BEST` (Full/top technical match + Same university)
-    - 🔵 `GOOD_DIFFERENT_UNIVERSITY` (Strong technical match + Cross-university)
-    - 🟡 `SAME_UNIVERSITY_LOWER_SCORE` (Lower technical match + Same university)
-- **Decoupled Relational Database Architecture:**
-  - `UserTaxonomy` and `TeamTaxonomy` decoupled from core `User`, `Profile`, and `Team` models to avoid schema bloat.
-- **Decoupled Clerk Authentication:**
-  - Clerk IDs decoupled from internal database `cuid()` keys, protecting the relational schema from vendor lock-in.
+- **Role-Based Team Formation & Matchmaking:**
+  - Structured `TeamRole` modeling with custom skills and open spot tracking.
+  - `bestMatchingRole` recommendation engine calculating precise compatibility scores ($0.0 - 1.0$) for open squad seats.
+  - Dynamic squad capacity calculation:
+    $$\text{Total Capacity} = \text{members.length} + \sum (\text{role.spots})$$
+- **Teammate Invites & Candidate Applications:**
+  - Role-assigned email invitations with interactive accept/decline modals (`TeamInviteModal.tsx`).
+  - Candidate applications targeting specific squad roles with squad leader review dashboard (`ApplicationsPage.tsx`).
+- **Real-Time Notification Pipeline:**
+  - PostgreSQL notification store with TTL expirations (`expiresAt`).
+  - Redis Pub/Sub stream (`GET /api/notifications/stream`) with 25-second keepalive heartbeats.
+- **Protected Onboarding Flow:**
+  - Route-guarded onboarding restricting `/onboarding` to non-onboarded users.
+  - Searchable institution dropdown bound to Clerk Organization IDs and dual profile builder (AI resume upload or manual setup).
+- **Theme Customization & Profile Isolation:**
+  - Tailwind CSS v4 Semantic `@theme` tokenization with dynamic runtime `color-mix()` palette cascading.
+  - Isolated client banner and theme token synchronization preventing foreign profile bleed.
 - **Standard Server-Side Pagination & Redis Caching:**
-  - Standard database-level pagination by default (`page`, `limit`, `search`, `scope`, `sort`) for Events and Teams.
-  - High-performance Redis query caching with 5-minute list TTLs and dynamic event TTLs ($\text{event date} + 3\text{ days}$).
-- **Team Applications & Roster Workflows:**
-  - Candidate join requests (`TeamApplication`), leader application review, member opt-out/leave with automatic leader reassignment, and hard `isGlobal` university checks.
-- **University Sub-Organizers (Clubs & Societies):**
-  - Multi-tiered hierarchy: University `Organization` linked to Clerk `orgId`, with student club `Organizer` profiles and role-based officer permissions.
-- **Resume Local PDF Persistence & Rate Limiting:**
-  - Resumes saved to disk under `uploads/resumes/` and streamed inline via `GET /api/resume/view`.
-  - 24-hour upload cooldown with developer testing bypass.
-- **Real-Time AI Taxonomy Synchronization:**
-  - Manual edits to profile skills or team requirements immediately re-index taxonomy nodes in real-time.
-
-
-### Upcoming Focus (In Progress)
-- **Frontend UI Integration (`apps/web`):** Building React components to display recommended teams with category badges, requirement fulfillment progress bars, and expandable LCA decision drawers.
-- **Clerk Organization Switcher:** Embedded in the navbar for active switching between university organizations.
+  - Standard database pagination for Events and Teams (`page`, `limit`, `search`, `scope`, `sort`, `openSpotsOnly`).
+  - Multi-tier Redis query caching with 5-minute list TTLs and dynamic event TTLs ($\text{event date} + 3\text{ days}$).
 
 ---
 
 ## 🏗️ Architecture & Folder Structure
 
-SquadUp is managed as a **pnpm Turborepo**:
+SquadUp is structured as a **pnpm Turborepo**:
 
 ```text
 .
@@ -68,25 +54,24 @@ SquadUp is managed as a **pnpm Turborepo**:
 │   ├── api                  # Node.js Express Core API + Prisma + BullMQ + Taxonomy Engine
 │   │   ├── prisma/          # Prisma schema (source of truth for DB)
 │   │   └── src/
-│   │       ├── controllers/ # Team, Event, Profile, Webhook controllers
-│   │       ├── queues/      # BullMQ worker (ai.queue.ts for asynchronous resume processing)
+│   │       ├── controllers/ # Team, Event, Profile, Webhook, Notification controllers
+│   │       ├── queues/      # BullMQ workers (ai.queue.ts, email.queue.ts)
 │   │       ├── routes/      # Express API route declarations
-│   │       ├── services/    # ResumeParser (pdfjs-dist + Groq LLM), CacheService
-│   │       ├── taxonomy/    # 143-node taxonomy hierarchy, resolver, extractor, & recsys
-│   │       └── utils/       # Auth mapping utilities (Clerk to cuid)
-│   └── web                  # React (Vite) Frontend UI
+│   │       ├── services/    # ResumeParser, CacheService, EmailService
+│   │       ├── taxonomy/    # 151-node taxonomy hierarchy, resolver, extractor, & recsys
+│   │       └── utils/       # Auth mapping utilities (Clerk to internal cuid)
+│   └── web                  # React 19 (Vite) Frontend UI + Tailwind CSS v4
 ├── packages
-│   └── shared               # Shared TypeScript types, schemas & DTOs across the monorepo
+│   └── shared               # Shared TypeScript types, interfaces, schemas & DTOs
 ├── docs                     # Comprehensive architectural documentation
-│   ├── endpoints.md         # Complete REST API specification for frontend devs
-│   ├── recommendation_system.md # Full math & engine specification
-│   ├── architecture.md      # Workflows, queues, & Redis caching
+│   ├── endpoints.md         # Complete REST API specification
+│   ├── recommendation_system.md # 151-node taxonomy & mathematical specification
+│   ├── PROJECT_CONTEXT.md   # System overview, env vars, & workflows
 │   ├── database.md          # PostgreSQL schemas & decoupled taxonomy
 │   ├── decisions.md         # Architecture Decision Log (ADRs)
-│   └── progress.md          # Project roadmap & state
+│   └── next_tasks.md        # Roadmap & milestone history
 ├── docker-compose.yml       # PostgreSQL and Redis containers
 └── turbo.json               # Turborepo task pipeline
-
 ```
 
 ---
@@ -108,23 +93,33 @@ Copy `.env.example` to `.env` in the root directory and configure keys:
 ```bash
 cp .env.example .env
 ```
-Ensure you provide your `GROQ_API_KEY`, `DATABASE_URL`, `REDIS_URL`, and Clerk authentication keys.
+Ensure you provide your `GROQ_API_KEY`, `DATABASE_URL`, `REDIS_URL`, Clerk authentication keys, and SMTP configuration:
+```env
+# AI
+GROQ_API_KEY=gsk_...
 
-#### Clerk Webhook Configuration
-- `CLERK_WEBHOOK_SECRET`: The signing secret from the Clerk Dashboard (starts with `whsec_...`) used by Svix to verify payload authenticity.
-- `CLERK_WEBHOOK_URL`: The externally reachable receiving URL where Clerk delivers webhooks.
-  - **Local Development (via ngrok):** Start an ngrok tunnel to port 3000 (`ngrok http 3000`) and set:
-    ```env
-    CLERK_WEBHOOK_URL=https://<your-ngrok-subdomain>.ngrok-free.app/api/webhooks
-    ```
-    Then configure this endpoint in your Clerk Dashboard under **Webhooks**.
-  - **Production:** Set to your canonical API domain:
-    ```env
-    CLERK_WEBHOOK_URL=https://api.squadup.dev/api/webhooks
-    ```
+# Database & Redis
+DATABASE_URL=postgresql://postgres:password@localhost:5433/squadup?schema=public
+REDIS_URL=redis://localhost:6379
 
-### 4. Install Dependencies & Migrate Database
-Install workspace dependencies and push the Prisma schema to PostgreSQL:
+# Clerk Authentication
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+CLERK_WEBHOOK_SECRET=whsec_...
+CLERK_WEBHOOK_URL=https://<your-ngrok-subdomain>.ngrok-free.app/api/webhooks
+
+# SMTP Email Dispatch
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+EMAIL_FROM="SquadUp Platform <notifications@squadup.dev>"
+APP_FRONTEND_URL=http://localhost:5173
+```
+
+### 4. Install Dependencies & Push Schema
 ```bash
 pnpm install
 cd apps/api
@@ -137,14 +132,19 @@ cd ../../
 
 ## 💻 Running the Application
 
-Start all services (React frontend and Express API) concurrently from the root directory:
+Start all services (React frontend and Express backend API) concurrently from the root directory:
 
 ```bash
 pnpm run dev
 ```
 
 - **Frontend UI:** http://localhost:5173
-- **Node.js Express API:** http://localhost:3000
+- **Backend API:** http://localhost:3000
+
+To enable LAN testing across mobile devices over local WiFi:
+```bash
+pnpm run dev:host
+```
 
 ---
 
@@ -176,7 +176,7 @@ pnpm dotenv -e ../../.env -- npx prisma db push
 # Generate Prisma Client
 pnpm dotenv -e ../../.env -- npx prisma generate
 
-# Visual Database Spreadsheet
+# Interactive Database GUI
 pnpm run db:studio
 ```
 

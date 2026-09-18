@@ -4,9 +4,31 @@ This document provides a snapshot of the current state of the SquadUp project. I
 
 ## Current Focus
 
-Following the completion of **Task 1: TeamRole Model & Taxonomy Recommendation Engine Upgrade** and **Task 2: Role-Based Teammate Invites, Lifecycle Modals & Live Notifications Backend (with Redis Pub/Sub)**, immediate upcoming focus is **Task 3: Dynamic Role Spot Decrementing, Capacity Rings & Lifecycle Visuals**.
+Following the completion of **Task 3: "Create Team" UI & Page Integrations with Dynamic Slot Decrementing**, immediate upcoming focus is **Task 4: Candidate Role-Specific Applications & Matching Triage**.
 
 ## Completed
+
+- **Task 3 — "Create Team" Feature, Interactive Role Builder & Dynamic Slot Decrementing Model (Completed):**
+  - **Comprehensive `CreateTeamModal.tsx` Component:**
+    - Dual-mode operation: Locked event banner context (when opened from `EventDetailPage`) vs. Searchable fuzzy-filtered event select (when opened from `TeamsPage`).
+    - Squad Name input with length validation and instant feedback.
+    - 1-Click Architecture Preset Templates (*Full-Stack Web App*, *AI / ML Product*, *Mobile App Squad*, *Custom Squad*) populating pre-configured role positions and skill sets.
+    - Interactive Role Builder: Allows adding/removing positions, custom title autocomplete, slot count stepper (min 1, max 8), and tag input with quick-add skill suggestions (`React`, `TypeScript`, `Node.js`, `FastAPI`, `PostgreSQL`, `Docker`, `PyTorch`, `Figma`, etc.).
+    - Mandatory Leader Role Selection: Team lead designates their role from the configured roles array; on team creation, their claimed role atomically decrements open spots by 1.
+    - Initial Role-Assigned Invites: Enables adding teammate emails with designated role assignments, immediately dispatching in-app alerts and BullMQ background emails upon creation.
+  - **Dynamic Slot Decrementing & Capacity Lifecycle Across Modules:**
+    - Standardized `spots === 0` full-capacity model across backend API and frontend views.
+    - `createTeam`: Persists leader's claimed role with `spots = Math.max(0, initialSpots - 1)` and `assignedToId: leaderUser.id`.
+    - `acceptInvite`: Atomically decrements `spots` by 1; when `spots === 0`, marks `assignedToId`.
+    - `acceptApplication`: Decrements `spots` by 1 for open roles on the team.
+    - `leaveTeam` / `removeTeamMember`: Atomically increments `spots` by 1 (`spots: spots + 1`) and resets `assignedToId: null`, reopening the slot for recruitment.
+    - `recommendation.engine.ts`: Evaluates candidate match fit prioritizing open roles (`spots > 0`).
+  - **Multi-Page Integrations:**
+    - **`EventDetailPage.tsx`**: Added institutional eligibility verification (`isGlobal || profile.university === event.location`) and rendered primary "Start a Squad" CTA in Quick Actions card and empty state.
+    - **`TeamsPage.tsx`**: Added prominent "Create Team" primary button in header banner alongside Refresh.
+    - **`RoleSelectDropdown.tsx` & `ApplyTeamModal.tsx`**: Filter open roles strictly by `(r.spots ?? 1) > 0`.
+    - **`TeamCard.tsx` & `TeamTile.tsx`**: Updated open roles display and capacity telemetry.
+
 
 - **Task 2 — Role-Based Teammate Invites, Lifecycle Modals, Email Queue & Live Notifications (Completed):**
   - **Relational Notification Database Model & TTL Support:**

@@ -11,8 +11,8 @@ This document serves as the primary integration contract for the frontend applic
   ```http
   Authorization: Bearer <clerk_jwt_token>
   ```
-  *(In the frontend, extract this using Clerk's `await getToken()` or through the Clerk fetch wrapper).*
-- **Content-Type:** `application/json` (except `/api/resume/upload` which is `multipart/form-data`).
+  *(In the frontend, extract this using Clerk's `await getToken()` or through the authenticated API client).*
+- **Content-Type:** `application/json` (except `/api/resume/upload` which is `multipart/form-data` and webhook endpoints which use raw bodies).
 - **Standard Pagination Contract:**
   All paginated endpoints return:
   ```json
@@ -130,6 +130,11 @@ Updates user profile fields and **automatically re-indexes `UserTaxonomy` in rea
     "title": "Senior AI Systems Developer",
     "summary": "Updated summary statement...",
     "skills": ["React", "TypeScript", "FastAPI", "PyTorch"],
+    "education": [
+      { "degree": "B.S. Computer Science", "college": "Stanford University" }
+    ],
+    "projects": [...],
+    "experience": [...],
     "achievements": [
       {
         "title": "Winner - JPMorgan Chase Code for Good",
@@ -151,12 +156,26 @@ Updates user profile fields and **automatically re-indexes `UserTaxonomy` in rea
   }
   ```
 
-### 2.3 Get Public Candidate Profile
-Fetches a candidate's profile for teammates or leaders evaluating applicants, including skills, projects, experience, and achievements.
+### 2.3 Sync Clerk Data
+Synchronizes Clerk user data (name, email, avatar image URL) into the internal `User` record.
+
+- **Method:** `POST`
+- **Path:** `/api/profile/sync-clerk`
+- **Auth:** Required
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "message": "Profile synced successfully",
+    "user": { "id": "...", "name": "...", "email": "..." }
+  }
+  ```
+
+### 2.4 Get Public Candidate Profile
+Fetches a candidate's public profile for teammates or recruiters evaluating candidates. Publicly accessible without requiring authentication.
 
 - **Method:** `GET`
 - **Path:** `/api/profile/:targetUserId`
-- **Auth:** Required
+- **Auth:** Public / Optional
 - **Path Parameters:**
   - `targetUserId`: User's internal Postgres `cuid` or Clerk `userId`.
 - **Success Response (`200 OK`):**
@@ -172,6 +191,7 @@ Fetches a candidate's profile for teammates or leaders evaluating applicants, in
     "education": [...],
     "experience": [...],
     "projects": [...],
+    "achievements": [...],
     "githubUrl": "https://github.com/alexsmith",
     "linkedinUrl": null,
     "hasResume": true,
@@ -187,9 +207,9 @@ Fetches a candidate's profile for teammates or leaders evaluating applicants, in
 
 ---
 
-## 2.4 User Preferences Endpoints (`/api/preferences`)
+## 3. User Preferences Endpoints (`/api/preferences`)
 
-### 2.4.1 Get Current User Preferences
+### 3.1 Get Current User Preferences
 Retrieves the logged-in user's preferences, including theme settings, notification configurations, and default squad matching options. Auto-initializes default preferences if none exist.
 
 - **Method:** `GET`
@@ -215,6 +235,7 @@ Retrieves the logged-in user's preferences, including theme settings, notificati
     "emailNotifications": true,
     "teamInvitesNotification": true,
     "applicationUpdates": true,
+    "eventNotifications": true,
     "marketingEmails": false,
     "defaultCampusOnly": false,
     "openToCollaboration": true,
@@ -224,7 +245,7 @@ Retrieves the logged-in user's preferences, including theme settings, notificati
   }
   ```
 
-### 2.4.2 Update User Preferences
+### 3.2 Update User Preferences
 Partially updates user preferences with field whitelisting. Unspecified fields remain untouched.
 
 - **Method:** `PATCH`
@@ -244,6 +265,7 @@ Partially updates user preferences with field whitelisting. Unspecified fields r
     "emailNotifications": true,
     "teamInvitesNotification": true,
     "applicationUpdates": true,
+    "eventNotifications": true,
     "marketingEmails": false,
     "defaultCampusOnly": true,
     "openToCollaboration": true,
@@ -254,9 +276,9 @@ Partially updates user preferences with field whitelisting. Unspecified fields r
 
 ---
 
-## 3. Resume Endpoints (`/api/resume`)
+## 4. Resume Endpoints (`/api/resume`)
 
-### 3.1 Upload Resume
+### 4.1 Upload Resume
 Uploads a PDF resume, enforces the 24-hour rate limit, persists the PDF to disk, and enqueues BullMQ AI parsing.
 
 - **Method:** `POST`
@@ -272,7 +294,7 @@ Uploads a PDF resume, enforces the 24-hour rate limit, persists the PDF to disk,
   }
   ```
 - **Rate Limit Response (`429 Too Many Requests`):**
-  *(Returned when a user uploads more than once in 24 hours. Bypassed for `nagpalswastik@gmail.com`, `razediff0@gmail.com`, or in dev mode).*
+  *(Returned when a user uploads more than once in 24 hours. Bypassed in dev mode).*
   ```json
   {
     "error": "Rate limit exceeded. You can only upload a resume once every 24 hours.",
@@ -280,7 +302,7 @@ Uploads a PDF resume, enforces the 24-hour rate limit, persists the PDF to disk,
   }
   ```
 
-### 3.2 Poll Resume Parsing Status
+### 4.2 Poll Resume Parsing Status
 Polls the BullMQ background worker state for a resume parsing job.
 
 - **Method:** `GET`
@@ -305,18 +327,14 @@ Polls the BullMQ background worker state for a resume parsing job.
     ```
   - When failed: `{"jobId": "14", "state": "failed", "error": "..."}`
 
-### 3.3 Stream User Resume PDF (Inline Browser View)
+### 4.3 Stream User Resume PDF (Inline Browser View)
 Streams the current user's uploaded resume directly as `application/pdf` with `Content-Disposition: inline`.
 
 - **Method:** `GET`
 - **Path:** `/api/resume/view`
 - **Auth:** Required
-- **Frontend Usage:**
-  ```html
-  <iframe src="http://localhost:3000/api/resume/view" width="100%" height="600px" />
-  ```
 
-### 3.4 Stream Candidate Resume PDF
+### 4.4 Stream Candidate Resume PDF
 Streams another candidate's resume PDF for team evaluation.
 
 - **Method:** `GET`
@@ -325,9 +343,9 @@ Streams another candidate's resume PDF for team evaluation.
 
 ---
 
-## 4. Events Endpoints (`/api/events`)
+## 5. Events Endpoints (`/api/events`)
 
-### 4.1 List Events (Paginated + Cached)
+### 5.1 List Events (Paginated + Cached)
 Returns events with server-side pagination, search, scope, and sorting. Cached in Redis for 5 minutes.
 
 - **Method:** `GET`
@@ -381,14 +399,14 @@ Returns events with server-side pagination, search, scope, and sorting. Cached i
   }
   ```
 
-### 4.2 Get Event Details
+### 5.2 Get Event Details
 Fetches detailed event metadata, organizer info, team count, and team previews. Cached in Redis with a dynamic TTL proportional to the event date.
 
 - **Method:** `GET`
 - **Path:** `/api/events/:id`
 - **Auth:** Optional
 
-### 4.3 Create Event
+### 5.3 Create Event
 Creates a new event. Invalidates event list caches.
 
 - **Method:** `POST`
@@ -405,54 +423,41 @@ Creates a new event. Invalidates event list caches.
     "organizerProfileId": "cmu25..."
   }
   ```
-- **Success Response (`201 Created`):**
-  ```json
-  {
-    "id": "cmu25...",
-    "title": "TreeHacks 2026",
-    "description": "Premier hackathon at Stanford.",
-    "date": "2026-10-15T09:00:00.000Z",
-    "location": "Stanford, CA",
-    "organizerId": "cmu25...",
-    "isGlobal": true,
-    "createdAt": "...",
-    "updatedAt": "..."
-  }
-  ```
+- **Success Response (`201 Created`):** Returns created `Event` record.
 
-### 4.4 Update Event
+### 5.4 Update Event
 Updates an event. Caller must be the event creator (`organizerId`) or an admin of the linked `organizerProfile`.
 
 - **Method:** `PATCH` or `PUT`
 - **Path:** `/api/events/:id`
 - **Auth:** Required
-- **Request Body:** Partial `CreateEventRequest` fields (`title`, `description`, `date`, `location`, `isGlobal`, `organizerProfileId`).
 
-### 4.5 Delete Event
+### 5.5 Delete Event
 Deletes an event and cascades to teams/members. Caller must be the event creator.
 
 - **Method:** `DELETE`
 - **Path:** `/api/events/:id`
 - **Auth:** Required
 
-### 4.6 List Teams for an Event
+### 5.6 List Teams for an Event
 - **Method:** `GET`
 - **Path:** `/api/events/:id/teams`
 - **Auth:** Optional
 
 ---
 
-## 5. Teams Endpoints (`/api/teams`)
+## 6. Teams Endpoints (`/api/teams`)
 
-### 5.1 List Teams (Paginated + Filtered)
+### 6.1 List Teams (Paginated + Filtered + Capacity Computation)
 - **Method:** `GET`
 - **Path:** `/api/teams`
-- **Auth:** Optional (if authenticated, caller's `myTeams` filter can be used)
+- **Auth:** Optional
 - **Query Parameters:**
   - `page`: Page number (default: `1`).
   - `limit`: Items per page (default: `10`, max: `50`).
   - `eventId`: Filter by event ID.
   - `myTeams`: `"true"` | `"false"` (filters teams where caller is a member).
+  - `openSpotsOnly`: `"true"` | `"false"` (filters teams with remaining capacity).
   - `search`: Keyword matching team name or requirements tags.
   - `sort`: `"created_at"` (default) | `"name"`.
 - **Success Response (`200 OK`):**
@@ -472,6 +477,23 @@ Deletes an event and cascades to teams/members. Caller must be the event creator
         },
         "requirements": ["React", "FastAPI", "PostgreSQL"],
         "requirementNodeIds": ["react", "fastapi", "postgresql"],
+        "maxCapacity": 4,
+        "roles": [
+          {
+            "id": "cmrole1",
+            "title": "Frontend Lead",
+            "skills": ["React", "TypeScript"],
+            "spots": 0,
+            "assignedToId": "cmu25..."
+          },
+          {
+            "id": "cmrole2",
+            "title": "AI / ML Engineer",
+            "skills": ["PyTorch", "FastAPI"],
+            "spots": 1,
+            "assignedToId": null
+          }
+        ],
         "university": "Stanford University",
         "members": [
           {
@@ -501,13 +523,26 @@ Deletes an event and cascades to teams/members. Caller must be the event creator
   }
   ```
 
-### 5.2 Get Team Details
+### 6.2 Get Team Details
 - **Method:** `GET`
 - **Path:** `/api/teams/:id`
-- **Auth:** Optional / Recommended (members/leaders receive pending `invites` and `applications` in the response payload).
+- **Auth:** Optional / Recommended (members/leaders receive pending `invites` and `applications`).
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "id": "cmu25...",
+    "name": "AI Agents Guild",
+    "maxCapacity": 4,
+    "roles": [...],
+    "members": [...],
+    "invites": [...],
+    "applications": [...],
+    "event": { ... }
+  }
+  ```
 
-### 5.3 Create Team
-Creates a team, resolves requirements to taxonomy nodes, assigns caller as `Leader`, and sends optional initial email invites.
+### 6.3 Create Team (with Structured Roles & Leader Assignment)
+Creates a team, provisions `TeamRole` records, resolves taxonomy nodes in `TeamTaxonomy.roleTaxonomies`, assigns caller as `Leader`, decrements leader's chosen role spots, and dispatches optional initial invites via BullMQ SMTP.
 
 - **Method:** `POST`
 - **Path:** `/api/teams`
@@ -518,6 +553,19 @@ Creates a team, resolves requirements to taxonomy nodes, assigns caller as `Lead
     "eventId": "cmu25...",
     "name": "AI Agents Guild",
     "requirements": ["React", "FastAPI", "PostgreSQL"],
+    "roles": [
+      {
+        "title": "Frontend Lead",
+        "skills": ["React", "NextJS", "TypeScript"],
+        "spots": 1
+      },
+      {
+        "title": "AI / ML Specialist",
+        "skills": ["PyTorch", "FastAPI"],
+        "spots": 2
+      }
+    ],
+    "leaderRoleId": "Frontend Lead",
     "invites": ["teammate@stanford.edu"]
   }
   ```
@@ -530,8 +578,8 @@ Creates a team, resolves requirements to taxonomy nodes, assigns caller as `Lead
   }
   ```
 
-### 5.4 Update Team
-Updates team metadata. **If `requirements` are changed, automatically triggers AI taxonomy re-indexing for the team.** Caller must be team `Leader`.
+### 6.4 Update Team
+Updates team metadata and roles. **If `roles` or `requirements` are changed, automatically triggers AI taxonomy re-indexing for the squad.** Caller must be team `Leader`.
 
 - **Method:** `PATCH` or `PUT`
 - **Path:** `/api/teams/:id`
@@ -541,23 +589,42 @@ Updates team metadata. **If `requirements` are changed, automatically triggers A
   {
     "name": "Updated Team Name",
     "requirements": ["Next.js", "PyTorch", "Tailwind CSS"],
+    "roles": [
+      { "title": "Full Stack Lead", "skills": ["Next.js", "Tailwind CSS"], "spots": 1 }
+    ],
     "university": "Stanford University"
   }
   ```
 
-### 5.5 Delete Team
-Deletes a team and cascades to members/applications. Caller must be team `Leader` or parent `Event` organizer.
+### 6.5 Delete Team
+Deletes a team and cascades to members/applications/invites. Caller must be team `Leader` or parent `Event` organizer.
 
 - **Method:** `DELETE`
 - **Path:** `/api/teams/:id`
 - **Auth:** Required
 
+### 6.6 Leave Team (Opt-Out)
+Caller leaves the team.
+- If a regular `Member`: removes membership row.
+- If the `Leader`: automatically promotes the next earliest joined member to `Leader`. If the leader was the sole member, the team is deleted.
+
+- **Method:** `DELETE`
+- **Path:** `/api/teams/:id/leave`
+- **Auth:** Required
+
+### 6.7 Remove Member
+Leader removes a member from the team.
+
+- **Method:** `DELETE`
+- **Path:** `/api/teams/:id/members/:userId`
+- **Auth:** Required (Leader only)
+
 ---
 
-## 6. Team Applications & Opt-Out (`/api/teams`)
+## 7. Team Applications Endpoints (`/api/teams` & `/api/applications`)
 
-### 6.1 Apply to Join a Team
-Submits a join application.
+### 7.1 Apply to Join a Team (with Target Role)
+Submits a join application, optionally targeting a specific open `TeamRole`.
 
 - **Method:** `POST`
 - **Path:** `/api/teams/:id/apply`
@@ -565,7 +632,8 @@ Submits a join application.
 - **Request Body:**
   ```json
   {
-    "message": "Hey, I'd love to join as a full-stack dev!"
+    "message": "Hey, I'd love to join as the Frontend Lead!",
+    "roleId": "cmrole123"
   }
   ```
 - **Success Response (`201 Created`):**
@@ -576,138 +644,51 @@ Submits a join application.
     "status": "PENDING"
   }
   ```
-- **Hard Eligibility Error (`403 Forbidden`):**
-  *(Triggered when `team.event.isGlobal === false` and the applicant belongs to a different university).*
-  ```json
-  {
-    "error": "Cannot apply: This team belongs to an institution-restricted event."
-  }
-  ```
-  > [!IMPORTANT]
-  > **Frontend UI Check:** Check `team.event.isGlobal`. If `false` and the logged-in user's university does not match the team or event location, disable the "Apply" button with an informative tooltip.
 
-### 6.2 Withdraw Application
-Candidate withdraws their own pending application. Can be done by Team ID or Application ID.
-
+### 7.2 Withdraw Application
+Candidate withdraws their pending application.
 - **Method:** `DELETE`
 - **Path:** `/api/teams/:id/apply` or `/api/teams/applications/:applicationId` or `/api/applications/:applicationId`
-- **Auth:** Required
+- **Auth:** Required (Applicant only)
 
-### 6.3 Get My Submitted Applications (Candidate View)
-Retrieves all applications submitted by the logged-in candidate across all teams and events.
-
+### 7.3 Get My Submitted Applications
+Retrieves all applications submitted by the logged-in candidate.
 - **Method:** `GET`
 - **Path:** `/api/teams/applications/my-applications` or `/api/applications/my-applications`
 - **Auth:** Required
-- **Success Response (`200 OK`):**
-  ```json
-  {
-    "total": 2,
-    "applications": [
-      {
-        "id": "cmu25...",
-        "teamId": "cmu25...",
-        "teamName": "NeuroVision Health",
-        "eventId": "cmu25...",
-        "eventTitle": "TreeHacks 2026",
-        "university": "Stanford University",
-        "requirements": ["PostgreSQL", "FastAPI"],
-        "message": "I spent last summer optimizing time-series ingestion pipelines...",
-        "status": "PENDING",
-        "createdAt": "2026-09-15T12:00:00.000Z",
-        "updatedAt": "2026-09-15T12:00:00.000Z"
-      }
-    ]
-  }
-  ```
 
-### 6.4 Get Incoming Applications (Squad Leader Dashboard)
-Retrieves incoming candidate applications across all teams led by the current user (powers `ApplicationsPage.tsx`).
-
+### 7.4 Get Incoming Applications (Squad Leader Dashboard)
+Retrieves incoming candidate applications across all teams led by the current user.
 - **Method:** `GET`
 - **Path:** `/api/teams/applications/incoming` or `/api/applications/incoming`
-- **Auth:** Required (returns applications for all teams where caller is `Leader`)
+- **Auth:** Required (Leader only)
 - **Query Parameters:**
-  - `teamId`: *(Optional)* Filter incoming candidates for a specific team.
-  - `status`: *(Optional)* Filter by `"PENDING"`, `"ACCEPTED"`, or `"REJECTED"`.
-- **Success Response (`200 OK`):**
-  ```json
-  {
-    "total": 3,
-    "applications": [
-      {
-        "id": "cmu25...",
-        "candidateId": "cmu25...",
-        "name": "Alex Rivera",
-        "avatarUrl": null,
-        "university": "Stanford University",
-        "year": "CS Junior",
-        "appliedRole": "PostgreSQL & Distributed Lead",
-        "matchScore": 0.94,
-        "isCampusMatch": true,
-        "appliedTimeAgo": "2h ago",
-        "coverNote": "Hey! I saw NeuroVision on the board. Would love to own telemetry storage.",
-        "skills": [
-          { "name": "PostgreSQL", "provenance": "Resume: Datadog Internship", "score": 0.96 },
-          { "name": "Distributed Systems", "provenance": "Resume: Distributed Systems Course", "score": 0.92 }
-        ],
-        "status": "PENDING",
-        "teamId": "cmu25...",
-        "teamName": "NeuroVision Health",
-        "createdAt": "2026-09-15T10:00:00.000Z"
-      }
-    ]
-  }
-  ```
+  - `teamId`: Optional filter by team.
+  - `status`: Optional filter (`"PENDING"`, `"ACCEPTED"`, `"REJECTED"`).
 
-### 6.5 Get Single Application Details
+### 7.5 Get Single Application Details
 - **Method:** `GET`
 - **Path:** `/api/teams/applications/:applicationId` or `/api/applications/:applicationId`
 - **Auth:** Required (Applicant or Squad Leader only)
 
-### 6.6 List Applications for a Specific Team
-Retrieves pending applications with candidate profile, skills, and taxonomy nodes. Caller must be team `Leader`.
-
-- **Method:** `GET`
-- **Path:** `/api/teams/:id/applications`
-- **Auth:** Required (Leader only)
-
-### 6.7 Accept Application
-Leader accepts applicant $\to$ adds user as `TeamMember` (`role: "Member"`).
-
+### 7.6 Accept Application
+Leader accepts applicant $\to$ adds user as `TeamMember` (`role: "Member"`) and claims role spot if designated.
 - **Method:** `POST`
 - **Path:** `/api/teams/applications/:applicationId/accept` or `/api/applications/:applicationId/accept`
 - **Auth:** Required (Leader only)
 
-### 6.8 Reject Application
+### 7.7 Reject Application
 Leader rejects applicant $\to$ sets status to `"REJECTED"`.
-
 - **Method:** `POST`
 - **Path:** `/api/teams/applications/:applicationId/reject` or `/api/applications/:applicationId/reject`
 - **Auth:** Required (Leader only)
 
-### 6.9 Leave Team (Opt-Out)
-Caller leaves the team.
-- If a regular `Member`: removes membership row.
-- If the `Leader`: automatically promotes the next earliest joined member to `Leader`. If the leader was the sole member, the team is deleted.
-
-- **Method:** `DELETE`
-- **Path:** `/api/teams/:id/leave`
-- **Auth:** Required
-
-### 6.10 Remove Member
-Leader removes a member from the team.
-
-- **Method:** `DELETE`
-- **Path:** `/api/teams/:id/members/:userId`
-- **Auth:** Required (Leader only)
-
 ---
 
-## 7. Team Invites (`/api/teams`)
+## 8. Team Invites Endpoints (`/api/teams`)
 
-### 7.1 Send Role-Based Team Invites
-Squad Leader invites email addresses with optional designated `TeamRole` assignment and required technologies. Sends in-app PostgreSQL notification + real-time Redis Pub/Sub alert to registered users, and auto-provisions pending invite record.
+### 8.1 Send Role-Based Team Invites
+Squad Leader invites email addresses with optional designated `TeamRole` assignment and required technologies. Sends in-app PostgreSQL notification, real-time Redis Pub/Sub SSE alert, and transactional email via Nodemailer SMTP.
 
 - **Method:** `POST`
 - **Path:** `/api/teams/:id/invites`
@@ -721,19 +702,6 @@ Squad Leader invites email addresses with optional designated `TeamRole` assignm
     "invites": ["sarah@college.edu", "david@college.edu"]
   }
   ```
-  *or with batch `roleInvites`:*
-  ```json
-  {
-    "roleInvites": [
-      {
-        "email": "sarah@college.edu",
-        "roleId": "cmrole123",
-        "roleTitle": "Full Stack Lead",
-        "roleSkills": ["React", "Node.js"]
-      }
-    ]
-  }
-  ```
 - **Success Response (`200 OK`):**
   ```json
   {
@@ -743,88 +711,39 @@ Squad Leader invites email addresses with optional designated `TeamRole` assignm
   }
   ```
 
-### 7.2 Get My Pending Invites
+### 8.2 Get My Pending Invites
 Fetches all pending invites addressed to the logged-in user's email address with enriched role metadata.
-
 - **Method:** `GET`
 - **Path:** `/api/teams/invites/my-invites`
 - **Auth:** Required
-- **Success Response (`200 OK`):**
-  ```json
-  {
-    "totalInvites": 1,
-    "invites": [
-      {
-        "id": "cminv25...",
-        "teamId": "cmteam25...",
-        "teamName": "AI Agents Guild",
-        "eventId": "cmevent25...",
-        "eventTitle": "TreeHacks 2026",
-        "isGlobal": true,
-        "senderName": "Jane Doe",
-        "senderId": "cmuser1...",
-        "email": "sarah@college.edu",
-        "roleId": "cmrole123",
-        "roleTitle": "Full Stack Lead",
-        "roleSkills": ["React", "Node.js", "PostgreSQL"],
-        "membersCount": 3,
-        "requirements": ["React", "FastAPI"],
-        "status": "PENDING",
-        "createdAt": "2026-09-18T09:00:00.000Z"
-      }
-    ]
-  }
-  ```
 
-### 7.3 Accept Team Invite
-Accepts the invitation. If the invite designated a `roleId`, atomically assigns the role spot to the user, claims the spot, adds user to `TeamMember`, and sends a live `TEAM_JOINED` notification to the squad leader.
-
+### 8.3 Accept Team Invite
+Accepts the invitation. Atomically assigns the role spot to the user, claims the spot, adds user to `TeamMember`, and sends a live `TEAM_JOINED` notification to the squad leader.
 - **Method:** `POST`
 - **Path:** `/api/teams/invites/:inviteId/accept`
 - **Auth:** Required (must match invite email)
-- **Success Response (`200 OK`):**
-  ```json
-  {
-    "message": "You have joined AI Agents Guild as Full Stack Lead!",
-    "teamId": "cmteam25...",
-    "roleTitle": "Full Stack Lead"
-  }
-  ```
 
-### 7.4 Decline Team Invite
+### 8.4 Decline Team Invite
 - **Method:** `POST`
 - **Path:** `/api/teams/invites/:inviteId/decline`
 - **Auth:** Required (must match invite email)
-- **Success Response (`200 OK`):**
-  ```json
-  {
-    "message": "Invitation declined."
-  }
-  ```
 
-### 7.5 Cancel Pending Invite
+### 8.5 Cancel Pending Invite
 Squad leader cancels an outgoing pending invitation.
-
 - **Method:** `DELETE`
 - **Path:** `/api/teams/:id/invites/:inviteId`
 - **Auth:** Required (Leader only)
-- **Success Response (`200 OK`):**
-  ```json
-  {
-    "message": "Invitation cancelled."
-  }
-  ```
 
 ---
 
-## 8. AI Recommendations (`/api/teams/recommendations`)
+## 9. AI Recommendations Endpoints (`/api/teams/recommendations`)
 
-### 8.1 Get Pure Taxonomy Recommendations
-Runs user capability nodes against eligible candidate teams using the V2 Pure Taxonomy In-Memory Engine ($O(K \times N)$ pre-scoring vector).
+### 9.1 Get Pure Taxonomy & Role Recommendations
+Runs user capability nodes against eligible candidate teams using the V2 Pure Taxonomy In-Memory Engine ($O(K \times N)$ pre-scoring vector) in sub-15ms.
 
 - **Method:** `POST`
 - **Path:** `/api/teams/recommendations`
-- **Auth:** Required (User must have an AI resume profile)
+- **Auth:** Required
 - **Request Body:**
   ```json
   {
@@ -851,6 +770,14 @@ Runs user capability nodes against eligible candidate teams using the V2 Pure Ta
         "recommendationCategory": "BEST",
         "fulfilledRequirementsCount": 2,
         "totalRequirementsCount": 2,
+        "bestMatchingRole": {
+          "roleId": "cmrole1",
+          "roleTitle": "Frontend Lead",
+          "score": 0.96,
+          "fulfilledCount": 2,
+          "totalCount": 2,
+          "skills": ["React", "TypeScript"]
+        },
         "requirementBreakdown": [
           {
             "requirementNodeId": "react",
@@ -858,14 +785,6 @@ Runs user capability nodes against eligible candidate teams using the V2 Pure Ta
             "bestUserSkillName": "React",
             "score": 1.0,
             "explanationText": "Direct canonical match for React (distance 0)",
-            "isStrong": true
-          },
-          {
-            "requirementNodeId": "fastapi",
-            "requirementName": "FastAPI",
-            "bestUserSkillName": "FastAPI",
-            "score": 0.85,
-            "explanationText": "Demonstrated usage in projects for FastAPI",
             "isStrong": true
           }
         ]
@@ -877,197 +796,74 @@ Runs user capability nodes against eligible candidate teams using the V2 Pure Ta
   }
   ```
 
-> [!NOTE]
-> **Frontend Presentation Tiers (`recommendationCategory`):**
-> - `"BEST"`: High technical compatibility ($> 0.60$) and same university.
-> - `"GOOD_DIFFERENT_UNIVERSITY"`: Strong technical matches from other institutions (for global events).
-> - `"SAME_UNIVERSITY_LOWER_SCORE"`: Local university teams with emerging capability overlap.
-
 ---
 
-## 9. Universities & Sub-Organizers (`/api/organizers`)
+## 10. Universities & Sub-Organizers (`/api/organizers`)
 
-### 9.1 List Universities (`Organization`)
+### 10.1 List Universities (`Organization`)
 - **Method:** `GET`
 - **Path:** `/api/organizers/universities`
 - **Auth:** Optional
-- **Description:** Returns all registered educational institutions. Used by the **First-Time User Onboarding** searchable dropdown to let students pick their university.
-- **Response Format:**
-  ```json
-  [
-    {
-      "id": "cuid_org_1",
-      "clerkOrgId": "org_2N38dK...",
-      "name": "Stanford University",
-      "slug": "stanford",
-      "domain": "stanford.edu",
-      "logoUrl": "https://img.clerk.com/...",
-      "location": "Stanford, CA",
-      "subOrganizersCount": 4,
-      "eventsCount": 12,
-      "createdAt": "2026-09-01T12:00:00.000Z",
-      "updatedAt": "2026-09-15T18:30:00.000Z"
-    }
-  ]
-  ```
-- **Onboarding Integration:**
-  - The client displays `name`, `location`, and `logoUrl` in the searchable select list.
-  - The underlying value bound to each option is `clerkOrgId`.
-  - When the user selects an institution, the web app associates the user with that `clerkOrgId` via Clerk or calls `POST /api/organizers/universities/select` to atomically commit membership and set `Profile.university`.
 
-### 9.2 Select University (Onboarding & Membership Sync)
+### 10.2 Select University (Onboarding & Membership Sync)
 - **Method:** `POST`
 - **Path:** `/api/organizers/universities/select`
 - **Auth:** Required
-- **Description:** Atomically links the authenticated user's `OrganizationMembership` and updates `Profile.university` upon completing the onboarding flow.
 - **Request Body:**
   ```json
   {
     "clerkOrgId": "org_3IHwqmkzEfISGzP4JQGimqIz8WM"
   }
   ```
-- **Success Response (`200 OK`):**
-  ```json
-  {
-    "message": "University selected successfully",
-    "organization": {
-      "id": "cuid_org_1",
-      "clerkOrgId": "org_3IHwqmkzEfISGzP4JQGimqIz8WM",
-      "name": "Thapar Institute of Engineering and Technology, Patiala"
-    },
-    "profile": {
-      "userId": "cuid_user_1",
-      "university": "Thapar Institute of Engineering and Technology, Patiala"
-    }
-  }
-  ```
 
-### 9.3 Create University Record
+### 10.3 Create University Record
 - **Method:** `POST`
 - **Path:** `/api/organizers/universities`
 - **Auth:** Required
-- **Request Body:**
-  ```json
-  {
-    "clerkOrgId": "org_stanford",
-    "name": "Stanford University",
-    "slug": "stanford",
-    "domain": "stanford.edu",
-    "location": "Stanford, CA"
-  }
-  ```
 
-### 9.4 Get University Details by Clerk Org ID
+### 10.4 Get University Details by Clerk Org ID
 - **Method:** `GET`
 - **Path:** `/api/organizers/universities/:clerkOrgId`
 - **Auth:** Optional
 
-### 9.4 List Sub-Organizers (Clubs / Societies)
+### 10.5 List Sub-Organizers (Clubs / Societies)
 - **Method:** `GET`
 - **Path:** `/api/organizers`
 - **Query Parameters:**
   - `orgId`: Filter clubs by university Clerk Organization ID.
   - `search`: Keyword search.
 
-### 9.5 Create Sub-Organizer (Club / Society)
+### 10.6 Create Sub-Organizer (Club / Society)
 - **Method:** `POST`
 - **Path:** `/api/organizers`
 - **Auth:** Required
-- **Request Body:**
-  ```json
-  {
-    "name": "ACM Student Chapter",
-    "slug": "acm-stanford",
-    "description": "Association for Computing Machinery student body.",
-    "website": "https://acm.stanford.edu",
-    "email": "acm@stanford.edu",
-    "orgId": "org_stanford"
-  }
-  ```
 
-### 9.6 Get Sub-Organizer Details & Hosted Events
+### 10.7 Get Sub-Organizer Details
 - **Method:** `GET`
 - **Path:** `/api/organizers/:id`
 - **Auth:** Optional
 
-### 9.7 Update Sub-Organizer
+### 10.8 Update Sub-Organizer
 - **Method:** `PATCH` or `PUT`
 - **Path:** `/api/organizers/:id`
 - **Auth:** Required (Club Admin only)
 
-### 9.8 Add Club Officer / Admin
+### 10.9 Add Club Officer / Admin
 - **Method:** `POST`
 - **Path:** `/api/organizers/:id/members`
 - **Auth:** Required (Club Admin only)
-- **Request Body:**
-  ```json
-  {
-    "email": "officer@stanford.edu",
-    "role": "ADMIN"
-  }
-  ```
 
-### 9.9 Remove Club Officer / Admin
+### 10.10 Remove Club Officer / Admin
 - **Method:** `DELETE`
 - **Path:** `/api/organizers/:id/members/:userId`
 - **Auth:** Required (Club Admin only)
 
 ---
 
-## 10. Clerk Webhook Endpoints (`/api/webhooks`)
-
-### 10.1 Webhook Configuration & Health Check
-- **Method:** `GET`
-- **Path:** `/api/webhooks` or `/api/webhooks/config`
-- **Auth:** Public
-- **Description:** Returns the active external receiving URL configured for Clerk/Svix and reports whether signature verification (`CLERK_WEBHOOK_SECRET`) is loaded.
-- **Response Format:**
-  ```json
-  {
-    "status": "active",
-    "service": "squadup-clerk-webhook",
-    "endpoint": "https://your-ngrok-subdomain.ngrok-free.app/api/webhooks",
-    "isCustomUrlConfigured": true,
-    "secretConfigured": true
-  }
-  ```
-
-### 10.2 Clerk Event Receiver
-- **Method:** `POST`
-- **Path:** `/api/webhooks` or `/api/webhooks/clerk`
-- **Configured Receiving URL:** Controlled via environment variable `CLERK_WEBHOOK_URL`.
-  - Local Development: e.g. `https://<ngrok-subdomain>.ngrok-free.app/api/webhooks`
-  - Production: e.g. `https://api.squadup.dev/api/webhooks`
-- **Auth:** Svix Cryptographic Signature Verification (`CLERK_WEBHOOK_SECRET`)
-- **Headers Required:**
-  - `svix-id`: Unique Svix message ID
-  - `svix-timestamp`: Unix timestamp
-  - `svix-signature`: Computed HMAC signature
-- **Content-Type:** `application/json` (parsed as raw body before signature verification)
-
-#### Supported Events & Sync Behavior
-
-| Category | Event Name | System Action |
-| :--- | :--- | :--- |
-| **User** | `user.created` | Upserts internal `User` record by `clerkId`, creates initial blank `Profile`. |
-| | `user.updated` | Updates user primary `email` and full `name`. |
-| | `user.deleted` | Deletes user from DB (cascades profile, memberships), invalidates `teams:*` and `events:*` Redis caches. |
-| **Organization** | `organization.created` | Upserts `Organization` (University) record using `clerkOrgId`, name, slug, logo URL, and metadata. Invalidates caches. |
-| | `organization.updated` | Updates organization name, slug, and logo in DB. Invalidates caches. |
-| | `organization.deleted` | Deletes organization record (unlinks hosted events and teams gracefully). Invalidates caches. |
-| **Membership** | `organizationMembership.created` | Upserts `OrganizationMembership` (`org:admin` vs `org:member`). **Auto-synchronizes `Profile.university`** with organization name. Invalidates team caches. |
-| | `organizationMembership.updated` | Updates membership role. Auto-synchronizes `Profile.university`. Invalidates team caches. |
-| | `organizationMembership.deleted` | Removes `OrganizationMembership` record. Resets `Profile.university = null` if user leaves that university. Invalidates team caches. |
-
----
-
 ## 11. Notifications & Real-Time SSE Stream (`/api/notifications`)
 
-SquadUp uses PostgreSQL for durable notification storage with TTL (`expiresAt`) and Redis Pub/Sub multiplexed over HTTP Server-Sent Events (SSE) for sub-millisecond client broadcasts.
-
 ### 11.1 List User Notifications
-Returns paginated in-app notifications and the current total unread counter. Respects TTL expiration filtering.
-
+Returns paginated in-app notifications and the current unread counter.
 - **Method:** `GET`
 - **Path:** `/api/notifications`
 - **Auth:** Required
@@ -1075,81 +871,36 @@ Returns paginated in-app notifications and the current total unread counter. Res
   - `page`: Page number (default: `1`).
   - `limit`: Items per page (default: `30`).
   - `unreadOnly`: `"true"` | `"false"` (default: `false`).
-- **Success Response (`200 OK`):**
-  ```json
-  {
-    "notifications": [
-      {
-        "id": "cmnotif123",
-        "userId": "cmuser456",
-        "type": "TEAM_INVITE",
-        "title": "Squad Invitation: NeuroVision Health",
-        "message": "Alex Rivera invited you to join NeuroVision Health as ML Engineer.",
-        "link": "/team/cmteam789?inviteId=cminv999",
-        "data": {
-          "teamId": "cmteam789",
-          "inviteId": "cminv999",
-          "roleId": "cmrole123",
-          "roleTitle": "ML Engineer",
-          "teamName": "NeuroVision Health",
-          "senderName": "Alex Rivera"
-        },
-        "isRead": false,
-        "expiresAt": "2026-10-18T09:00:00.000Z",
-        "createdAt": "2026-09-18T09:00:00.000Z",
-        "updatedAt": "2026-09-18T09:00:00.000Z"
-      }
-    ],
-    "unreadCount": 1,
-    "total": 1,
-    "page": 1,
-    "limit": 30,
-    "totalPages": 1
-  }
-  ```
 
 ### 11.2 Mark Single Notification as Read
 - **Method:** `PATCH`
 - **Path:** `/api/notifications/:id/read`
 - **Auth:** Required
-- **Success Response (`200 OK`):**
-  ```json
-  {
-    "message": "Notification marked as read.",
-    "id": "cmnotif123"
-  }
-  ```
 
 ### 11.3 Mark All Notifications as Read
-- **Method:** `PATCH`
+- **Method:** `POST`
 - **Path:** `/api/notifications/read-all`
 - **Auth:** Required
-- **Success Response (`200 OK`):**
-  ```json
-  {
-    "message": "All notifications marked as read."
-  }
-  ```
 
 ### 11.4 Real-Time Notification SSE Stream
 Subscribes the client to a live HTTP Server-Sent Events stream. The server attaches the client to Redis Pub/Sub channels for user-specific alerts (`sq:user:<userId>`) and campus-wide event announcements (`sq:campus:<orgId>`). Keepalive heartbeats are sent every 25 seconds.
-
 - **Method:** `GET`
 - **Path:** `/api/notifications/stream`
 - **Auth:** Required (`Authorization: Bearer <clerk_jwt>`)
 - **Headers:** `Accept: text/event-stream`
-- **Stream Format:**
-  ```http
-  HTTP/1.1 200 OK
-  Content-Type: text/event-stream
-  Cache-Control: no-cache
-  Connection: keep-alive
 
-  data: {"type":"CONNECTED","userId":"cmuser456","timestamp":"2026-09-18T09:00:00.000Z"}
+---
 
-  data: {"type":"NOTIFICATION_CREATED","notification":{"id":"cmnotif123","type":"TEAM_INVITE","title":"...","message":"...","link":"...","data":{...},"isRead":false,"createdAt":"..."}}
+## 12. Clerk Webhook Endpoints (`/api/webhooks`)
 
-  : keepalive 1726650025000
-  ```
+### 12.1 Webhook Health & Config Check
+- **Method:** `GET`
+- **Path:** `/api/webhooks` or `/api/webhooks/config`
+- **Auth:** Public
 
-
+### 12.2 Clerk Event Receiver
+- **Method:** `POST`
+- **Path:** `/api/webhooks` or `/api/webhooks/clerk`
+- **Auth:** Svix Cryptographic Signature Verification (`CLERK_WEBHOOK_SECRET`)
+- **Headers Required:** `svix-id`, `svix-timestamp`, `svix-signature`
+- **Supported Events:** `user.created`, `user.updated`, `user.deleted`, `organization.created`, `organization.updated`, `organization.deleted`, `organizationMembership.created`, `organizationMembership.updated`, `organizationMembership.deleted`.
