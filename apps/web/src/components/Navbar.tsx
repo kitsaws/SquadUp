@@ -4,8 +4,11 @@ import {
   Search,
   Bell,
   CheckCircle2,
+  XCircle,
   Sparkles,
   Users,
+  UserCheck,
+  UserMinus,
   Calendar,
   Check,
   X,
@@ -16,60 +19,88 @@ import {
 import { SignInButton, SignUpButton } from "@clerk/react";
 import { useUserContext } from "../contexts/UserContext";
 import { usePalette } from "../contexts/PaletteContext";
+import { useNotifications } from "../contexts/NotificationContext";
 import { SearchModal } from "./SearchModal";
 
-interface NotificationItem {
-  id: string;
-  title: string;
-  description: string;
-  timeAgo: string;
-  unread: boolean;
-  link?: string;
-  type: "application" | "event" | "team";
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
+
+  if (diffInSeconds < 60) return "Just now";
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+  const diffInDays = Math.floor(diffInHours / 24);
+  return `${diffInDays}d ago`;
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "n1",
-    title: "New candidate application",
-    description: "Alex Rivera applied for PostgreSQL Lead in NeuroVision Health.",
-    timeAgo: "2h ago",
-    unread: true,
-    link: "/teams?id=t-neurovision",
-    type: "application",
-  },
-  {
-    id: "n2",
-    title: "TreeHacks 2026 Team Roster Notice",
-    description: "Squad formation window closes in 5 days.",
-    timeAgo: "1d ago",
-    unread: true,
-    link: "/events",
-    type: "event",
-  },
-  {
-    id: "n3",
-    title: "Squad invitation accepted",
-    description: "Sofia Rodriguez joined NeuroVision Health as ML Engineer.",
-    timeAgo: "2d ago",
-    unread: false,
-    link: "/teams?id=t-neurovision",
-    type: "team",
-  },
-];
+function renderNotificationIcon(type: string) {
+  switch (type) {
+    case "TEAM_INVITE":
+      return (
+        <div className="w-7 h-7 rounded-lg bg-primary-light border border-primary-action/20 flex items-center justify-center text-primary-action shrink-0 mt-0.5 shadow-2xs">
+          <Sparkles className="w-3.5 h-3.5" />
+        </div>
+      );
+    case "EVENT_ANNOUNCEMENT":
+      return (
+        <div className="w-7 h-7 rounded-lg bg-campus-explorer-light border border-campus-explorer/20 flex items-center justify-center text-campus-explorer shrink-0 mt-0.5 shadow-2xs">
+          <Calendar className="w-3.5 h-3.5" />
+        </div>
+      );
+    case "APPLICATION_ACCEPTED":
+      return (
+        <div className="w-7 h-7 rounded-lg bg-best-fit-light border border-best-fit/30 flex items-center justify-center text-best-fit-dark shrink-0 mt-0.5 shadow-2xs">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+        </div>
+      );
+    case "APPLICATION_REJECTED":
+      return (
+        <div className="w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0 mt-0.5 shadow-2xs">
+          <XCircle className="w-3.5 h-3.5" />
+        </div>
+      );
+    case "TEAM_MEMBER_LEFT":
+      return (
+        <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0 mt-0.5 shadow-2xs">
+          <UserMinus className="w-3.5 h-3.5" />
+        </div>
+      );
+    case "TEAM_JOINED":
+      return (
+        <div className="w-7 h-7 rounded-lg bg-best-fit-light border border-best-fit/30 flex items-center justify-center text-best-fit-dark shrink-0 mt-0.5 shadow-2xs">
+          <UserCheck className="w-3.5 h-3.5" />
+        </div>
+      );
+    case "APPLICATION_RECEIVED":
+    default:
+      return (
+        <div className="w-7 h-7 rounded-lg bg-surface border border-border-main flex items-center justify-center text-primary-action shrink-0 mt-0.5 shadow-2xs">
+          <Users className="w-3.5 h-3.5" />
+        </div>
+      );
+  }
+}
 
 export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, isSignedIn } = useUserContext();
   const { themeMode, toggleThemeMode, isDark } = usePalette();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    latestToast,
+    clearToast,
+  } = useNotifications();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
   const notificationsRef = useRef<HTMLDivElement>(null);
-
-  const unreadCount = notifications.filter((n) => n.unread).length;
 
   // Close notifications on outside click
   useEffect(() => {
@@ -94,9 +125,6 @@ export function Navbar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-  };
 
   const navLinks = [
     { label: "Home", path: "/" },
@@ -353,7 +381,7 @@ export function Navbar() {
                         </div>
                         {unreadCount > 0 && (
                           <button
-                            onClick={markAllAsRead}
+                            onClick={() => markAllAsRead()}
                             className="text-[11px] font-semibold text-primary-action hover:underline cursor-pointer"
                           >
                             Mark all as read
@@ -362,53 +390,62 @@ export function Navbar() {
                       </div>
 
                       <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                        {notifications.map((item) => (
-                          <div
-                            key={item.id}
-                            onClick={() => {
-                              if (item.link) {
-                                navigate(item.link);
-                                setIsNotificationsOpen(false);
-                              }
-                            }}
-                            className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-                              item.unread
-                                ? "bg-primary-light border-primary-border"
-                                : "bg-surface-dim/40 border-border-main hover:bg-surface-dim"
-                            }`}
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-surface border border-border-main flex items-center justify-center text-primary-action shrink-0 mt-0.5 shadow-2xs">
-                              {item.type === "application" ? (
-                                <Users className="w-3.5 h-3.5" />
-                              ) : (
-                                <Calendar className="w-3.5 h-3.5" />
-                              )}
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-1">
-                                <h5 className="text-xs font-bold text-text-main truncate">
-                                  {item.title}
-                                </h5>
-                                <span className="text-[10px] text-text-muted shrink-0">
-                                  {item.timeAgo}
-                                </span>
-                              </div>
-                              <p className="text-xs text-text-muted line-clamp-2 mt-0.5">
-                                {item.description}
-                              </p>
-                            </div>
+                        {notifications.length === 0 ? (
+                          <div className="py-8 px-4 text-center">
+                            <Bell className="w-8 h-8 text-text-muted/40 mx-auto mb-2 stroke-[1.5]" />
+                            <p className="text-xs font-semibold text-text-main">
+                              No notifications yet
+                            </p>
+                            <p className="text-[11px] text-text-muted mt-0.5">
+                              You're all caught up! Squad invites and event updates will show up here.
+                            </p>
                           </div>
-                        ))}
+                        ) : (
+                          notifications.map((item) => (
+                            <div
+                              key={item.id}
+                              onClick={async () => {
+                                if (!item.isRead) {
+                                  await markAsRead(item.id);
+                                }
+                                if (item.link) {
+                                  navigate(item.link);
+                                  setIsNotificationsOpen(false);
+                                }
+                              }}
+                              className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
+                                !item.isRead
+                                  ? "bg-primary-light/50 border-primary-border/60 hover:bg-primary-light"
+                                  : "bg-surface-dim/40 border-border-main hover:bg-surface-dim"
+                              }`}
+                            >
+                              {renderNotificationIcon(item.type)}
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <h5 className={`text-xs truncate ${!item.isRead ? "font-bold text-text-main" : "font-semibold text-text-main"}`}>
+                                    {item.title}
+                                  </h5>
+                                  <span className="text-[10px] text-text-muted shrink-0">
+                                    {formatTimeAgo(item.createdAt)}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-text-muted line-clamp-2 mt-0.5">
+                                  {item.message}
+                                </p>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
 
                       <div className="pt-2 border-t border-border-main text-center">
                         <Link
-                          to="/teams?id=t-neurovision"
+                          to="/teams"
                           onClick={() => setIsNotificationsOpen(false)}
                           className="text-xs font-bold text-primary-action hover:underline"
                         >
-                          Manage Squad Applications →
+                          Explore Teams & Invites →
                         </Link>
                       </div>
                     </div>
@@ -457,6 +494,43 @@ export function Navbar() {
 
       {/* Spotlight Command Palette Modal */}
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+      {/* Floating Real-time SSE Notification Toast */}
+      {latestToast && (
+        <div className="fixed bottom-5 right-5 z-50 max-w-sm w-full bg-surface border border-primary-action/30 rounded-2xl p-4 shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-200">
+          <div className="flex items-start gap-3">
+            {renderNotificationIcon(latestToast.type)}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between">
+                <h5 className="text-xs font-bold text-text-main truncate">
+                  {latestToast.title}
+                </h5>
+                <button
+                  onClick={clearToast}
+                  className="text-text-muted hover:text-text-main p-0.5 rounded cursor-pointer transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="text-xs text-text-muted line-clamp-2 mt-0.5">
+                {latestToast.message}
+              </p>
+              {latestToast.link && (
+                <button
+                  onClick={async () => {
+                    await markAsRead(latestToast.id);
+                    clearToast();
+                    navigate(latestToast.link!);
+                  }}
+                  className="mt-2 text-xs font-bold text-primary-action hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  View Details →
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

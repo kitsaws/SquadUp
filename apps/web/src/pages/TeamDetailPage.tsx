@@ -39,10 +39,25 @@ import {
 import { RecommendationBadge, RecommendationTier, SkillTag, getSkillMatchType } from "../components/Badges";
 import { SmartRecommendationPanel } from "../components/SmartRecommendationPanel";
 import { ApplyTeamModal } from "../components/ApplyTeamModal";
+import { TeamInviteModal } from "../components/TeamInviteModal";
+import { RoleSelectDropdown } from "../components/RoleSelectDropdown";
 import {
   CandidateApplicationTile,
   CandidateApplicationData,
 } from "../components/CandidateApplicationTile";
+import type { TeamInviteItem } from "../services/api";
+
+function formatTimeAgo(dateInput: Date | string): string {
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  const diffInSeconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (diffInSeconds < 60) return "Just now";
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+  const diffInDays = Math.floor(diffInHours / 24);
+  return `${diffInDays}d ago`;
+}
 
 export function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -64,7 +79,12 @@ export function TeamDetailPage() {
   const [applied, setApplied] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("");
   const [isInviting, setIsInviting] = useState(false);
+
+  // Invite states for viewing candidate
+  const [pendingInvite, setPendingInvite] = useState<TeamInviteItem | null>(null);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
 
   // Load Team, User Profile, Applications (if leader), and Recommendations (if candidate)
   useEffect(() => {
@@ -158,11 +178,26 @@ export function TeamDetailPage() {
             console.warn("[TeamDetailPage] Could not load applications for team:", e);
           }
         } else {
-          // 4. Candidate view: check if user already applied
+          // 4. Candidate view: check if user already applied or has a pending invite
           try {
-            const myApps = await applicationsApi.getMyApplications();
-            if (isMounted && myApps.applications.some((a) => a.teamId === teamData.id && a.status === "PENDING")) {
+            const [myApps, myInvitesRes] = await Promise.all([
+              applicationsApi.getMyApplications().catch(() => ({ total: 0, applications: [] })),
+              invitesApi.getMyInvites().catch(() => ({ totalInvites: 0, invites: [] })),
+            ]);
+
+            if (isMounted && myApps.applications?.some((a) => a.teamId === teamData.id && a.status === "PENDING")) {
               setApplied(true);
+            }
+
+            if (isMounted) {
+              const inviteMatch = (myInvitesRes.invites || []).find((inv) => inv.teamId === teamData.id);
+              if (inviteMatch) {
+                setPendingInvite(inviteMatch);
+                const searchParams = new URLSearchParams(location.search);
+                if (searchParams.get("inviteId") === inviteMatch.id || searchParams.has("inviteId")) {
+                  setIsInviteModalOpen(true);
+                }
+              }
             }
           } catch {
             // ignore
@@ -290,15 +325,79 @@ export function TeamDetailPage() {
     if (!team || !inviteEmail.trim()) return;
     setIsInviting(true);
     try {
-      await invitesApi.sendInvites(team.id, [inviteEmail.trim()]);
-      setToastMessage(`✓ Invitation sent to ${inviteEmail.trim()}!`);
-      setInviteEmail("");
-      setTimeout(() => setToastMessage(null), 4000);
+      const targetRole = team.roles?.find((r) => r.id === selectedRoleId);
+      const res = await invitesApi.sendInvites(team.id, {
+        invites: [
+          {
+            email: inviteEmail.trim(),
+            roleId: targetRole?.id,
+            roleTitle: targetRole?.title,
+            roleSkills: targetRole?.skills,
+          },
+        ],
+      });
+
+      if (res.failed && res.failed.length > 0) {
+        setToastMessage(`⚠️ ${res.failed[0].reason}`);
+      } else {
+        setToastMessage(
+          `✓ Role invite sent to ${inviteEmail.trim()}${targetRole ? ` for ${targetRole.title}` : ""}!`
+        );
+        setInviteEmail("");
+        setSelectedRoleId("");
+      }
+      setTimeout(() => setToastMessage(null), 5000);
+      const refreshed = await teamsApi.getTeam(team.id);
+      setTeam(refreshed);
     } catch (err: any) {
       setToastMessage(err.message || "Failed to send invitation.");
-      setTimeout(() => setToastMessage(null), 4000);
+      setTimeout(() => setToastMessage(null), 5000);
     } finally {
       setIsInviting(false);
+    }
+  };
+
+  const handleAcceptInvite = async (inviteId: string) => {
+    try {
+      await invitesApi.acceptInvite(inviteId);
+      setPendingInvite(null);
+      setIsInviteModalOpen(false);
+      setToastMessage("🎉 Congratulations! You have joined the squad roster.");
+      setTimeout(() => setToastMessage(null), 4000);
+      if (id) {
+        const refreshed = await teamsApi.getTeam(id);
+        setTeam(refreshed);
+      }
+    } catch (err: any) {
+      setToastMessage(err.message || "Failed to accept invitation.");
+      setTimeout(() => setToastMessage(null), 4000);
+    }
+  };
+
+  const handleDeclineInvite = async (inviteId: string) => {
+    try {
+      await invitesApi.declineInvite(inviteId);
+      setPendingInvite(null);
+      setIsInviteModalOpen(false);
+      setToastMessage("Invitation declined.");
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err: any) {
+      setToastMessage(err.message || "Failed to decline invitation.");
+      setTimeout(() => setToastMessage(null), 4000);
+    }
+  };
+
+  const handleCancelInvite = async (inviteId: string, email: string) => {
+    if (!team || !confirm(`Cancel pending invite sent to ${email}?`)) return;
+    try {
+      await invitesApi.cancelInvite(team.id, inviteId);
+      setToastMessage(`✓ Invitation to ${email} cancelled.`);
+      setTimeout(() => setToastMessage(null), 4000);
+      const refreshed = await teamsApi.getTeam(team.id);
+      setTeam(refreshed);
+    } catch (err: any) {
+      setToastMessage(err.message || "Failed to cancel invite.");
+      setTimeout(() => setToastMessage(null), 4000);
     }
   };
 
@@ -341,12 +440,6 @@ export function TeamDetailPage() {
       </div>
     );
   }
-
-  // Derive primary open requirement / role
-  const openRole = team.roles?.find((r) => !r.assignedToId);
-  const openRequirement = openRole
-    ? `${openRole.title} (${openRole.skills.join(", ")})`
-    : team.requirements.find((r) => !userVerifiedSkills.includes(r)) || team.requirements[0] || "Specialist";
 
   const category = recommendation?.recommendationCategory ?? team.category;
   const taxonomyScore = recommendation?.taxonomyScore ?? team.taxonomyScore;
@@ -515,7 +608,7 @@ export function TeamDetailPage() {
             </div>
 
             {/* Telemetry Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-border-main">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-border-main">
               <div className="p-4 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
                 <div className="flex items-center justify-between text-xs text-text-muted font-semibold mb-1">
                   <span>Squad Roster</span>
@@ -543,19 +636,6 @@ export function TeamDetailPage() {
                   {applications.length} total candidate submissions
                 </p>
               </div>
-
-              <div className="p-4 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
-                <div className="flex items-center justify-between text-xs text-text-muted font-semibold mb-1">
-                  <span>Primary Open Role</span>
-                  <Sparkles className="w-4 h-4 text-emerald-500" />
-                </div>
-                <div className="text-base font-black text-text-main font-heading truncate">
-                  {openRole ? openRole.title : openRequirement}
-                </div>
-                <p className="text-[11px] text-text-muted font-medium mt-1">
-                  {openRole ? `${openRole.skills.slice(0, 3).join(", ")}` : "Core capability seeking specialist"}
-                </p>
-              </div>
             </div>
           </div>
 
@@ -578,46 +658,74 @@ export function TeamDetailPage() {
 
             {team.roles && team.roles.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {team.roles.map((role) => (
-                  <div
-                    key={role.id || role.title}
-                    className="p-4 rounded-xl border border-border-main bg-surface-dim space-y-3 shadow-2xs"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h4 className="text-sm font-bold text-text-main font-heading">{role.title}</h4>
-                        <p className="text-[11px] text-text-muted mt-0.5">
-                          {role.assignedToId ? "Assigned" : `${role.spots || 1} spot(s) open`}
-                        </p>
-                      </div>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                          role.assignedToId
-                            ? "bg-surface text-text-muted border border-border-main"
-                            : "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-                        }`}
-                      >
-                        {role.assignedToId ? "Filled" : "Recruiting"}
-                      </span>
-                    </div>
+                {team.roles.map((role) => {
+                  const assignedMember = team.members.find(
+                    (m) => m.userId === role.assignedToId || m.id === role.assignedToId
+                  );
+                  const isAssignedToMe = Boolean(
+                    profile && (role.assignedToId === profile.id || role.assignedToId === profile.userId)
+                  );
 
-                    <div className="space-y-1.5 pt-1 border-t border-border-main/50">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
-                        Technologies Needed:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {role.skills.map((skill) => (
-                          <span
-                            key={skill}
-                            className="text-xs font-medium px-2 py-0.5 rounded-md bg-surface text-text-main border border-border-main"
-                          >
-                            {skill}
-                          </span>
-                        ))}
+                  return (
+                    <div
+                      key={role.id || role.title}
+                      className={`p-4 rounded-xl border transition-all space-y-3 shadow-2xs ${
+                        role.assignedToId
+                          ? "bg-surface border-border-main"
+                          : "bg-surface-dim border-border-main/80"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-bold text-text-main font-heading truncate">
+                            {role.title}
+                          </h4>
+                          <p className="text-[11px] text-text-muted mt-0.5 truncate">
+                            {role.assignedToId ? (
+                              <span>
+                                Filled by{" "}
+                                <strong className="font-semibold text-text-main">
+                                  {isAssignedToMe
+                                    ? "You (Squad Leader)"
+                                    : assignedMember?.name
+                                    ? `${assignedMember.name}${assignedMember.role === "Leader" ? " (Squad Leader)" : ""}`
+                                    : "Active Teammate"}
+                                </strong>
+                              </span>
+                            ) : (
+                              `${role.spots || 1} spot(s) open`
+                            )}
+                          </p>
+                        </div>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${
+                            role.assignedToId
+                              ? "bg-primary-action/10 text-primary-action border border-primary-action/20"
+                              : "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                          }`}
+                        >
+                          {role.assignedToId ? (isAssignedToMe ? "Your Role" : "Filled") : "Recruiting"}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5 pt-1 border-t border-border-main/50">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                          Technologies Needed:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {role.skills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="text-xs font-medium px-2 py-0.5 rounded-md bg-surface-dim text-text-main border border-border-main"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="p-4 rounded-xl border border-border-main bg-surface-dim space-y-2">
@@ -688,8 +796,16 @@ export function TeamDetailPage() {
                 </p>
               </div>
 
-              {/* Email Invite Input */}
-              <form onSubmit={handleSendInvite} className="flex items-center gap-2">
+              {/* Role-Specific Invite Input with custom dropdown */}
+              <form onSubmit={handleSendInvite} className="flex flex-wrap items-center gap-2">
+                {team.roles && team.roles.length > 0 && (
+                  <RoleSelectDropdown
+                    roles={team.roles}
+                    selectedRoleId={selectedRoleId}
+                    onChange={setSelectedRoleId}
+                  />
+                )}
+
                 <div className="relative">
                   <Mail className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -697,17 +813,17 @@ export function TeamDetailPage() {
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="Teammate email..."
-                    className="text-xs pl-8 pr-3 py-2 border border-border-main bg-surface-dim text-text-main placeholder:text-text-muted rounded-xl outline-hidden focus:border-primary-action focus:ring-1 focus:ring-primary-action w-52"
+                    className="text-xs pl-8 pr-3 py-2 border border-border-main bg-surface-dim text-text-main placeholder:text-text-muted rounded-xl outline-hidden focus:border-primary-action focus:ring-1 focus:ring-primary-action w-44 sm:w-48"
                     required
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isInviting}
-                  className="px-3 py-2 bg-primary-action hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+                  className="px-3 py-2 bg-primary-action hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shrink-0 shadow-xs"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>{isInviting ? "Inviting..." : "Invite"}</span>
+                  <span>{isInviting ? "Inviting..." : "Send Invite"}</span>
                 </button>
               </form>
             </div>
@@ -789,6 +905,61 @@ export function TeamDetailPage() {
                 );
               })}
             </div>
+
+            {/* Pending Outgoing Invites Table / List */}
+            {team.invites && team.invites.filter((inv) => inv.status === "PENDING").length > 0 && (
+              <div className="pt-4 border-t border-border-main space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-primary-action" />
+                    <span>Pending Outgoing Invitations</span>
+                  </h4>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-light text-primary-action border border-primary-border">
+                    {team.invites.filter((inv) => inv.status === "PENDING").length} Pending
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {team.invites
+                    .filter((inv) => inv.status === "PENDING")
+                    .map((inv) => (
+                      <div
+                        key={inv.id}
+                        className="p-3 rounded-xl border border-border-main/70 bg-surface-dim/50 flex items-center justify-between gap-2"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-surface border border-border-main flex items-center justify-center text-text-muted text-xs font-bold shrink-0">
+                            @
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold text-text-main truncate block">
+                              {inv.email}
+                            </span>
+                            <div className="flex items-center gap-1.5 text-[10px] text-text-muted">
+                              {inv.roleTitle ? (
+                                <span className="text-primary-action font-semibold truncate">
+                                  {inv.roleTitle}
+                                </span>
+                              ) : (
+                                <span>General Role</span>
+                              )}
+                              <span>• {formatTimeAgo(new Date(inv.createdAt))}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleCancelInvite(inv.id, inv.email)}
+                          className="px-2 py-1 text-[10px] font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 rounded-lg transition-all cursor-pointer shrink-0"
+                          title="Cancel invitation"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -837,6 +1008,31 @@ export function TeamDetailPage() {
                 </div>
               )}
 
+              {pendingInvite && !isUserMember && (
+                <div className="p-4 rounded-xl border-2 border-emerald-500/30 bg-emerald-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in duration-300">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-emerald-500 uppercase tracking-wider block">
+                        You Have an Active Invitation!
+                      </span>
+                      <p className="text-xs text-text-main font-semibold">
+                        Designated Role: <span className="text-primary-action font-extrabold">{pendingInvite.roleTitle || "Squad Contributor"}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsInviteModalOpen(true)}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs"
+                  >
+                    <span>Review Invitation</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <h3 className="text-xs font-black uppercase tracking-wider text-text-muted">
                   Squad Mission & Objectives
@@ -867,7 +1063,9 @@ export function TeamDetailPage() {
 
                 {team.roles && team.roles.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    {team.roles.map((role) => {
+                    {team.roles
+                      .filter((r) => !r.assignedToId && (r.spots ?? 1) > 0)
+                      .map((role) => {
                       const isOptimalRole = (team.bestMatchingRole?.roleTitle || recommendation?.bestMatchingRole?.roleTitle) === role.title;
                       const matchingSkillsCount = role.skills.filter((s) => checkSkillMatch(s)).length;
 
@@ -1150,6 +1348,20 @@ export function TeamDetailPage() {
             members: team.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
           }}
           onSubmit={handleApplySuccess}
+        />
+      )}
+
+      {/* Team Role-Based Invite Modal */}
+      {pendingInvite && (
+        <TeamInviteModal
+          isOpen={isInviteModalOpen}
+          invite={pendingInvite}
+          teamName={team.name}
+          eventTitle={team.event?.title}
+          university={team.university || undefined}
+          onClose={() => setIsInviteModalOpen(false)}
+          onAccept={handleAcceptInvite}
+          onDecline={handleDeclineInvite}
         />
       )}
     </div>

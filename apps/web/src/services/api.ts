@@ -322,19 +322,6 @@ export interface CandidateApplicationItem {
   updatedAt: string;
 }
 
-export interface TeamInviteItem {
-  id: string;
-  teamId: string;
-  teamName: string;
-  eventId: string;
-  eventTitle: string;
-  isGlobal: boolean;
-  senderName: string;
-  membersCount: number;
-  requirements: string[];
-  createdAt: string;
-}
-
 import { CacheService } from "./cache.service";
 
 /* =========================================================================
@@ -699,16 +686,49 @@ export const resumeApi = {
 };
 
 /* =========================================================================
-   INVITES API (/api/teams/invites)
+   INVITES & NOTIFICATIONS API (/api/teams/invites & /api/notifications)
    ========================================================================= */
+
+export interface TeamInviteItem {
+  id: string;
+  teamId: string;
+  teamName?: string;
+  eventId?: string;
+  eventTitle?: string;
+  isGlobal?: boolean;
+  senderName?: string;
+  senderId?: string;
+  email: string;
+  roleId?: string | null;
+  roleTitle?: string | null;
+  roleSkills?: string[];
+  membersCount?: number;
+  requirements?: string[];
+  status: string;
+  createdAt: string;
+}
+
+export interface RoleInvitePayload {
+  email: string;
+  roleId?: string;
+  roleTitle?: string;
+  roleSkills?: string[];
+}
+
+export interface SendTeamInvitesPayload {
+  invites: Array<string | RoleInvitePayload>;
+  roleId?: string;
+  roleTitle?: string;
+  roleSkills?: string[];
+}
 
 export const invitesApi = {
   getMyInvites: (): Promise<{ totalInvites: number; invites: TeamInviteItem[] }> => {
     return request<{ totalInvites: number; invites: TeamInviteItem[] }>("/teams/invites/my-invites");
   },
 
-  acceptInvite: (inviteId: string): Promise<{ message: string }> => {
-    return request<{ message: string }>(`/teams/invites/${inviteId}/accept`, {
+  acceptInvite: (inviteId: string): Promise<{ message: string; teamId?: string }> => {
+    return request<{ message: string; teamId?: string }>(`/teams/invites/${inviteId}/accept`, {
       method: "POST",
     });
   },
@@ -719,11 +739,93 @@ export const invitesApi = {
     });
   },
 
-  sendInvites: (teamId: string, emails: string[]): Promise<{ message: string }> => {
-    return request<{ message: string }>(`/teams/${teamId}/invites`, {
+  sendInvites: (
+    teamId: string,
+    payload: string[] | SendTeamInvitesPayload
+  ): Promise<{ message: string; successful?: string[]; failed?: Array<{ email: string; reason: string }>; invitedEmails?: string[] }> => {
+    const body = Array.isArray(payload) ? { invites: payload } : payload;
+    return request<{ message: string; successful?: string[]; failed?: Array<{ email: string; reason: string }>; invitedEmails?: string[] }>(`/teams/${teamId}/invites`, {
       method: "POST",
-      body: JSON.stringify({ invites: emails }),
+      body: JSON.stringify(body),
     });
+  },
+
+  cancelInvite: (teamId: string, inviteId: string): Promise<{ message: string }> => {
+    return request<{ message: string }>(`/teams/${teamId}/invites/${inviteId}`, {
+      method: "DELETE",
+    });
+  },
+};
+
+export type NotificationType =
+  | "TEAM_INVITE"
+  | "APPLICATION_RECEIVED"
+  | "APPLICATION_ACCEPTED"
+  | "APPLICATION_REJECTED"
+  | "TEAM_JOINED"
+  | "TEAM_MEMBER_LEFT"
+  | "EVENT_ANNOUNCEMENT";
+
+export interface NotificationDTO {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  link?: string | null;
+  data?: {
+    teamId?: string;
+    inviteId?: string;
+    roleId?: string;
+    roleTitle?: string;
+    roleSkills?: string[];
+    eventId?: string;
+    eventTitle?: string;
+    senderName?: string;
+    candidateName?: string;
+    applicationId?: string;
+    [key: string]: any;
+  } | null;
+  isRead: boolean;
+  expiresAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationListResponse {
+  notifications: NotificationDTO[];
+  unreadCount: number;
+  total: number;
+}
+
+export const notificationsApi = {
+  getNotifications: (params?: {
+    page?: number;
+    limit?: number;
+    unreadOnly?: boolean;
+  }): Promise<NotificationListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set("page", params.page.toString());
+    if (params?.limit) query.set("limit", params.limit.toString());
+    if (params?.unreadOnly) query.set("unreadOnly", "true");
+    const qs = query.toString();
+    return request<NotificationListResponse>(`/notifications${qs ? `?${qs}` : ""}`);
+  },
+
+  markAsRead: (notificationId: string): Promise<{ message: string }> => {
+    return request<{ message: string }>(`/notifications/${notificationId}/read`, {
+      method: "PATCH",
+    });
+  },
+
+  markAllAsRead: (): Promise<{ message: string; count: number }> => {
+    return request<{ message: string; count: number }>("/notifications/read-all", {
+      method: "POST",
+    });
+  },
+
+  getStreamUrl: (): string => {
+    return `${API_BASE_URL}/notifications/stream`;
   },
 };
 

@@ -396,9 +396,16 @@ export function TeamsPage() {
       (!myCampus || !team.university || myCampus.toLowerCase().trim() !== team.university.toLowerCase().trim())
     );
 
-    const rolesList =
+    const openRoles =
       team.roles && team.roles.length > 0
-        ? team.roles
+        ? team.roles.filter((r) => !r.assignedToId && (r.spots ?? 1) > 0)
+        : [];
+
+    const rolesList =
+      openRoles.length > 0
+        ? openRoles
+        : team.roles && team.roles.length > 0
+        ? []
         : team.requirements.length > 0
         ? team.requirements.map((req) => ({ title: req, skills: [req], spots: 1 }))
         : [{ title: "Core Contributor", skills: [], spots: 1 }];
@@ -545,76 +552,82 @@ export function TeamsPage() {
                   <span>Role : Technologies Needed</span>
                 </span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface text-text-muted border border-border-main">
-                  {rolesList.length} Role{rolesList.length > 1 ? "s" : ""}
+                  {rolesList.length} Role{rolesList.length !== 1 ? "s" : ""}
                 </span>
               </div>
 
               <div className="space-y-2">
-                {rolesList.map((role, idx) => {
-                  const matchStatus = getRoleMatchStatus(role, team);
-                  const isOptimalRole =
-                    team.bestMatchingRole?.roleTitle?.toLowerCase().trim() === role.title.toLowerCase().trim();
-                  const roleSkills = role.skills || [];
-                  const matchedCount = roleSkills.filter((s) => checkSkillMatch(s, team)).length;
+                {rolesList.length > 0 ? (
+                  rolesList.map((role, idx) => {
+                    const matchStatus = getRoleMatchStatus(role, team);
+                    const isOptimalRole =
+                      team.bestMatchingRole?.roleTitle?.toLowerCase().trim() === role.title.toLowerCase().trim();
+                    const roleSkills = role.skills || [];
+                    const matchedCount = roleSkills.filter((s) => checkSkillMatch(s, team)).length;
 
-                  return (
-                    <div
-                      key={(role as any).id || role.title || idx}
-                      className={`p-3 rounded-xl border transition-all space-y-2 ${
-                        isOptimalRole
-                          ? "bg-gradient-to-br from-primary-action/10 via-surface to-surface border-primary-action/40 shadow-2xs"
-                          : matchStatus === "perfect"
-                          ? "bg-emerald-500/10 border-emerald-500/30"
-                          : matchStatus === "partial"
-                          ? "bg-amber-500/10 border-amber-500/30"
-                          : "bg-surface border-border-main"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                          <span className="text-xs font-bold text-text-main truncate font-heading">
-                            {role.title}
+                    return (
+                      <div
+                        key={(role as any).id || role.title || idx}
+                        className={`p-3 rounded-xl border transition-all space-y-2 ${
+                          isOptimalRole
+                            ? "bg-gradient-to-br from-primary-action/10 via-surface to-surface border-primary-action/40 shadow-2xs"
+                            : matchStatus === "perfect"
+                            ? "bg-emerald-500/10 border-emerald-500/30"
+                            : matchStatus === "partial"
+                            ? "bg-amber-500/10 border-amber-500/30"
+                            : "bg-surface border-border-main"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                            <span className="text-xs font-bold text-text-main truncate font-heading">
+                              {role.title}
+                            </span>
+                            {isOptimalRole && (
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-primary-action text-white shadow-2xs">
+                                ⭐ Recommended
+                              </span>
+                            )}
+                            {role.spots && (
+                              <span className="text-[10px] text-text-muted font-medium">
+                                • {role.spots} spot{role.spots > 1 ? "s" : ""}
+                              </span>
+                            )}
+                          </div>
+
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
+                              matchStatus === "perfect"
+                                ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
+                                : matchStatus === "partial"
+                                ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
+                                : "bg-surface-dim text-text-muted border-border-main"
+                            }`}
+                          >
+                            {roleSkills.length > 0 ? `${matchedCount}/${roleSkills.length} Skills Match` : "Open"}
                           </span>
-                          {isOptimalRole && (
-                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-primary-action text-white shadow-2xs">
-                              ⭐ Recommended
-                            </span>
-                          )}
-                          {role.spots && (
-                            <span className="text-[10px] text-text-muted font-medium">
-                              • {role.spots} spot{role.spots > 1 ? "s" : ""}
-                            </span>
-                          )}
                         </div>
 
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
-                            matchStatus === "perfect"
-                              ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
-                              : matchStatus === "partial"
-                              ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
-                              : "bg-surface-dim text-text-muted border-border-main"
-                          }`}
-                        >
-                          {roleSkills.length > 0 ? `${matchedCount}/${roleSkills.length} Skills Match` : "Open"}
-                        </span>
+                        {roleSkills.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1 border-t border-border-main/40">
+                            {roleSkills.map((req) => (
+                              <SkillTag
+                                key={req}
+                                skill={req}
+                                breakdown={team.requirementBreakdown}
+                                userSkills={userVerifiedSkills}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
-
-                      {roleSkills.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1 border-t border-border-main/40">
-                          {roleSkills.map((req) => (
-                            <SkillTag
-                              key={req}
-                              skill={req}
-                              breakdown={team.requirementBreakdown}
-                              userSkills={userVerifiedSkills}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <div className="p-3 rounded-xl border border-border-main bg-surface-dim text-center">
+                    <p className="text-xs text-text-muted italic">All configured squad roles are currently filled.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

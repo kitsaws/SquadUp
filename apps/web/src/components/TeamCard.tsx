@@ -109,10 +109,16 @@ export function TeamCard({
     topHighlightClass = "bg-campus-explorer";
   }
 
-  // Derive roles list: use configured roles if present, else fallback
-  const rolesList =
+  // Derive vacant/open roles list: filter out roles that are already assigned
+  const openRoles =
     team.roles && team.roles.length > 0
-      ? team.roles
+      ? team.roles.filter((r) => !r.assignedToId && (r.spots ?? 1) > 0)
+      : [];
+  const rolesList =
+    openRoles.length > 0
+      ? openRoles
+      : team.roles && team.roles.length > 0
+      ? []
       : team.requirements.length > 0
       ? team.requirements.map((req) => ({ title: req, skills: [req] }))
       : [{ title: "Core Specialist", skills: [] }];
@@ -234,24 +240,30 @@ export function TeamCard({
           Roles Needed:
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {rolesList.map((role, i) => {
-            const matchStatus = getRoleMatchStatus(role);
-            return (
-              <span
-                key={i}
-                className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
-                  matchStatus === "perfect"
-                    ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 shadow-2xs"
-                    : matchStatus === "partial"
-                    ? "bg-amber-500/15 text-amber-600 border-amber-500/30 shadow-2xs"
-                    : "bg-surface-dim text-text-muted border-border-main"
-                }`}
-              >
-                {matchStatus === "perfect" && <Check className="w-3 h-3 text-emerald-500 shrink-0" />}
-                <span>{role.title}</span>
-              </span>
-            );
-          })}
+          {rolesList.length > 0 ? (
+            rolesList.map((role, i) => {
+              const matchStatus = getRoleMatchStatus(role);
+              return (
+                <span
+                  key={i}
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
+                    matchStatus === "perfect"
+                      ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 shadow-2xs"
+                      : matchStatus === "partial"
+                      ? "bg-amber-500/15 text-amber-600 border-amber-500/30 shadow-2xs"
+                      : "bg-surface-dim text-text-muted border-border-main"
+                  }`}
+                >
+                  {matchStatus === "perfect" && <Check className="w-3 h-3 text-emerald-500 shrink-0" />}
+                  <span>{role.title}</span>
+                </span>
+              );
+            })
+          ) : (
+            <span className="text-xs text-text-muted italic bg-surface-dim px-2.5 py-1 rounded-lg border border-border-main">
+              All roles filled
+            </span>
+          )}
         </div>
       </div>
 

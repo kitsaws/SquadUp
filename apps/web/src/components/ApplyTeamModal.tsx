@@ -13,7 +13,7 @@ interface ApplyTeamModalProps {
 export function ApplyTeamModal({ isOpen, onClose, team, onSubmit }: ApplyTeamModalProps) {
   const { user } = useUser();
   const configuredRoleTitles = team.roles && team.roles.length > 0
-    ? team.roles.map((r) => r.title)
+    ? team.roles.filter((r) => !r.assignedToId && (r.spots ?? 1) > 0).map((r) => r.title)
     : [];
 
   const defaultRole = team.bestMatchingRole?.roleTitle

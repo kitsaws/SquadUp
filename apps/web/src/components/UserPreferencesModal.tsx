@@ -14,6 +14,8 @@ import {
   Sparkles,
   School,
   Save,
+  AlertCircle,
+  Calendar,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { usePalette, PALETTE_PRESETS } from "../contexts/PaletteContext";
@@ -53,6 +55,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>("theme");
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Form states
   const [themeMode, setThemeMode] = useState<"light" | "dark" | "system">(contextThemeMode || "light");
@@ -63,6 +66,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
   const [emailNotifications, setEmailNotifications] = useState<boolean>(true);
   const [teamInvitesNotification, setTeamInvitesNotification] = useState<boolean>(true);
   const [applicationUpdates, setApplicationUpdates] = useState<boolean>(true);
+  const [eventNotifications, setEventNotifications] = useState<boolean>(true);
   const [marketingEmails, setMarketingEmails] = useState<boolean>(false);
 
   const [defaultCampusOnly, setDefaultCampusOnly] = useState<boolean>(false);
@@ -96,6 +100,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
         setEmailNotifications(prefs.emailNotifications ?? true);
         setTeamInvitesNotification(prefs.teamInvitesNotification ?? true);
         setApplicationUpdates(prefs.applicationUpdates ?? true);
+        setEventNotifications(prefs.eventNotifications ?? true);
         setMarketingEmails(prefs.marketingEmails ?? false);
 
         setDefaultCampusOnly(prefs.defaultCampusOnly ?? false);
@@ -143,6 +148,7 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
       emailNotifications,
       teamInvitesNotification,
       applicationUpdates,
+      eventNotifications,
       marketingEmails,
       defaultCampusOnly,
       openToCollaboration,
@@ -163,13 +169,11 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
       }
 
       toast.success("Preferences saved successfully!", { position: "bottom-right" });
-      if (onPreferencesUpdated) {
-        onPreferencesUpdated(updated);
-      }
+      onPreferencesUpdated?.(updated);
       onClose();
-    } catch (err) {
-      console.error("[UserPreferencesModal] Failed to save:", err);
-      toast.error("Failed to save preferences. Please try again.", { position: "bottom-right" });
+    } catch (err: any) {
+      console.error("[UserPreferencesModal] Failed to save preferences:", err);
+      setError(err.message || "Failed to save preferences.");
     } finally {
       setSaving(false);
     }
@@ -177,73 +181,70 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-surface w-full max-w-2xl rounded-2xl border border-border-main shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-border-main flex items-center justify-between bg-surface-dim/40">
-          <div className="flex items-center gap-2.5">
+      <div className="relative w-full max-w-xl bg-surface rounded-2xl border border-border-main shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-border-main flex items-center justify-between bg-surface-dim/40">
+          <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-primary-light text-primary-action border border-primary-border">
               <Sliders className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-black text-text-main font-heading">
-                User Preferences
+              <h2 className="text-lg font-black text-text-main font-heading">
+                Preferences & Settings
               </h2>
               <p className="text-xs text-text-muted">
-                Customize your theme appearance, notifications, and default squad options.
+                Customize your theme appearance, notification alerts, and squad matching rules.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-surface-dim transition-colors cursor-pointer"
+            className="p-2 text-text-muted hover:text-text-main rounded-xl hover:bg-surface-dim transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Section Tabs */}
+        {/* Tab Navigation */}
         <div className="flex border-b border-border-main px-6 bg-surface">
-          <button
-            onClick={() => setActiveTab("theme")}
-            className={`flex items-center gap-2 py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === "theme"
-                ? "border-primary-action text-primary-action"
-                : "border-transparent text-text-muted hover:text-text-main"
-            }`}
-          >
-            <Palette className="w-4 h-4" />
-            <span>Theme & Appearance</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("notifications")}
-            className={`flex items-center gap-2 py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === "notifications"
-                ? "border-primary-action text-primary-action"
-                : "border-transparent text-text-muted hover:text-text-main"
-            }`}
-          >
-            <Bell className="w-4 h-4" />
-            <span>Notifications</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("matching")}
-            className={`flex items-center gap-2 py-3 px-3 text-xs font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === "matching"
-                ? "border-primary-action text-primary-action"
-                : "border-transparent text-text-muted hover:text-text-main"
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Squads & Matching</span>
-          </button>
+          {[
+            { id: "theme", label: "Theme & Appearance", icon: Palette },
+            { id: "notifications", label: "Notifications", icon: Bell },
+            { id: "matching", label: "Squads & Matching", icon: Sliders },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as TabType)}
+                className={`flex items-center gap-2 py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+                  isActive
+                    ? "border-primary-action text-primary-action"
+                    : "border-transparent text-text-muted hover:text-text-main"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        {/* Modal Content */}
+        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+          {error && (
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-2.5 text-xs text-rose-500 font-medium">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
           {loading ? (
-            <div className="py-16 flex flex-col items-center justify-center gap-3">
-              <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
-              <p className="text-xs font-semibold text-text-muted">Loading preferences...</p>
+            <div className="py-16 flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="w-6 h-6 text-primary-action animate-spin" />
+              <p className="text-xs text-text-muted">Loading your preferences...</p>
             </div>
           ) : (
             <>
@@ -349,15 +350,13 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                         type="color"
                         value={customPrimaryColor}
                         onChange={(e) => handleCustomColorChange(e.target.value)}
-                        className="w-10 h-10 rounded-xl cursor-pointer border border-border-main p-0.5 bg-surface"
+                        className="w-10 h-10 rounded-xl border border-border-main cursor-pointer p-0.5 bg-surface"
                       />
-                      <div className="space-y-0.5">
-                        <span className="text-xs font-mono font-bold text-text-main">
-                          {customPrimaryColor.toUpperCase()}
+                      <div className="text-xs text-text-muted">
+                        <span className="font-mono font-bold text-text-main block uppercase">
+                          {customPrimaryColor}
                         </span>
-                        <p className="text-[11px] text-text-muted">
-                          Fine-tune the brand action color to your exact choice.
-                        </p>
+                        <span>Fine-tune the brand primary tone.</span>
                       </div>
                     </div>
                   </div>
@@ -391,6 +390,14 @@ export const UserPreferencesModal: React.FC<UserPreferencesModalProps> = ({
                       state: applicationUpdates,
                       setter: setApplicationUpdates,
                       icon: Sparkles,
+                    },
+                    {
+                      id: "eventNotifications",
+                      title: "Campus Events & Hackathons",
+                      desc: "Get real-time alerts when new events or project fairs are hosted on your campus.",
+                      state: eventNotifications,
+                      setter: setEventNotifications,
+                      icon: Calendar,
                     },
                     {
                       id: "marketingEmails",
