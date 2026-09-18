@@ -20,6 +20,21 @@ import { queueTeamInvitationEmail } from "../queues/email.queue.js";
 
 const prisma = new PrismaClient();
 
+function calculateTeamMaxCapacity(team: {
+  members: any[];
+  roles?: Array<{ spots?: number | null }> | null;
+  requirements?: string[] | null;
+}): number {
+  if (team.roles && team.roles.length > 0) {
+    const openSpots = team.roles.reduce((sum, r) => sum + (r.spots ?? 0), 0);
+    return team.members.length + openSpots;
+  }
+  if (team.requirements && team.requirements.length > 0) {
+    return Math.max(team.members.length, team.requirements.length);
+  }
+  return Math.max(team.members.length, 4);
+}
+
 export const listTeams = async (req: Request, res: Response) => {
   const auth = getAuth(req);
   const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
@@ -235,6 +250,7 @@ export const listTeams = async (req: Request, res: Response) => {
           })),
           isLeader,
           isMember,
+          maxCapacity: calculateTeamMaxCapacity(team),
           taxonomyScore: rec ? rec.taxonomyScore : undefined,
           category: rec ? rec.recommendationCategory : undefined,
           bestMatchingRole: rec ? rec.bestMatchingRole : undefined,
@@ -248,7 +264,7 @@ export const listTeams = async (req: Request, res: Response) => {
       // Apply openSpotsOnly filter
       if (openSpotsOnly) {
         processedTeams = processedTeams.filter((t) => {
-          const maxCap = 4;
+          const maxCap = t.maxCapacity ?? 4;
           return maxCap - t.members.length > 0;
         });
       }
@@ -408,6 +424,7 @@ export const listTeams = async (req: Request, res: Response) => {
         })),
         isLeader,
         isMember,
+        maxCapacity: calculateTeamMaxCapacity(team),
         neededRequirement: team.requirements?.[0],
         createdAt: team.createdAt.toISOString(),
         updatedAt: team.updatedAt.toISOString(),
@@ -415,7 +432,7 @@ export const listTeams = async (req: Request, res: Response) => {
     });
 
     if (openSpotsOnly) {
-      data = data.filter((t) => 4 - t.members.length > 0);
+      data = data.filter((t) => (t.maxCapacity ?? 4) - t.members.length > 0);
     }
 
     const totalPages = Math.ceil(totalRaw / limit) || 1;
@@ -680,6 +697,7 @@ export const getTeamById = async (req: Request<{ id: string }>, res: Response) =
       isLeader,
       isMember,
       hasApplied,
+      maxCapacity: calculateTeamMaxCapacity(team),
       taxonomyScore,
       category,
       bestMatchingRole,
@@ -705,7 +723,7 @@ export const createTeam = async (req: Request<{}, {}, CreateTeamRequest>, res: R
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { eventId, name, requirements, roles, invites } = req.body;
+  const { eventId, name, requirements, roles, leaderRoleIndex, invites, roleInvites } = req.body;
 
   if (!eventId || !name) {
     return res.status(400).json({ error: "eventId and name are required." });
@@ -716,6 +734,38 @@ export const createTeam = async (req: Request<{}, {}, CreateTeamRequest>, res: R
     userInDb = await getOrCreateUserByClerkId(userId);
   } catch (error) {
     return res.status(500).json({ error: "Failed to verify user profile." });
+  }
+
+  // Verify event existence and institutional eligibility
+  const targetEvent = await prisma.event.findUnique({
+    where: { id: eventId },
+    include: { organization: true },
+  });
+
+  if (!targetEvent) {
+    return res.status(404).json({ error: "Event not found." });
+  }
+
+  if (!targetEvent.isGlobal) {
+    const userProfile = await prisma.profile.findUnique({ where: { userId: userInDb.id } });
+    const userOrgMembership = await prisma.organizationMembership.findFirst({
+      where: { userId: userInDb.id },
+      include: { organization: true },
+    });
+
+    const userUni = (userProfile?.university || "").toLowerCase().trim();
+    const eventLoc = (targetEvent.location || "").toLowerCase().trim();
+    const matchesOrg = Boolean(
+      (targetEvent.orgId && userOrgMembership?.organization?.clerkOrgId === targetEvent.orgId) ||
+      (targetEvent.organizationId && userOrgMembership?.organizationId === targetEvent.organizationId)
+    );
+    const matchesLocation = Boolean(userUni && eventLoc && userUni === eventLoc);
+
+    if (!matchesOrg && !matchesLocation) {
+      return res.status(403).json({
+        error: "Cannot create team: This event is restricted to students of its host institution.",
+      });
+    }
   }
 
   // Pre-resolve requirement tags into canonical taxonomy node IDs
@@ -746,20 +796,39 @@ export const createTeam = async (req: Request<{}, {}, CreateTeamRequest>, res: R
           name,
           eventId,
           requirements: allRequirements,
-          orgId: orgId || null,
+          orgId: orgId || targetEvent.orgId || null,
+          university: targetEvent.location || null,
         },
       });
 
+      const createdRoles: Array<{
+        id: string;
+        title: string;
+        skills: string[];
+        spots: number;
+        assignedToId: string | null;
+      }> = [];
+
       if (roles && roles.length > 0) {
-        await tx.teamRole.createMany({
-          data: roles.map((r) => ({
-            teamId: newTeam.id,
-            title: r.title,
-            skills: r.skills || [],
-            spots: r.spots ?? 1,
-            assignedToId: r.assignedToId || null,
-          })),
-        });
+        for (let idx = 0; idx < roles.length; idx++) {
+          const r = roles[idx];
+          const isLeaderRole = leaderRoleIndex !== undefined && leaderRoleIndex === idx;
+          const initialSpots = Math.max(1, r.spots ?? 1);
+          // When leader claims the role, open spots decrement by 1 and assignedToId is set to the leader
+          const finalSpots = isLeaderRole ? Math.max(0, initialSpots - 1) : initialSpots;
+          const assignedToId = isLeaderRole ? userInDb.id : (r.assignedToId || null);
+
+          const createdRole = await tx.teamRole.create({
+            data: {
+              teamId: newTeam.id,
+              title: r.title,
+              skills: r.skills || [],
+              spots: finalSpots,
+              assignedToId,
+            },
+          });
+          createdRoles.push(createdRole);
+        }
       }
 
       await tx.teamTaxonomy.create({
@@ -779,16 +848,45 @@ export const createTeam = async (req: Request<{}, {}, CreateTeamRequest>, res: R
         },
       });
 
-      if (invites && invites.length > 0) {
-        const uniqueEmails = [...new Set(invites)];
-        await tx.teamInvite.createMany({
-          data: uniqueEmails.map((email) => ({
-            teamId: newTeam.id,
-            senderId: userInDb.id,
-            email,
-            status: "PENDING",
-          })),
-        });
+      // Handle role-assigned initial invites
+      if (roleInvites && roleInvites.length > 0) {
+        for (const item of roleInvites) {
+          const email = (item.email || "").trim().toLowerCase();
+          if (!email) continue;
+
+          let targetRole: (typeof createdRoles)[0] | undefined;
+          if (item.roleId) {
+            targetRole = createdRoles.find((r) => r.id === item.roleId);
+          } else if (item.roleTitle) {
+            targetRole = createdRoles.find(
+              (r) => r.title.toLowerCase().trim() === item.roleTitle?.toLowerCase().trim()
+            );
+          }
+
+          await tx.teamInvite.create({
+            data: {
+              teamId: newTeam.id,
+              senderId: userInDb.id,
+              email,
+              roleId: targetRole ? targetRole.id : null,
+              roleTitle: targetRole ? targetRole.title : (item.roleTitle || null),
+              roleSkills: targetRole ? targetRole.skills : (item.roleSkills || []),
+              status: "PENDING",
+            },
+          });
+        }
+      } else if (invites && invites.length > 0) {
+        const uniqueEmails = [...new Set(invites.map((e) => e.trim().toLowerCase()).filter(Boolean))];
+        if (uniqueEmails.length > 0) {
+          await tx.teamInvite.createMany({
+            data: uniqueEmails.map((email) => ({
+              teamId: newTeam.id,
+              senderId: userInDb.id,
+              email,
+              status: "PENDING",
+            })),
+          });
+        }
       }
 
       return newTeam;
@@ -796,6 +894,57 @@ export const createTeam = async (req: Request<{}, {}, CreateTeamRequest>, res: R
 
     // Invalidate caches
     await CacheService.invalidateTeam(team.id);
+
+    // Asynchronously dispatch notifications and emails for created invites
+    try {
+      const createdInvites = await prisma.teamInvite.findMany({
+        where: { teamId: team.id },
+      });
+
+      for (const inv of createdInvites) {
+        const recipientUser = await prisma.user.findUnique({
+          where: { email: inv.email },
+        });
+
+        if (recipientUser) {
+          await NotificationService.createNotification({
+            userId: recipientUser.id,
+            type: "TEAM_INVITE",
+            title: `Squad Invitation: ${team.name} 🚀`,
+            message: `${userInDb.name} invited you to join "${team.name}" as ${inv.roleTitle || "Teammate"} for ${targetEvent.title}!`,
+            link: `/team/${team.id}?inviteId=${inv.id}`,
+            data: {
+              teamId: team.id,
+              teamName: team.name,
+              inviteId: inv.id,
+              roleId: inv.roleId,
+              roleTitle: inv.roleTitle,
+              roleSkills: inv.roleSkills,
+              eventId: targetEvent.id,
+              eventTitle: targetEvent.title,
+              senderName: userInDb.name,
+            },
+          });
+        }
+
+        // Enqueue async email
+        await queueTeamInvitationEmail({
+          toEmail: inv.email,
+          senderName: userInDb.name,
+          teamName: team.name,
+          eventTitle: targetEvent.title,
+          roleTitle: inv.roleTitle || undefined,
+          roleSkills: inv.roleSkills && inv.roleSkills.length > 0 ? inv.roleSkills : undefined,
+          inviteId: inv.id,
+          teamId: team.id,
+        });
+      }
+    } catch (inviteNotifyErr) {
+      console.warn("[Team API] Error dispatching initial invite notifications:", inviteNotifyErr);
+    }
+
+    // Invalidate creator's profile cache so profile page immediately shows the new squad
+    await CacheService.del(`profile:${userInDb.id}`);
 
     return res.status(201).json({
       message: "Team created successfully",
@@ -1351,14 +1500,18 @@ export const acceptInvite = async (req: Request, res: Response) => {
       );
     }
 
-    // If roleId was assigned and spot is open, claim the role for the user
+    // If roleId was assigned and spot is open, decrement spots and claim role if full
     if ((invite as any).roleId) {
       const targetRole = invite.team.roles.find((r) => r.id === (invite as any).roleId);
-      if (targetRole && !targetRole.assignedToId) {
+      if (targetRole && (targetRole.spots ?? 1) > 0) {
+        const nextSpots = Math.max(0, (targetRole.spots ?? 1) - 1);
         transactionSteps.push(
           prisma.teamRole.update({
             where: { id: (invite as any).roleId },
-            data: { assignedToId: userInDb.id },
+            data: {
+              spots: nextSpots,
+              assignedToId: nextSpots === 0 ? userInDb.id : (targetRole.assignedToId || userInDb.id),
+            },
           })
         );
       }
@@ -1394,6 +1547,7 @@ export const acceptInvite = async (req: Request, res: Response) => {
     }
 
     await CacheService.invalidateTeam(invite.teamId);
+    await CacheService.del(`profile:${userInDb.id}`);
 
     return res.status(200).json({ message: "Invite accepted successfully", teamId: invite.teamId });
   } catch (error) {
@@ -2091,7 +2245,15 @@ export const acceptApplication = async (
       return res.status(403).json({ error: "Forbidden. Only the team leader can accept applications." });
     }
 
-    await prisma.$transaction([
+    const teamWithRoles = await prisma.team.findUnique({
+      where: { id: application.teamId },
+      include: { roles: true },
+    });
+
+    const openRoles = (teamWithRoles?.roles || []).filter((r) => (r.spots ?? 1) > 0);
+    const targetRole = openRoles[0];
+
+    const txSteps: any[] = [
       prisma.teamApplication.update({
         where: { id: applicationId },
         data: { status: "ACCEPTED" },
@@ -2100,12 +2262,28 @@ export const acceptApplication = async (
         data: {
           teamId: application.teamId,
           userId: application.userId,
-          role: "Member",
+          role: targetRole?.title || "Member",
         },
       }),
-    ]);
+    ];
+
+    if (targetRole) {
+      const nextSpots = Math.max(0, (targetRole.spots ?? 1) - 1);
+      txSteps.push(
+        prisma.teamRole.update({
+          where: { id: targetRole.id },
+          data: {
+            spots: nextSpots,
+            assignedToId: nextSpots === 0 ? application.userId : (targetRole.assignedToId || application.userId),
+          },
+        })
+      );
+    }
+
+    await prisma.$transaction(txSteps);
 
     await CacheService.invalidateTeam(application.teamId);
+    await CacheService.del(`profile:${application.userId}`);
 
     // Notify candidate of acceptance
     await NotificationService.createNotification({
@@ -2175,9 +2353,9 @@ export const rejectApplication = async (
     await NotificationService.createNotification({
       userId: application.userId,
       type: "APPLICATION_REJECTED",
-      title: "Application Declined",
-      message: `Your application to join ${application.team.name} was declined.`,
-      link: `/teams`,
+      title: "Application Update",
+      message: `Your application to join ${application.team.name} was not accepted at this time.`,
+      link: `/team/${application.teamId}`,
       data: {
         teamId: application.teamId,
         teamName: application.team.name,
@@ -2192,8 +2370,8 @@ export const rejectApplication = async (
 };
 
 export const leaveTeam = async (req: Request<{ id: string }>, res: Response) => {
-  const { userId } = getAuth(req);
-  if (!userId) {
+  const auth = getAuth(req);
+  if (!auth.userId) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
@@ -2201,7 +2379,7 @@ export const leaveTeam = async (req: Request<{ id: string }>, res: Response) => 
 
   let userInDb;
   try {
-    userInDb = await getOrCreateUserByClerkId(userId);
+    userInDb = await getOrCreateUserByClerkId(auth.userId);
   } catch (error) {
     return res.status(500).json({ error: "Failed to verify user profile." });
   }
@@ -2210,7 +2388,8 @@ export const leaveTeam = async (req: Request<{ id: string }>, res: Response) => 
     const team = await prisma.team.findUnique({
       where: { id },
       include: {
-        members: { orderBy: { joinedAt: "asc" } },
+        members: true,
+        roles: true,
       },
     });
 
@@ -2224,6 +2403,15 @@ export const leaveTeam = async (req: Request<{ id: string }>, res: Response) => 
     }
 
     const isLeader = memberRecord.role === "Leader";
+
+    // Find any occupied roles by departing user to re-open spot
+    const occupiedRoles = (team.roles || []).filter((r) => r.assignedToId === userInDb.id);
+    const roleReopenSteps = occupiedRoles.map((r) =>
+      prisma.teamRole.update({
+        where: { id: r.id },
+        data: { spots: (r.spots ?? 0) + 1, assignedToId: null },
+      })
+    );
 
     if (isLeader) {
       const remainingMembers = team.members.filter((m) => m.userId !== userInDb.id);
@@ -2244,10 +2432,7 @@ export const leaveTeam = async (req: Request<{ id: string }>, res: Response) => 
             where: { id: newLeader.id },
             data: { role: "Leader" },
           }),
-          prisma.teamRole.updateMany({
-            where: { teamId: id, assignedToId: userInDb.id },
-            data: { assignedToId: null },
-          }),
+          ...roleReopenSteps,
         ]);
         await CacheService.invalidateTeam(id);
 
@@ -2273,12 +2458,10 @@ export const leaveTeam = async (req: Request<{ id: string }>, res: Response) => 
         prisma.teamMember.delete({
           where: { id: memberRecord.id },
         }),
-        prisma.teamRole.updateMany({
-          where: { teamId: id, assignedToId: userInDb.id },
-          data: { assignedToId: null },
-        }),
+        ...roleReopenSteps,
       ]);
-      await CacheService.invalidateTeam(id);
+    // Invalidate departing user's profile cache
+    await CacheService.del(`profile:${userInDb.id}`);
 
       // Notify squad leader about teammate departure
       const leaderMember = team.members.find((m) => m.role === "Leader");
@@ -2327,7 +2510,7 @@ export const removeTeamMember = async (
   try {
     const team = await prisma.team.findUnique({
       where: { id },
-      include: { members: true },
+      include: { members: true, roles: true },
     });
 
     if (!team) {
@@ -2359,17 +2542,24 @@ export const removeTeamMember = async (
       return res.status(404).json({ error: "Member not found in this team." });
     }
 
+    // Re-open any role occupied by removed user
+    const occupiedRoles = (team.roles || []).filter((r) => r.assignedToId === targetUser.id);
+    const roleReopenSteps = occupiedRoles.map((r) =>
+      prisma.teamRole.update({
+        where: { id: r.id },
+        data: { spots: (r.spots ?? 0) + 1, assignedToId: null },
+      })
+    );
+
     await prisma.$transaction([
       prisma.teamMember.delete({
         where: { id: targetMember.id },
       }),
-      prisma.teamRole.updateMany({
-        where: { teamId: id, assignedToId: targetUser.id },
-        data: { assignedToId: null },
-      }),
+      ...roleReopenSteps,
     ]);
 
     await CacheService.invalidateTeam(id);
+    await CacheService.del(`profile:${targetUser.id}`);
 
     // Notify removed member
     await NotificationService.createNotification({

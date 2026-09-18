@@ -22,8 +22,10 @@ export interface CreateTeamRequest {
   name: string;
   description?: string;
   roles?: TeamRoleDTO[];
+  leaderRoleIndex?: number;
   requirements?: string[];
   invites?: string[]; // Array of emails
+  roleInvites?: RoleInvitePayload[];
   orgId?: string;
 }
 
@@ -136,6 +138,7 @@ export interface TeamDetailResponse {
   isLeader?: boolean;
   isMember?: boolean;
   hasApplied?: boolean;
+  maxCapacity?: number;
   taxonomyScore?: number;
   category?: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE" | null;
   requirementBreakdown?: Array<{

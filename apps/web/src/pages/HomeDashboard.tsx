@@ -155,7 +155,13 @@ export function HomeDashboard() {
                 avatarUrl: m.avatarUrl || m.profilePicture,
                 profilePicture: m.profilePicture || m.avatarUrl,
               })),
-              maxCapacity: t.maxCapacity || 4,
+              maxCapacity:
+                t.maxCapacity ||
+                (t.roles && t.roles.length > 0
+                  ? (t.members || []).length + t.roles.reduce((acc: number, r: any) => acc + (r.spots ?? 0), 0)
+                  : t.requirements && t.requirements.length > 0
+                  ? Math.max((t.members || []).length, t.requirements.length)
+                  : Math.max((t.members || []).length, 4)),
               isUserLeader: t.isLeader || false,
               isUserMember: t.isMember || false,
             }));

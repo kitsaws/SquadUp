@@ -98,13 +98,16 @@ export class V2RecommendationEngine {
       const hasStructuredRoles = Boolean(team.roles && team.roles.length > 0);
 
       if (hasStructuredRoles && team.roles && team.roles.length > 0) {
-        // Evaluate fit per role
+        // Evaluate fit per role, prioritizing open roles (spots > 0)
+        const openRoles = team.roles.filter((r) => !r.assigned_to_id && (r.spots ?? 1) > 0);
+        const candidateRolesToEvaluate = openRoles.length > 0 ? openRoles : team.roles;
+
         let bestRole: (typeof team.roles)[0] | null = null;
         let bestRoleScore = -1;
         let bestRoleStrongCnt = 0;
         let bestRoleReqMatches: Array<[string, number, string | null, StructuralFeatures | null]> = [];
 
-        for (const role of team.roles) {
+        for (const role of candidateRolesToEvaluate) {
           const roleReqIds = role.requirement_node_ids || [];
           if (roleReqIds.length === 0) continue;
 

@@ -466,7 +466,13 @@ export function TeamDetailPage() {
   const fulfilledCount = activeBreakdown.length > 0
     ? activeBreakdown.filter((b: any) => b.score >= 0.8).length
     : team.requirements.filter((r) => userVerifiedSkills.includes(r)).length;
-  const totalSpots = team.maxCapacity || 4;
+  const totalSpots =
+    team.maxCapacity ||
+    (team.roles && team.roles.length > 0
+      ? team.members.length + team.roles.reduce((acc, r) => acc + (r.spots ?? 0), 0)
+      : team.requirements && team.requirements.length > 0
+      ? Math.max(team.members.length, team.requirements.length)
+      : Math.max(team.members.length, 4));
   const userUni = profile?.university || contextProfile?.university || userUniversity || "";
   const teamUni = team.university || team.event?.university || team.event?.location || "";
   const isRestrictedEvent = Boolean(
@@ -666,11 +672,13 @@ export function TeamDetailPage() {
                     profile && (role.assignedToId === profile.id || role.assignedToId === profile.userId)
                   );
 
+                  const isFilled = (role.spots ?? 1) === 0;
+
                   return (
                     <div
                       key={role.id || role.title}
                       className={`p-4 rounded-xl border transition-all space-y-3 shadow-2xs ${
-                        role.assignedToId
+                        isFilled
                           ? "bg-surface border-border-main"
                           : "bg-surface-dim border-border-main/80"
                       }`}
@@ -681,7 +689,7 @@ export function TeamDetailPage() {
                             {role.title}
                           </h4>
                           <p className="text-[11px] text-text-muted mt-0.5 truncate">
-                            {role.assignedToId ? (
+                            {isFilled ? (
                               <span>
                                 Filled by{" "}
                                 <strong className="font-semibold text-text-main">
@@ -693,18 +701,21 @@ export function TeamDetailPage() {
                                 </strong>
                               </span>
                             ) : (
-                              `${role.spots || 1} spot(s) open`
+                              <span>
+                                {role.spots || 1} spot{(role.spots || 1) > 1 ? "s" : ""} open
+                                {isAssignedToMe ? " • 1 claimed by you" : ""}
+                              </span>
                             )}
                           </p>
                         </div>
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${
-                            role.assignedToId
+                            isFilled
                               ? "bg-primary-action/10 text-primary-action border border-primary-action/20"
                               : "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
                           }`}
                         >
-                          {role.assignedToId ? (isAssignedToMe ? "Your Role" : "Filled") : "Recruiting"}
+                          {isFilled ? (isAssignedToMe ? "Your Role" : "Filled") : "Recruiting"}
                         </span>
                       </div>
 
@@ -1064,7 +1075,7 @@ export function TeamDetailPage() {
                 {team.roles && team.roles.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {team.roles
-                      .filter((r) => !r.assignedToId && (r.spots ?? 1) > 0)
+                      .filter((r) => (r.spots ?? 1) > 0)
                       .map((role) => {
                       const isOptimalRole = (team.bestMatchingRole?.roleTitle || recommendation?.bestMatchingRole?.roleTitle) === role.title;
                       const matchingSkillsCount = role.skills.filter((s) => checkSkillMatch(s)).length;

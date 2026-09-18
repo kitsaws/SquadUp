@@ -75,6 +75,8 @@ export interface RoleTaxonomyInput {
   role_title: string;
   requirement_node_ids: string[];
   raw_skills: string[];
+  spots?: number;
+  assigned_to_id?: string | null;
 }
 
 export interface BestMatchingRoleResult {

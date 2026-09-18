@@ -84,7 +84,13 @@ export function TeamCard({
   hasApplied = false,
 }: TeamCardProps) {
   const { isSignedIn, userVerifiedSkills } = useUserContext();
-  const maxCapacity = team.maxCapacity || 4;
+  const maxCapacity =
+    team.maxCapacity ||
+    (team.roles && team.roles.length > 0
+      ? (team.members || []).length + team.roles.reduce((acc, r) => acc + (r.spots ?? 0), 0)
+      : team.requirements && team.requirements.length > 0
+      ? Math.max((team.members || []).length, team.requirements.length)
+      : Math.max((team.members || []).length, 4));
   const membersList =
     team.members && team.members.length > 0
       ? team.members
@@ -109,10 +115,10 @@ export function TeamCard({
     topHighlightClass = "bg-campus-explorer";
   }
 
-  // Derive vacant/open roles list: filter out roles that are already assigned
+  // Derive vacant/open roles list: filter out roles that are already full (spots === 0)
   const openRoles =
     team.roles && team.roles.length > 0
-      ? team.roles.filter((r) => !r.assignedToId && (r.spots ?? 1) > 0)
+      ? team.roles.filter((r) => (r.spots ?? 1) > 0)
       : [];
   const rolesList =
     openRoles.length > 0

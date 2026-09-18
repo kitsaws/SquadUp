@@ -20,7 +20,13 @@ export function TeamTile({
   hasApplied = false,
 }: TeamTileProps) {
   const { isSignedIn, userVerifiedSkills, userUniversity } = useUserContext();
-  const maxCapacity = team.maxCapacity || 4;
+  const maxCapacity =
+    team.maxCapacity ||
+    (team.roles && team.roles.length > 0
+      ? (team.members || []).length + team.roles.reduce((acc, r) => acc + (r.spots ?? 0), 0)
+      : team.requirements && team.requirements.length > 0
+      ? Math.max((team.members || []).length, team.requirements.length)
+      : Math.max((team.members || []).length, 4));
   const currentCount = Math.max(1, (team.members || []).length);
   const isFull = currentCount >= maxCapacity;
 
@@ -44,10 +50,16 @@ export function TeamTile({
     accentBorder = "hover:border-campus-explorer";
   }
 
-  // Derive roles list: use configured roles if present, else fallback
-  const rolesList =
+  // Derive roles list: filter open roles with spots > 0 if configured
+  const openRoles =
     team.roles && team.roles.length > 0
-      ? team.roles
+      ? team.roles.filter((r) => (r.spots ?? 1) > 0)
+      : [];
+  const rolesList =
+    openRoles.length > 0
+      ? openRoles
+      : team.roles && team.roles.length > 0
+      ? []
       : team.requirements.length > 0
       ? team.requirements.map((req) => ({ title: req, skills: [req] }))
       : [{ title: "Core Specialist", skills: [] }];
