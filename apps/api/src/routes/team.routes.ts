@@ -5,11 +5,17 @@ import {
   createTeam,
   updateTeam,
   deleteTeam,
+  leaveTeam,
+  removeTeamMember,
+} from "../controllers/team.controller.js";
+import {
   sendTeamInvites,
   getMyInvites,
   acceptInvite,
   declineInvite,
   cancelInvite,
+} from "../controllers/invite.controller.js";
+import {
   applyToTeam,
   withdrawApplication,
   withdrawApplicationById,
@@ -19,10 +25,8 @@ import {
   getApplicationById,
   acceptApplication,
   rejectApplication,
-  leaveTeam,
-  removeTeamMember,
-  getRecommendations,
-} from "../controllers/team.controller.js";
+} from "../controllers/application.controller.js";
+import { getRecommendations } from "../controllers/recommendation.controller.js";
 
 const router: Router = Router();
 

@@ -6,7 +6,7 @@ import {
   withdrawApplicationById,
   acceptApplication,
   rejectApplication,
-} from "../controllers/team.controller.js";
+} from "../controllers/application.controller.js";
 
 const router: Router = Router();
 

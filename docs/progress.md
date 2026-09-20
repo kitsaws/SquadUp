@@ -24,6 +24,29 @@ Following the completion of **Task 3: "Create Team" UI & Page Integrations with 
     - API test suite (`pnpm test`) passed with 0 errors.
     - Production build (`pnpm build`) transformed 2,011 modules in 4.56s without bundle issues.
 
+- **Task 6 / Phase 2: Backend Controller & Service Layer Modularization (Completed ✅):**
+  - **Massive Deconstruction of 2,728-Line God Controller (`team.controller.ts`):**
+    - Extracted core team business logic into dedicated services in `apps/api/src/services/`:
+      - `team.service.ts` (~500 lines): `calculateTeamMaxCapacity`, `listTeams`, `getTeamById`, `createTeam`, `updateTeam`, `deleteTeam`, `leaveTeam`, `removeTeamMember`.
+      - `application.service.ts` (~350 lines): `applyToTeam`, `withdrawApplication`, `withdrawApplicationById`, `getMyApplications`, `getIncomingApplications`, `getApplicationById`, `getTeamApplications`, `acceptApplication`, `rejectApplication`.
+      - `invite.service.ts` (~250 lines): `sendTeamInvites`, `getMyInvites`, `acceptInvite`, `declineInvite`, `cancelInvite`.
+      - `organization.service.ts` (~250 lines): `createOrganization`, `listOrganizations`, `getOrganizationByClerkId`, `selectUniversity`, `createOrganizer`, `listOrganizers`, `getOrganizerById`, `updateOrganizer`, `addOrganizerMember`, `removeOrganizerMember`.
+      - `utils/date.utils.ts`: backend timestamp formatting utility.
+  - **Domain Controllers Split (`apps/api/src/controllers/`):**
+    - `team.controller.ts`: Reduced from **2,728 lines** down to **~230 lines** focusing strictly on team CRUD and member roster operations.
+    - `application.controller.ts` (~210 lines): Handles all candidate application queries and reviewer triage.
+    - `invite.controller.ts` (~160 lines): Handles team email/notification invites, user invites, accept/decline flows.
+    - `recommendation.controller.ts` (~85 lines): Handles squad recommendations with user profile taxonomy analysis.
+    - `organization.controller.ts` (~85 lines): Handles University Organizations (`/universities`).
+    - `organizer.controller.ts`: Reduced from **565 lines** down to **~180 lines** focusing strictly on Sub-Organizers (Clubs/Societies) while re-exporting university handlers for complete backward compatibility.
+  - **Route Updates & Backwards Compatibility:**
+    - Updated `apps/api/src/routes/team.routes.ts` and `apps/api/src/routes/application.routes.ts` to cleanly import from modular domain controllers.
+    - Preserved 100% backward compatibility for all API endpoint contracts and external imports via re-exports on `team.controller.ts`.
+  - **Verification & Quality Gate:**
+    - Workspace typecheck (`pnpm typecheck`) passed with 0 errors across `@squadup/shared`, `@squadup/api`, and `@squadup/web`.
+    - API test suite (`pnpm test`) passed with 0 errors.
+    - Production build (`pnpm build`) passed with 0 errors.
+
 - **Strict Open-Role Capacity Guard in AI Recommendation Engine & UI (Completed):**
   - **Backend Engine & AI Service:**
     - Filtered candidate roles in `recommendation.engine.ts` strictly to open roles (`!r.assigned_to_id && (r.spots === undefined ? true : r.spots > 0)`).
