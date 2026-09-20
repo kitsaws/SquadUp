@@ -1,9 +1,7 @@
 import { Request, Response } from "express";
 import { Webhook } from "svix";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../lib/prisma.js";
 import { CacheService } from "../services/cache.service.js";
-
-const prisma = new PrismaClient();
 
 export const clerkWebhookHandler = async (req: Request, res: Response) => {
   const now = new Date().toLocaleTimeString();

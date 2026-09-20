@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../lib/prisma.js";
 import {
   CreateOrganizerRequest,
   UpdateOrganizerRequest,
@@ -10,8 +10,6 @@ import {
   OrganizationResponse,
 } from "@squadup/shared";
 import { getOrCreateUserByClerkId, linkUserToOrganization } from "../utils/auth.utils.js";
-
-const prisma = new PrismaClient();
 
 // ==========================================
 // 1. University Organizations

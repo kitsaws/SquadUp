@@ -2,10 +2,8 @@ import { Queue, Worker, Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import { AIService } from '../services/ai.service.js';
 import { CacheService } from '../services/cache.service.js';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
 import { getOrCreateUserByClerkId } from '../utils/auth.utils.js';
-
-const prisma = new PrismaClient();
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const connection = new Redis(REDIS_URL, { maxRetriesPerRequest: null });

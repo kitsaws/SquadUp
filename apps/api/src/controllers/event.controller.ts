@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import { prisma } from "../lib/prisma.js";
 import {
   CreateEventRequest,
   UpdateEventRequest,
@@ -11,8 +12,6 @@ import {
 import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
 import { CacheService } from "../services/cache.service.js";
 import { NotificationService } from "../services/notification.service.js";
-
-const prisma = new PrismaClient();
 
 export const listEvents = async (req: Request, res: Response) => {
   const auth = getAuth(req);

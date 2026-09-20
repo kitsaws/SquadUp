@@ -86,10 +86,10 @@ export function EventTile({ event, onSelect, isSelected = false }: EventTileProp
             </span>
             <span
               className="flex items-center gap-1 min-w-0 max-w-[200px]"
-              title={event.location}
+              title={event.location || undefined}
             >
               <MapPin className="w-3.5 h-3.5 text-text-muted shrink-0" />
-              <span className="truncate">{event.location}</span>
+              <span className="truncate">{event.location || "Virtual / Campus"}</span>
             </span>
 
             {event.tracks && event.tracks.length > 0 && (

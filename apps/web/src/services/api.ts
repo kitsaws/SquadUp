@@ -71,191 +71,72 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 /* =========================================================================
-   TYPE DEFINITIONS
+   TYPE DEFINITIONS (Imported & Re-exported from @squadup/shared)
    ========================================================================= */
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
+import type {
+  PaginatedResponse,
+  EventItem,
+  EventDetailResponse,
+  CreateEventRequest,
+  UpdateEventRequest,
+  TeamRoleDTO as TeamRoleItem,
+  BestMatchingRoleDTO as BestMatchingRoleItem,
+  TeamMemberDTO as TeamMember,
+  TeamDetailResponse as TeamItem,
+  UserProfileResponse,
+  EducationItem,
+  ExperienceItem,
+  AchievementItem,
+  ProjectItem,
+  RecommendationItem,
+  RecommendationsResponse,
+  IncomingApplicationResponse as IncomingApplicationItem,
+  MyApplicationResponse as CandidateApplicationItem,
+  TeamInviteResponse as TeamInviteItem,
+  RoleInvitePayload,
+  SendTeamInvitesRequest as SendTeamInvitesPayload,
+  NotificationDTO,
+  NotificationType,
+  NotificationListResponse,
+  OrganizationResponse as OrganizationItem,
+  OrganizerResponse as OrganizerItem,
+  UserPreferences,
+  BannerConfig,
+  UpdateUserPreferencesRequest,
+} from "@squadup/shared";
 
-export interface EventItem {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  location: string;
-  isGlobal: boolean;
-  orgId?: string | null;
-  organizerId?: string;
-  organizer?: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  organizerProfile?: {
-    id: string;
-    name: string;
-    slug: string;
-    logoUrl?: string | null;
-  };
-  organization?: {
-    id: string;
-    name: string;
-    slug: string;
-    logoUrl?: string | null;
-  };
-  teamsCount?: number;
-  participantsCount?: number;
-  tracks?: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface TeamMember {
-  id: string;
-  userId: string;
-  role: string;
-  joinedAt: string;
-  name: string;
-  email: string;
-  avatarUrl?: string;
-  university?: string;
-  skills?: string[];
-  title?: string;
-}
-
-export interface TeamRoleItem {
-  id?: string;
-  teamId?: string;
-  title: string;
-  skills: string[];
-  spots?: number;
-  assignedToId?: string | null;
-  requirementNodeIds?: string[];
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface BestMatchingRoleItem {
-  roleId?: string;
-  roleTitle: string;
-  score: number;
-  fulfilledCount: number;
-  totalCount: number;
-  skills: string[];
-}
-
-export interface TeamItem {
-  id: string;
-  name: string;
-  eventId: string;
-  event?: {
-    id: string;
-    title: string;
-    description?: string;
-    date: string;
-    isGlobal: boolean;
-    location: string;
-    university?: string;
-    orgId?: string | null;
-  };
-  orgId?: string | null;
-  requirements: string[];
-  requirementNodeIds?: string[];
-  roles?: TeamRoleItem[];
-  bestMatchingRole?: BestMatchingRoleItem;
-  university?: string;
-  description?: string;
-  members: TeamMember[];
-  isLeader?: boolean;
-  isMember?: boolean;
-  hasApplied?: boolean;
-  maxCapacity?: number;
-  invites?: any[];
-  applications?: any[];
-  createdAt: string;
-  updatedAt: string;
-  // Augmented client fields
-  taxonomyScore?: number;
-  category?: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE";
-  requirementBreakdown?: Array<{
-    requirementNodeId?: string;
-    requirementName: string;
-    requirementDepth?: number;
-    bestUserSkillId?: string | null;
-    bestUserSkillName?: string | null;
-    bestUserSkillDepth?: number;
-    lcaNodeId?: string | null;
-    lcaNodeName?: string | null;
-    lcaDepth?: number;
-    graphDistance?: number;
-    matchType?: "exact" | "ancestor" | "descendant" | "sibling" | "subdomain" | "domain" | "unmet";
-    score: number;
-    explanationText?: string;
-    isStrong?: boolean;
-  }>;
-  neededRequirement?: string;
-}
-
-export interface UserProfileResponse {
-  id: string;
-  userId: string;
-  clerkId: string;
-  name: string;
-  email: string;
-  imageUrl?: string | null;
-  profilePicture?: string | null;
-  avatarUrl?: string | null;
-  university?: string;
-  title?: string;
-  summary?: string;
-  skills: string[];
-  education?: Array<{ degree: string; college: string }>;
-  experience?: Array<{
-    role: string;
-    company: string;
-    duration: string;
-    bullet_points?: string[];
-    technologies?: string[];
-  }>;
-  achievements?: Array<{
-    title: string;
-    organization: string;
-    award_tier?: string;
-    year?: string;
-    description?: string;
-    technologies?: string[];
-  }>;
-  projects?: Array<{
-    name: string;
-    description: string;
-    bullet_points?: string[];
-    technologies?: string[];
-  }>;
-  githubUrl?: string | null;
-  linkedinUrl?: string | null;
-  resumePdfUrl?: string;
-  lastResumeUploadedAt?: string | null;
-  taxonomyNodeIds?: string[];
-  teams?: Array<{
-    teamId: string;
-    teamName: string;
-    eventId: string;
-    role: string;
-    joinedAt: string;
-  }>;
-  bannerConfig?: BannerConfig | null;
-  isVerifiedStudent?: boolean;
-  verificationReason?: string;
-  organizationDomain?: string | null;
-  organizationName?: string | null;
-}
+export type {
+  PaginatedResponse,
+  EventItem,
+  EventDetailResponse,
+  CreateEventRequest,
+  UpdateEventRequest,
+  TeamRoleItem,
+  BestMatchingRoleItem,
+  TeamMember,
+  TeamItem,
+  UserProfileResponse,
+  EducationItem,
+  ExperienceItem,
+  AchievementItem,
+  ProjectItem,
+  RecommendationItem,
+  RecommendationsResponse,
+  IncomingApplicationItem,
+  CandidateApplicationItem,
+  TeamInviteItem,
+  RoleInvitePayload,
+  SendTeamInvitesPayload,
+  NotificationDTO,
+  NotificationType,
+  NotificationListResponse,
+  OrganizationItem,
+  OrganizerItem,
+  UserPreferences,
+  BannerConfig,
+  UpdateUserPreferencesRequest,
+};
 
 export interface RecommendationBreakdownItem {
   requirementNodeId: string;
@@ -264,64 +145,6 @@ export interface RecommendationBreakdownItem {
   score: number;
   explanationText: string;
   isStrong: boolean;
-}
-
-export interface RecommendationItem {
-  rank: number;
-  teamId: string;
-  teamName: string;
-  university: string;
-  description: string;
-  requirements: string[];
-  taxonomyScore: number;
-  sameUniversity: boolean;
-  isGlobal: boolean;
-  isEligible: boolean;
-  recommendationCategory: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE";
-  fulfilledRequirementsCount: number;
-  totalRequirementsCount: number;
-  bestMatchingRole?: BestMatchingRoleItem;
-  requirementBreakdown?: RecommendationBreakdownItem[];
-}
-
-export interface RecommendationsResponse {
-  recommendations: RecommendationItem[];
-  totalEligibleCandidates: number;
-  userUniversity?: string;
-  userTaxonomyNodesCount?: number;
-}
-
-export interface IncomingApplicationItem {
-  id: string;
-  candidateId: string;
-  name: string;
-  avatarUrl?: string | null;
-  university: string;
-  year?: string;
-  appliedRole: string;
-  matchScore: number;
-  isCampusMatch: boolean;
-  appliedTimeAgo?: string;
-  coverNote?: string;
-  skills: Array<{ name: string; provenance: string; score: number }>;
-  status: "PENDING" | "ACCEPTED" | "REJECTED";
-  teamId: string;
-  teamName: string;
-  createdAt: string;
-}
-
-export interface CandidateApplicationItem {
-  id: string;
-  teamId: string;
-  teamName: string;
-  eventId: string;
-  eventTitle: string;
-  university: string;
-  requirements: string[];
-  message?: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED";
-  createdAt: string;
-  updatedAt: string;
 }
 
 import { CacheService } from "./cache.service";
@@ -706,39 +529,6 @@ export const resumeApi = {
    INVITES & NOTIFICATIONS API (/api/teams/invites & /api/notifications)
    ========================================================================= */
 
-export interface TeamInviteItem {
-  id: string;
-  teamId: string;
-  teamName?: string;
-  eventId?: string;
-  eventTitle?: string;
-  isGlobal?: boolean;
-  senderName?: string;
-  senderId?: string;
-  email: string;
-  roleId?: string | null;
-  roleTitle?: string | null;
-  roleSkills?: string[];
-  membersCount?: number;
-  requirements?: string[];
-  status: string;
-  createdAt: string;
-}
-
-export interface RoleInvitePayload {
-  email: string;
-  roleId?: string;
-  roleTitle?: string;
-  roleSkills?: string[];
-}
-
-export interface SendTeamInvitesPayload {
-  invites: Array<string | RoleInvitePayload>;
-  roleId?: string;
-  roleTitle?: string;
-  roleSkills?: string[];
-}
-
 export const invitesApi = {
   getMyInvites: (): Promise<{ totalInvites: number; invites: TeamInviteItem[] }> => {
     return request<{ totalInvites: number; invites: TeamInviteItem[] }>("/teams/invites/my-invites");
@@ -779,47 +569,6 @@ export const invitesApi = {
   },
 };
 
-export type NotificationType =
-  | "TEAM_INVITE"
-  | "APPLICATION_RECEIVED"
-  | "APPLICATION_ACCEPTED"
-  | "APPLICATION_REJECTED"
-  | "TEAM_JOINED"
-  | "TEAM_MEMBER_LEFT"
-  | "EVENT_ANNOUNCEMENT";
-
-export interface NotificationDTO {
-  id: string;
-  userId: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  link?: string | null;
-  data?: {
-    teamId?: string;
-    inviteId?: string;
-    roleId?: string;
-    roleTitle?: string;
-    roleSkills?: string[];
-    eventId?: string;
-    eventTitle?: string;
-    senderName?: string;
-    candidateName?: string;
-    applicationId?: string;
-    [key: string]: any;
-  } | null;
-  isRead: boolean;
-  expiresAt?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface NotificationListResponse {
-  notifications: NotificationDTO[];
-  unreadCount: number;
-  total: number;
-}
-
 export const notificationsApi = {
   getNotifications: (params?: {
     page?: number;
@@ -855,20 +604,6 @@ export const notificationsApi = {
    ORGANIZERS API (/api/organizers)
    ========================================================================= */
 
-export interface OrganizationItem {
-  id: string;
-  clerkOrgId: string;
-  name: string;
-  slug: string;
-  domain?: string | null;
-  logoUrl?: string | null;
-  location?: string | null;
-  subOrganizersCount?: number;
-  eventsCount?: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 export const organizersApi = {
   getUniversities: (): Promise<OrganizationItem[]> => {
     return request<OrganizationItem[]>("/organizers/universities");
@@ -901,14 +636,6 @@ export const organizersApi = {
 /* =========================================================================
    USER PREFERENCES API (/api/preferences)
    ========================================================================= */
-
-import type {
-  UserPreferences,
-  BannerConfig,
-  UpdateUserPreferencesRequest,
-} from "@squadup/shared";
-
-export type { UserPreferences, BannerConfig, UpdateUserPreferencesRequest };
 
 export const preferencesApi = {
   getPreferences: (): Promise<UserPreferences> => {

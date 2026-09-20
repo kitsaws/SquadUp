@@ -121,6 +121,7 @@ export interface TeamDetailResponse {
   event?: {
     id: string;
     title: string;
+    description?: string | null;
     date: string;
     isGlobal: boolean;
     location?: string | null;
@@ -153,6 +154,40 @@ export interface TeamDetailResponse {
   neededRequirement?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RecommendationBreakdownItem {
+  requirementNodeId: string;
+  requirementName: string;
+  bestUserSkillName: string;
+  score: number;
+  explanationText: string;
+  isStrong: boolean;
+}
+
+export interface RecommendationItem {
+  rank: number;
+  teamId: string;
+  teamName: string;
+  university: string;
+  description: string;
+  requirements: string[];
+  taxonomyScore: number;
+  sameUniversity: boolean;
+  isGlobal: boolean;
+  isEligible: boolean;
+  recommendationCategory: "BEST" | "GOOD_DIFFERENT_UNIVERSITY" | "SAME_UNIVERSITY_LOWER_SCORE";
+  fulfilledRequirementsCount: number;
+  totalRequirementsCount: number;
+  bestMatchingRole?: BestMatchingRoleDTO | null;
+  requirementBreakdown?: RecommendationBreakdownItem[];
+}
+
+export interface RecommendationsResponse {
+  recommendations: RecommendationItem[];
+  totalEligibleCandidates: number;
+  userUniversity?: string;
+  userTaxonomyNodesCount?: number;
 }
 
 export interface TeamQueryFilters {

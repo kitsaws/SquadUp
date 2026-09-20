@@ -52,27 +52,7 @@ const GRADIENT_PRESETS = [
   { name: "Emerald Focus", color1: "#064e3b", color2: "#059669", angle: 140 },
   { name: "Crimson Ember", color1: "#450a0a", color2: "#dc2626", angle: 135 },
 ];
-
-const formatGithubUrl = (url?: string | null) => {
-  if (!url) return null;
-  let trimmed = url.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
-  if (trimmed.startsWith("github.com/")) return `https://${trimmed}`;
-  const handle = trimmed.replace(/^@/, "");
-  return `https://github.com/${handle}`;
-};
-
-const formatLinkedinUrl = (url?: string | null) => {
-  if (!url) return null;
-  let trimmed = url.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
-  if (trimmed.startsWith("linkedin.com/")) return `https://${trimmed}`;
-  const handle = trimmed.replace(/^@/, "");
-  if (handle.startsWith("in/")) return `https://linkedin.com/${handle}`;
-  return `https://linkedin.com/in/${handle}`;
-};
+import { formatGithubUrl, formatLinkedinUrl } from "../utils/url.utils";
 
 export function EditProfileModal({
   isOpen,

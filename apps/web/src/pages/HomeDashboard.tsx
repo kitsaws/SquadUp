@@ -382,7 +382,7 @@ export function HomeDashboard() {
                       {squad.teamName}
                     </h3>
                     <p className="text-xs text-text-muted mt-1">
-                      Joined {new Date(squad.joinedAt).toLocaleDateString()}
+                      Joined {squad.joinedAt ? new Date(squad.joinedAt).toLocaleDateString() : "Recently"}
                     </p>
                   </div>
 

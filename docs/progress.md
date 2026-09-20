@@ -6,7 +6,23 @@ This document provides a snapshot of the current state of the SquadUp project. I
 
 Following the completion of **Task 3: "Create Team" UI & Page Integrations with Dynamic Slot Decrementing**, immediate upcoming focus is **Task 4: Candidate Role-Specific Applications & Matching Triage**.
 
-## Completed
+- **Task 6 / Phase 1: High-Risk Infrastructure & Anti-Pattern Fixes (Completed ✅):**
+  - **Prisma Singleton Architecture (`apps/api/src/lib/prisma.ts`):**
+    - Established global singleton `PrismaClient` with environment-based logging and hot-reload client caching on `globalThis`.
+    - Eliminated database connection pool exhaustion across the backend by replacing all 10 independent `new PrismaClient()` calls (`auth.utils.ts`, `notification.service.ts`, `ai.queue.ts`, `team.controller.ts`, `event.controller.ts`, `organizer.controller.ts`, `profile.controller.ts`, `preferences.controller.ts`, `resume.controller.ts`, `webhook.controller.ts`, `prisma/seed.ts`).
+  - **Frontend Shared Utilities & Icon Normalization (`apps/web`):**
+    - Created `date.utils.ts` with centralized `formatTimeAgo()` relative timestamp helper.
+    - Created `url.utils.ts` with `formatGithubUrl()` and `formatLinkedinUrl()` supporting protocols, `@handle`, and `github.com/...` strings.
+    - Created `components/icons/SocialIcons.tsx` with shared SVG `GithubIcon` and `LinkedinIcon`.
+    - Cleaned redundant copy-pasted implementations from `Profile.tsx`, `EditProfileModal.tsx`, `TeamDetailPage.tsx`, and `CandidateApplicationTile.tsx`.
+  - **Frontend API DTO Deduplication (`apps/web/src/services/api.ts`):**
+    - Purged over 280 lines of duplicate interface declarations from `services/api.ts`.
+    - Directly imported and re-exported canonical DTOs from `@squadup/shared` (`PaginatedResponse`, `EventItem`, `TeamItem`, `TeamMember`, `TeamRoleItem`, `UserProfileResponse`, `IncomingApplicationItem`, `CandidateApplicationItem`, `TeamInviteItem`, `NotificationDTO`, `UserPreferences`).
+    - Reduced `services/api.ts` from 925 lines down to 647 lines with 100% backward compatibility.
+  - **Verification & Quality Gate:**
+    - Full workspace typecheck (`pnpm typecheck`) passed with 0 errors across `@squadup/shared`, `@squadup/api`, and `@squadup/web`.
+    - API test suite (`pnpm test`) passed with 0 errors.
+    - Production build (`pnpm build`) transformed 2,011 modules in 4.56s without bundle issues.
 
 - **Strict Open-Role Capacity Guard in AI Recommendation Engine & UI (Completed):**
   - **Backend Engine & AI Service:**

@@ -1,13 +1,11 @@
 import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../lib/prisma.js";
 import fs from "fs";
 import path from "path";
 import { aiQueue } from "../queues/ai.queue.js";
 import { UploadResumeResponse, ResumeStatusResponse } from "@squadup/shared";
 import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
-
-const prisma = new PrismaClient();
 
 const RESUME_STORAGE_DIR = path.resolve(process.cwd(), "uploads", "resumes");
 

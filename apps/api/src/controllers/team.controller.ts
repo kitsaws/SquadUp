@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import { prisma } from "../lib/prisma.js";
 import {
   CreateTeamRequest,
   UpdateTeamRequest,
@@ -17,8 +18,6 @@ import { AIService } from "../services/ai.service.js";
 import { CacheService } from "../services/cache.service.js";
 import { NotificationService } from "../services/notification.service.js";
 import { queueTeamInvitationEmail } from "../queues/email.queue.js";
-
-const prisma = new PrismaClient();
 
 function calculateTeamMaxCapacity(team: {
   members: any[];

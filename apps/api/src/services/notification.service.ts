@@ -1,8 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import { NotificationDTO, NotificationType } from "@squadup/shared";
+import { prisma } from "../lib/prisma.js";
 import { PubSubService } from "./pubsub.service.js";
-
-const prisma = new PrismaClient();
 
 export interface CreateNotificationParams {
   userId: string;

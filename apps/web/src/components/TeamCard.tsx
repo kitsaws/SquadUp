@@ -7,9 +7,9 @@ import { TeamRoleItem, BestMatchingRoleItem } from "../services/api";
 export interface TeamMemberPreview {
   id: string;
   name: string;
-  avatarUrl?: string;
-  profilePicture?: string;
-  role?: string;
+  avatarUrl?: string | null;
+  profilePicture?: string | null;
+  role?: string | null;
 }
 
 export interface TeamCardData {
@@ -17,7 +17,7 @@ export interface TeamCardData {
   name: string;
   eventId: string;
   eventTitle: string;
-  university?: string;
+  university?: string | null;
   requirements: string[];
   requirementBreakdown?: Array<{
     requirementNodeId?: string;
@@ -36,16 +36,16 @@ export interface TeamCardData {
     isStrong?: boolean;
   }>;
   roles?: TeamRoleItem[];
-  bestMatchingRole?: BestMatchingRoleItem;
-  neededRequirement?: string;
+  bestMatchingRole?: BestMatchingRoleItem | null;
+  neededRequirement?: string | null;
   members: TeamMemberPreview[];
   maxCapacity?: number;
   taxonomyScore?: number;
-  category?: RecommendationTier;
+  category?: RecommendationTier | null;
   isEligible?: boolean;
   isGlobal?: boolean;
   orgId?: string | null;
-  description?: string;
+  description?: string | null;
   isUserLeader?: boolean;
   isUserMember?: boolean;
 }
@@ -235,7 +235,7 @@ export function TeamCard({
         {/* Description snippet */}
         <p
           className="text-xs text-text-muted line-clamp-2 leading-relaxed mb-2"
-          title={team.description}
+          title={team.description || undefined}
         >
           {team.description || ""}
         </p>

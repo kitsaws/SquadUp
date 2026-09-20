@@ -47,18 +47,7 @@ import {
 } from "../components/CandidateApplicationTile";
 import { ConfirmModal } from "../components/ConfirmModal";
 import type { TeamInviteItem } from "../services/api";
-
-function formatTimeAgo(dateInput: Date | string): string {
-  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
-  const diffInSeconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (diffInSeconds < 60) return "Just now";
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours}h ago`;
-  const diffInDays = Math.floor(diffInHours / 24);
-  return `${diffInDays}d ago`;
-}
+import { formatTimeAgo } from "../utils/date.utils";
 
 export function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -248,7 +237,7 @@ export function TeamDetailPage() {
               topK: 25,
             });
             if (isMounted) {
-              const match = recsRes.recommendations.find((r) => r.teamId === teamData.id);
+              const match = recsRes.recommendations.find((r: RecommendationItem) => r.teamId === teamData.id);
               if (match) {
                 setRecommendation(match);
               }
@@ -1475,14 +1464,14 @@ export function TeamDetailPage() {
                 recommendation={{
                   teamId: team.id,
                   teamName: team.name,
-                  category: category,
+                  category: category || undefined,
                   taxonomyScore: taxonomyScore,
                   fulfilledRequirements: fulfilledCount,
                   totalRequirements: team.requirements.length,
-                  bestMatchingRole: activeBestMatchingRole,
+                  bestMatchingRole: activeBestMatchingRole || undefined,
                   roles: team.roles,
                   teamLeadName: team.members.find((m) => m.role === "Leader")?.name || team.members[0]?.name || "Team Lead",
-                  teamLeadUniversity: team.university,
+                  teamLeadUniversity: team.university || undefined,
                   sameUniversity: Boolean(
                     userUni &&
                     teamUni &&
@@ -1523,8 +1512,8 @@ export function TeamDetailPage() {
             requirements: team.requirements,
             roles: team.roles,
             bestMatchingRole: activeBestMatchingRole,
-            university: team.university,
-            members: team.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
+            university: team.university || undefined,
+            members: team.members.map((m) => ({ id: m.id, name: m.name, role: m.role || undefined })),
           }}
           onSubmit={handleApplySuccess}
         />

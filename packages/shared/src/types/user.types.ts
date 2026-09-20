@@ -67,8 +67,12 @@ export interface UpdateProfileRequest {
 export interface UserProfileResponse {
   id: string;
   userId: string;
+  clerkId?: string;
   name: string;
   email: string;
+  imageUrl?: string | null;
+  profilePicture?: string | null;
+  avatarUrl?: string | null;
   university?: string | null;
   title?: string | null;
   summary?: string | null;
@@ -88,6 +92,13 @@ export interface UserProfileResponse {
   verificationReason?: string;
   organizationDomain?: string | null;
   organizationName?: string | null;
+  teams?: Array<{
+    teamId: string;
+    teamName: string;
+    eventId: string;
+    role: string;
+    joinedAt?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 }

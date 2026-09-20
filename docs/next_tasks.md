@@ -20,6 +20,9 @@ This document outlines the sequential implementation history and future roadmap 
        │
        ▼
 [Task 5: Protected Onboarding Route & Theme/LocalStorage Isolation Safeguards] (COMPLETED ✅)
+       │
+       ▼
+[Task 6: Monorepo Modularization & Architectural Refactoring (Phases 1 - 4)] (IN PROGRESS ⏳)
 ```
 
 ---
@@ -69,6 +72,16 @@ This document outlines the sequential implementation history and future roadmap 
   - Route protection restricting `/onboarding` strictly to non-onboarded authenticated users, automatically bouncing onboarded users to `/`.
   - Profile theme isolation: Viewing public candidate profiles (`/profile/:id`) no longer mutates the viewer's theme tokens or `localStorage`.
   - Memoized callbacks in `PaletteContext` preventing React infinite update depth loops.
+
+---
+
+### ⏳ Task 6: Monorepo Modularization & Architectural Refactoring (In Progress)
+- **Documented:** [`docs/qa_audit_and_modularization.md`](qa_audit_and_modularization.md)
+- **Scope:**
+  - **Phase 1 (P0):** Fix Prisma connection pool exhaustion with a singleton client, deduplicate shared types, and extract common frontend utilities (`date.utils.ts`, `url.utils.ts`, `SocialIcons.tsx`).
+  - **Phase 2 (P1):** Break down monolithic `team.controller.ts` (2,728 lines) into 4 domain controllers (`team.controller.ts`, `application.controller.ts`, `invite.controller.ts`, `recommendation.controller.ts`) and create service layers.
+  - **Phase 3 (P1):** Deconstruct frontend mega-pages (`TeamDetailPage.tsx`, `TeamsPage.tsx`, `Profile.tsx`) and mega-modals (`CreateTeamModal.tsx`, `EditProfileModal.tsx`) into modular subcomponents and custom hooks.
+  - **Phase 4 (P2):** Modularize frontend API client (`api.ts`) and database seed fixtures (`prisma/fixtures/`).
 
 ---
 

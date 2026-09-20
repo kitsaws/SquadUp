@@ -16,6 +16,7 @@ To avoid breaking existing functionality, you must read the following architectu
 6. **[cache.md](docs/cache.md)**: Redis L3 distributed caching, frontend multi-tier SWR, cache keys, TTLs, and invalidation rules.
 7. **[job_queues.md](docs/job_queues.md)**: BullMQ background queues (`ai-tasks`, `email-tasks`), worker lifecycles, and asynchronous processing.
 8. **[decisions.md](docs/decisions.md)**: Architecture Decision Log (ADRs). Read this so you don't undo intentional design choices.
+9. **[qa_audit_and_modularization.md](docs/qa_audit_and_modularization.md)**: Codebase QA audit, file size distribution, anti-pattern breakdown, and step-by-step modularization blueprint.
 
 ## 🏛️ Source of Truth
 

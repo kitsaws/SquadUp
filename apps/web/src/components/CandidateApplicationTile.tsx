@@ -16,7 +16,7 @@ export interface CandidateApplicationData {
   appliedTimeAgo: string;
   coverNote: string;
   skills: { name: string; provenance: string; score: number }[];
-  status: "PENDING" | "ACCEPTED" | "REJECTED";
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN" | string;
   category?: RecommendationTier;
 }
 

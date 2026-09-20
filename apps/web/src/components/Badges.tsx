@@ -49,7 +49,7 @@ export function ScopeBadge({
   location,
 }: {
   isGlobal: boolean;
-  location?: string;
+  location?: string | null;
   userUniversity?: string | null;
 }) {
   if (isGlobal) {

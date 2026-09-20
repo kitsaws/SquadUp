@@ -35,7 +35,7 @@ export interface CreateTeamModalProps {
     id: string;
     title: string;
     dateStr?: string;
-    location?: string;
+    location?: string | null;
     isGlobal?: boolean;
     orgId?: string | null;
   };

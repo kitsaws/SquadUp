@@ -1,8 +1,6 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../src/lib/prisma.js";
 import { Redis } from "ioredis";
 import { TaxonomyService } from "../src/taxonomy/taxonomy.service.js";
-
-const prisma = new PrismaClient();
 const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
 
 async function main() {

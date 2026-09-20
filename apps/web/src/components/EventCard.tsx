@@ -6,10 +6,10 @@ export interface EventCardData {
   id: string;
   title: string;
   organizerName: string;
-  organization?: string;
-  organizerLogo?: string;
+  organization?: string | null;
+  organizerLogo?: string | null;
   dateStr: string;
-  location: string;
+  location?: string | null;
   isGlobal: boolean;
   orgId?: string | null;
   daysRemaining: number;

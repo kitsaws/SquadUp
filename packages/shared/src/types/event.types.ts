@@ -33,7 +33,7 @@ export interface EventResponse {
 }
 
 export interface EventDetailResponse extends EventResponse {
-  organizer: {
+  organizer?: {
     id: string;
     name: string;
     email: string;
@@ -50,7 +50,9 @@ export interface EventDetailResponse extends EventResponse {
     slug: string;
     logoUrl?: string | null;
   } | null;
-  teamsCount: number;
+  teamsCount?: number;
+  participantsCount?: number;
+  tracks?: string[];
   teams?: {
     id: string;
     name: string;
@@ -58,6 +60,8 @@ export interface EventDetailResponse extends EventResponse {
     requirements: string[];
   }[];
 }
+
+export type EventItem = EventDetailResponse;
 
 export interface EventQueryFilters {
   page?: number;

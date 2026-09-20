@@ -1,12 +1,10 @@
 import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../lib/prisma.js";
 import { UpdateProfileRequest } from "@squadup/shared";
 import { getOrCreateUserByClerkId, linkUserToOrganization } from "../utils/auth.utils.js";
 import { AIService } from "../services/ai.service.js";
 import { CacheService } from "../services/cache.service.js";
-
-const prisma = new PrismaClient();
 
 export const getProfile = async (req: Request, res: Response) => {
   const auth = getAuth(req);
