@@ -675,14 +675,15 @@ export function SmartRecommendationPanel({
             Squad Full • All Roster Spots Claimed
           </div>
         ) : hasApplied ? (
-          <div className="w-full space-y-1.5">
-            <div className="w-full text-center py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 text-xs font-semibold">
-              ⏳ Application pending review by {recommendation.teamLeadName}
+          <div className="w-full space-y-2">
+            <div className="w-full text-center py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 text-xs font-semibold flex items-center justify-center gap-1.5">
+              <span>⏳ Application pending review by {recommendation.teamLeadName}</span>
             </div>
             {onWithdraw && (
               <button
+                type="button"
                 onClick={onWithdraw}
-                className="w-full text-center py-1.5 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 text-xs font-semibold transition-colors cursor-pointer"
+                className="w-full text-center py-2 rounded-xl text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 text-xs font-bold transition-all cursor-pointer shadow-2xs"
               >
                 Withdraw Application
               </button>

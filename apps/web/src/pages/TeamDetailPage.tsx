@@ -513,6 +513,38 @@ export function TeamDetailPage() {
     });
   };
 
+  const handleWithdrawApplication = () => {
+    if (!team) return;
+    setConfirmModal({
+      isOpen: true,
+      title: "Withdraw Application",
+      iconType: "warning",
+      variant: "warning",
+      confirmText: "Withdraw Application",
+      description: (
+        <span>
+          Are you sure you want to withdraw your candidate application to <strong className="text-text-main font-semibold">{team.name}</strong>?
+        </span>
+      ),
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await applicationsApi.withdrawApplication(team.id);
+          setApplied(false);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          setToastMessage("✓ Application withdrawn successfully.");
+          setTimeout(() => setToastMessage(null), 4000);
+          const refreshed = await teamsApi.getTeam(team.id);
+          setTeam(refreshed);
+        } catch (err: any) {
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+          setToastMessage(err.message || "Failed to withdraw application.");
+          setTimeout(() => setToastMessage(null), 4000);
+        }
+      },
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
@@ -782,6 +814,7 @@ export function TeamDetailPage() {
               isMember={isUserMember}
               isRestricted={isRestrictedEvent}
               onApply={() => setIsApplyModalOpen(true)}
+              onWithdraw={handleWithdrawApplication}
             />
           </div>
         </div>
