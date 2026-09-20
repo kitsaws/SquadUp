@@ -31,6 +31,7 @@ import {
   TeamHero,
   TeamRolesGrid,
   TeamRosterList,
+  TeamInviteForm,
   TeamInvitesSection,
   TeamApplicationsSection,
   TeamCandidateDossier,
@@ -709,7 +710,7 @@ export function TeamDetailPage() {
                 </p>
               </div>
 
-              <TeamInvitesSection
+              <TeamInviteForm
                 team={team}
                 isUserLeader={isUserLeader}
                 inviteEmail={inviteEmail}
@@ -718,7 +719,6 @@ export function TeamDetailPage() {
                 setSelectedRoleId={setSelectedRoleId}
                 isInviting={isInviting}
                 onSendInvite={handleSendInvite}
-                onCancelInvite={handleCancelInvite}
               />
             </div>
 
@@ -729,6 +729,12 @@ export function TeamDetailPage() {
               currentUserEmail={currentUserEmail}
               onLeaveTeam={handleLeaveTeam}
               onRemoveMember={handleRemoveMember}
+            />
+
+            <TeamInvitesSection
+              team={team}
+              isUserLeader={isUserLeader}
+              onCancelInvite={handleCancelInvite}
             />
           </div>
         </div>
