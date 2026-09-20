@@ -1,28 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
-import { SignInButton, useUser, useAuth } from "@clerk/react";
+import { useUser, useAuth } from "@clerk/react";
 import {
   ArrowLeft,
-  Users,
-  Shield,
-  Sparkles,
-  Calendar,
-  Clock,
   CheckCircle2,
-  Plus,
-  Crown,
-  Loader2,
   AlertCircle,
-  Mail,
   LogOut,
-  UserMinus,
-  Send,
-  ArrowRight,
-  Lock,
-  User,
-  Layers,
-  Target,
-  Briefcase,
+  Loader2,
 } from "lucide-react";
 import { useUserContext } from "../contexts/UserContext";
 import {
@@ -35,19 +19,22 @@ import {
   UserProfileResponse,
   IncomingApplicationItem,
   RecommendationItem,
+  TeamInviteItem,
 } from "../services/api";
-import { RecommendationBadge, RecommendationTier, SkillTag, getSkillMatchType } from "../components/Badges";
+import { RecommendationTier, getSkillMatchType } from "../components/Badges";
 import { SmartRecommendationPanel } from "../components/SmartRecommendationPanel";
 import { ApplyTeamModal } from "../components/ApplyTeamModal";
 import { TeamInviteModal } from "../components/TeamInviteModal";
-import { RoleSelectDropdown } from "../components/RoleSelectDropdown";
-import {
-  CandidateApplicationTile,
-  CandidateApplicationData,
-} from "../components/CandidateApplicationTile";
+import { CandidateApplicationData } from "../components/CandidateApplicationTile";
 import { ConfirmModal } from "../components/ConfirmModal";
-import type { TeamInviteItem } from "../services/api";
-import { formatTimeAgo } from "../utils/date.utils";
+import {
+  TeamHero,
+  TeamRolesGrid,
+  TeamRosterList,
+  TeamInvitesSection,
+  TeamApplicationsSection,
+  TeamCandidateDossier,
+} from "../components/team-detail";
 
 export function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -62,7 +49,6 @@ export function TeamDetailPage() {
     profile: contextProfile,
     userUniversity,
     refreshProfile,
-    updateCachedProfile,
   } = useUserContext();
   const { orgId } = useAuth();
   const { user } = useUser();
@@ -116,7 +102,6 @@ export function TeamDetailPage() {
       setError(null);
 
       try {
-        // 1. Fetch live Team data (public)
         const teamData = await teamsApi.getTeam(id!);
         if (!isMounted) return;
         setTeam(teamData);
@@ -124,7 +109,6 @@ export function TeamDetailPage() {
           setApplied(true);
         }
 
-        // If not signed in, do not call protected APIs
         if (!isSignedIn) {
           setProfile(null);
           setApplications([]);
@@ -132,7 +116,6 @@ export function TeamDetailPage() {
           return;
         }
 
-        // 2. Fetch User Profile
         let userProfile: UserProfileResponse | null = contextProfile;
         if (!userProfile) {
           try {
@@ -163,7 +146,6 @@ export function TeamDetailPage() {
         );
         const isUserInTeam = isUserLeader || isUserMember;
 
-        // 3. If in Team (Leader or Member), fetch incoming applications for this squad
         if (isUserInTeam) {
           try {
             const appsRes = await applicationsApi.getIncomingApplications({ teamId: teamData.id });
@@ -205,7 +187,6 @@ export function TeamDetailPage() {
             console.warn("[TeamDetailPage] Could not load applications for team:", e);
           }
         } else {
-          // 4. Candidate view: check if user already applied or has a pending invite
           try {
             const [myApps, myInvitesRes] = await Promise.all([
               applicationsApi.getMyApplications().catch(() => ({ total: 0, applications: [] })),
@@ -230,7 +211,6 @@ export function TeamDetailPage() {
             // ignore
           }
 
-          // 5. Try fetching real recommendations for this event to check match score
           try {
             const recsRes = await recommendationsApi.getRecommendations({
               eventId: teamData.eventId,
@@ -243,22 +223,23 @@ export function TeamDetailPage() {
               }
             }
           } catch {
-            // User might not have resume yet; show standard unrated team
+            // User might not have resume yet
           }
         }
       } catch (err: any) {
         console.error("[TeamDetailPage] Error fetching team details:", err);
-        if (isMounted) setError(err.message || "Failed to load squad details.");
+        if (isMounted) setError(err.message || "Failed to load squad dossier.");
       } finally {
         if (isMounted) setLoading(false);
       }
     }
 
     fetchData();
+
     return () => {
       isMounted = false;
     };
-  }, [id, isSignedIn, contextProfile]);
+  }, [id, isSignedIn, location.search, contextProfile]);
 
   const currentUserId = profile?.userId || profile?.id;
   const currentUserEmail = profile?.email?.toLowerCase();
@@ -270,109 +251,127 @@ export function TeamDetailPage() {
       (m.role === "Leader" || m.role?.toLowerCase() === "leader")
     ))
   );
+
   const isUserMember = Boolean(
     team?.isMember ||
     (profile && team?.members.some((m) =>
       m.userId === currentUserId || (currentUserEmail && m.email && m.email.toLowerCase() === currentUserEmail)
     ))
   );
+
   const isUserInTeam = isUserLeader || isUserMember;
 
-  // Defensively ensure bestMatchingRole is only valid if the role has open spots remaining
-  const rawBestMatchingRole = team?.bestMatchingRole || recommendation?.bestMatchingRole;
   const activeBestMatchingRole = useMemo(() => {
-    if (!rawBestMatchingRole) return undefined;
-    if (team?.roles && team.roles.length > 0) {
-      const match = team.roles.find(
-        (r) =>
-          (rawBestMatchingRole.roleId && r.id === rawBestMatchingRole.roleId) ||
-          r.title.toLowerCase().trim() === rawBestMatchingRole.roleTitle.toLowerCase().trim()
-      );
-      if (!match || (match.spots !== undefined && match.spots <= 0) || match.assignedToId) {
-        return undefined;
-      }
-    }
-    return rawBestMatchingRole;
-  }, [rawBestMatchingRole, team?.roles]);
+    const rawRole = recommendation?.bestMatchingRole || (team as any)?.bestMatchingRole;
+    if (!rawRole) return null;
+    if (!team?.roles || team.roles.length === 0) return rawRole;
+    const targetRoleInTeam = team.roles.find(
+      (r) => (r.id && r.id === rawRole.roleId) || r.title?.toLowerCase() === rawRole.roleTitle?.toLowerCase()
+    );
+    if (!targetRoleInTeam) return rawRole;
+    const isRoleFilled = Boolean(targetRoleInTeam.assignedToId) || (targetRoleInTeam.spots !== undefined && targetRoleInTeam.spots <= 0);
+    return isRoleFilled ? null : rawRole;
+  }, [recommendation, team]);
 
-  const handleApplySuccess = async (teamId: string, role: string, message: string) => {
-    try {
-      await applicationsApi.applyToTeam(teamId, message);
-      setApplied(true);
-      setIsApplyModalOpen(false);
-      setToastMessage("Application submitted! Squad leaders have received your dossier.");
-      setTimeout(() => setToastMessage(null), 4000);
-    } catch (err: any) {
-      setToastMessage(err.message || "Failed to submit application.");
-      setTimeout(() => setToastMessage(null), 4000);
+  const handleApplySuccess = () => {
+    setApplied(true);
+    setIsApplyModalOpen(false);
+    setToastMessage("✓ Application submitted successfully! The squad leader has been notified.");
+    setTimeout(() => setToastMessage(null), 4000);
+    if (id) {
+      teamsApi.getTeam(id).then(setTeam).catch(() => {});
     }
   };
 
-  const handleAcceptApplicant = async (appId: string) => {
-    try {
-      await applicationsApi.acceptApplication(appId);
-      const candidate = applications.find((a) => a.id === appId);
-      setApplications((prev) => prev.filter((a) => a.id !== appId));
-      setToastMessage(`✓ ${candidate?.name || "Candidate"} accepted to your squad!`);
-      setTimeout(() => setToastMessage(null), 4000);
-      // Refresh team data to show updated member in roster
-      if (id) {
-        const refreshed = await teamsApi.getTeam(id);
-        setTeam(refreshed);
-      }
-    } catch (err: any) {
-      setToastMessage(err.message || "Failed to accept application.");
-      setTimeout(() => setToastMessage(null), 4000);
-    }
+  const handleAcceptApplicant = (applicationId: string, candidateName?: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Accept Teammate into Squad",
+      iconType: "warning",
+      variant: "primary",
+      confirmText: "Accept Candidate",
+      description: (
+        <span>
+          Are you sure you want to accept <strong className="text-text-main font-semibold">{candidateName || "this candidate"}</strong> into your squad? They will immediately be added to the team roster.
+        </span>
+      ),
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await applicationsApi.acceptApplication(applicationId);
+          await refreshProfile(true);
+          setApplications((prev) => prev.filter((a) => a.id !== applicationId));
+          setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          setToastMessage(`🎉 ${candidateName || "Candidate"} joined your squad!`);
+          setTimeout(() => setToastMessage(null), 4000);
+          if (id) {
+            const refreshed = await teamsApi.getTeam(id);
+            setTeam(refreshed);
+          }
+        } catch (err: any) {
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+          setToastMessage(err.message || "Failed to accept application.");
+          setTimeout(() => setToastMessage(null), 4000);
+        }
+      },
+    });
   };
 
-  const handleDeclineApplicant = async (appId: string) => {
-    try {
-      await applicationsApi.rejectApplication(appId);
-      const candidate = applications.find((a) => a.id === appId);
-      setApplications((prev) => prev.filter((a) => a.id !== appId));
-      setToastMessage(`Application from ${candidate?.name || "Candidate"} declined.`);
-      setTimeout(() => setToastMessage(null), 4000);
-    } catch (err: any) {
-      setToastMessage(err.message || "Failed to decline application.");
-      setTimeout(() => setToastMessage(null), 4000);
-    }
+  const handleDeclineApplicant = (applicationId: string, candidateName?: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Decline Application",
+      iconType: "warning",
+      variant: "danger",
+      confirmText: "Decline",
+      description: (
+        <span>
+          Are you sure you want to decline the application from <strong className="text-text-main font-semibold">{candidateName || "this candidate"}</strong>?
+        </span>
+      ),
+      onConfirm: async () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await applicationsApi.rejectApplication(applicationId);
+          setApplications((prev) => prev.filter((a) => a.id !== applicationId));
+          setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          setToastMessage("Application declined.");
+          setTimeout(() => setToastMessage(null), 4000);
+        } catch (err: any) {
+          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+          setToastMessage(err.message || "Failed to decline application.");
+          setTimeout(() => setToastMessage(null), 4000);
+        }
+      },
+    });
   };
 
   const handleLeaveTeam = () => {
     if (!team) return;
-    const isLeader = Boolean(
-      team.isLeader ||
-      team.members.some((m) => m.userId === contextProfile?.userId && m.role === "Leader")
-    );
-
     setConfirmModal({
       isOpen: true,
-      title: "Leave Squad",
+      title: isUserLeader ? "Relinquish Leadership & Leave Squad" : "Leave Squad",
       iconType: "leave",
       variant: "danger",
       confirmText: "Leave Squad",
       description: (
         <span>
           Are you sure you want to leave <strong className="text-text-main font-semibold">{team.name}</strong>?
-          {isLeader
-            ? " Since you are the squad leader, squad leadership will automatically transfer to another member."
-            : " Your role will immediately become open for incoming applicants."}
+          {isUserLeader && (
+            <span className="block mt-2 text-rose-500 font-medium text-xs">
+              ⚠️ You are the Squad Leader. Leadership will be transferred to the next member in the roster.
+            </span>
+          )}
         </span>
       ),
       onConfirm: async () => {
         setConfirmModal((prev) => ({ ...prev, isLoading: true }));
         try {
           await teamsApi.leaveTeam(team.id);
-          if (contextProfile?.teams) {
-            updateCachedProfile({
-              teams: contextProfile.teams.filter((t: any) => t.teamId !== team.id),
-            });
-          }
           await refreshProfile(true);
           setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           setToastMessage("You have left the squad.");
-          setTimeout(() => navigate("/teams"), 1000);
+          navigate("/teams");
         } catch (err: any) {
           setConfirmModal((prev) => ({ ...prev, isLoading: false }));
           setToastMessage(err.message || "Failed to leave squad.");
@@ -382,17 +381,17 @@ export function TeamDetailPage() {
     });
   };
 
-  const handleRemoveMember = (memberUserId: string, memberName: string) => {
+  const handleRemoveMember = (memberUserId: string, memberName?: string) => {
     if (!team) return;
     setConfirmModal({
       isOpen: true,
-      title: "Remove Squad Member",
+      title: "Remove Teammate",
       iconType: "remove",
       variant: "danger",
       confirmText: "Remove Member",
       description: (
         <span>
-          Are you sure you want to remove <strong className="text-text-main font-semibold">{memberName}</strong> from <strong className="text-text-main font-semibold">{team.name}</strong>? Their assigned role spot will immediately be reopened.
+          Are you sure you want to remove <strong className="text-text-main font-semibold">{memberName || "this teammate"}</strong> from the squad roster? Their slot will be opened back up.
         </span>
       ),
       onConfirm: async () => {
@@ -506,37 +505,7 @@ export function TeamDetailPage() {
           setTeam(refreshed);
         } catch (err: any) {
           setConfirmModal((prev) => ({ ...prev, isLoading: false }));
-          setToastMessage(err.message || "Failed to cancel invite.");
-          setTimeout(() => setToastMessage(null), 4000);
-        }
-      },
-    });
-  };
-
-  const handleWithdrawApplication = () => {
-    if (!team) return;
-    setConfirmModal({
-      isOpen: true,
-      title: "Withdraw Application",
-      iconType: "warning",
-      variant: "warning",
-      confirmText: "Withdraw Application",
-      description: (
-        <span>
-          Are you sure you want to withdraw your candidate application to <strong className="text-text-main font-semibold">{team.name}</strong>?
-        </span>
-      ),
-      onConfirm: async () => {
-        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
-        try {
-          await applicationsApi.withdrawApplication(team.id);
-          setApplied(false);
-          setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
-          setToastMessage("Application withdrawn.");
-          setTimeout(() => setToastMessage(null), 4000);
-        } catch (err: any) {
-          setConfirmModal((prev) => ({ ...prev, isLoading: false }));
-          setToastMessage(err.message || "Failed to withdraw application.");
+          setToastMessage(err.message || "Failed to cancel invitation.");
           setTimeout(() => setToastMessage(null), 4000);
         }
       },
@@ -545,7 +514,7 @@ export function TeamDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center justify-center space-y-4">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
         <Loader2 className="w-8 h-8 text-primary-action animate-spin" />
         <p className="text-sm font-semibold text-text-muted">Loading squad dossier...</p>
       </div>
@@ -570,7 +539,7 @@ export function TeamDetailPage() {
     );
   }
 
-  const category = recommendation?.recommendationCategory ?? team.category;
+  const category = (recommendation?.recommendationCategory ?? team.category) as RecommendationTier | undefined;
   const taxonomyScore = recommendation?.taxonomyScore ?? team.taxonomyScore;
   const rawBreakdown = recommendation?.requirementBreakdown || (team as any).requirementBreakdown || [];
   const activeBreakdown = rawBreakdown.map((item: any) => ({
@@ -615,7 +584,6 @@ export function TeamDetailPage() {
     if (!isSignedIn) return false;
     const sLower = skill.toLowerCase().trim();
 
-    // 1. Direct match in userVerifiedSkills
     const direct = userVerifiedSkills.some((us) => {
       const uLower = us.toLowerCase().trim();
       if (uLower === sLower) return true;
@@ -637,7 +605,6 @@ export function TeamDetailPage() {
     });
     if (direct) return true;
 
-    // 2. Check activeBreakdown
     if (activeBreakdown && activeBreakdown.length > 0) {
       const match = activeBreakdown.find((b: any) => {
         const bName = (b.requirementName || "").toLowerCase().trim();
@@ -646,19 +613,11 @@ export function TeamDetailPage() {
       if (match && match.score >= 0.6) return true;
     }
 
-    // 3. Fallback to getSkillMatchType
     const badgeType = getSkillMatchType(skill, userVerifiedSkills);
     return badgeType === "perfect" || badgeType === "partial";
   };
 
-  // Sort squad members so Leader is always the first person in the roster
-  const sortedMembers = [...(team.members || [])].sort((a, b) => {
-    const isALeader = a.role === "Leader" || a.role?.toLowerCase() === "leader";
-    const isBLeader = b.role === "Leader" || b.role?.toLowerCase() === "leader";
-    if (isALeader && !isBLeader) return -1;
-    if (!isALeader && isBLeader) return 1;
-    return 0;
-  });
+  const pendingAppsCount = applications.filter((a) => a.status === "PENDING").length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-200">
@@ -716,239 +675,29 @@ export function TeamDetailPage() {
 
       {/* Conditional Layout: Squad Management Dashboard (Leader & Members) vs Standard Squad Dossier (Non-Members) */}
       {isUserInTeam ? (
-        /* ================= SQUAD MANAGEMENT / MEMBER DASHBOARD ================= */
         <div className="space-y-8">
-          <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-primary-light text-primary-action border border-primary-border">
-                    {isUserLeader ? "Squad Leader Dashboard" : "Squad Dashboard"}
-                  </span>
-                  <span className="text-xs text-text-muted">• {team.event?.title || "Upcoming Event"}</span>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-black text-text-main tracking-tight font-heading">
-                  {team.name}
-                </h1>
-                <p className="text-xs sm:text-sm text-text-muted mt-1 max-w-2xl">
-                  {team.description || `Formed for ${team.event?.title || "hackathon"}. Recruiting verified candidates.`}
-                </p>
-              </div>
+          <TeamHero
+            team={team}
+            isUserLeader={isUserLeader}
+            totalSpots={totalSpots}
+            pendingApplicationsCount={pendingAppsCount}
+            totalApplicationsCount={applications.length}
+          />
 
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  Active Formation
-                </span>
-              </div>
-            </div>
+          <TeamRolesGrid
+            roles={team.roles}
+            requirements={team.requirements}
+            members={team.members}
+            profile={profile}
+          />
 
-            {/* Telemetry Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-border-main">
-              <div className="p-4 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
-                <div className="flex items-center justify-between text-xs text-text-muted font-semibold mb-1">
-                  <span>Squad Roster</span>
-                  <Users className="w-4 h-4 text-primary-action" />
-                </div>
-                <div className="text-xl font-black text-text-main font-heading">
-                  {team.members.length} / {totalSpots} Spots
-                </div>
-                <p className="text-[11px] text-text-muted font-medium mt-1">
-                  {totalSpots - team.members.length > 0
-                    ? `${totalSpots - team.members.length} spot(s) remaining for recruitment`
-                    : "Roster complete"}
-                </p>
-              </div>
+          <TeamApplicationsSection
+            applications={applications}
+            isUserLeader={isUserLeader}
+            onAccept={handleAcceptApplicant}
+            onDecline={handleDeclineApplicant}
+          />
 
-              <div className="p-4 rounded-xl bg-surface-dim border border-border-main shadow-2xs">
-                <div className="flex items-center justify-between text-xs text-text-muted font-semibold mb-1">
-                  <span>Candidate Applications</span>
-                  <Clock className="w-4 h-4 text-amber-500" />
-                </div>
-                <div className="text-xl font-black text-text-main font-heading">
-                  {applications.filter((a) => a.status === "PENDING").length} Pending
-                </div>
-                <p className="text-[11px] text-text-muted font-medium mt-1">
-                  {applications.length} total candidate submissions
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Squad Roles & Allocations Section */}
-          <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-black text-text-main font-heading flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-primary-action" />
-                  <span>Squad Roles & Allocations</span>
-                </h2>
-                <p className="text-xs text-text-muted mt-0.5">
-                  Overview of configured squad roles, assigned teammates, and required technologies.
-                </p>
-              </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface-dim text-text-muted border border-border-main self-start sm:self-auto shrink-0">
-                {team.roles?.length || team.requirements.length} Configured Roles
-              </span>
-            </div>
-
-            {team.roles && team.roles.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {team.roles.map((role) => {
-                  const assignedMembersMap = new Map<string, typeof team.members[0]>();
-                  (team.members || []).forEach((m) => {
-                    const isDirect = Boolean(
-                      role.assignedToId && (m.userId === role.assignedToId || m.id === role.assignedToId)
-                    );
-                    const isRole = Boolean(m.role && m.role.toLowerCase() === role.title.toLowerCase());
-                    const isTitle = Boolean(m.title && m.title.toLowerCase() === role.title.toLowerCase());
-                    if (isDirect || isRole || isTitle) {
-                      assignedMembersMap.set(m.userId || m.id, m);
-                    }
-                  });
-                  const assignedMembers = Array.from(assignedMembersMap.values());
-                  const remainingSpots = role.spots ?? 0;
-                  const isFilled = remainingSpots === 0;
-
-                  return (
-                    <div
-                      key={role.id || role.title}
-                      className="p-5 sm:p-6 rounded-2xl border border-border-main bg-surface shadow-xs space-y-4 flex flex-col justify-between"
-                    >
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <h3 className="text-base sm:text-lg font-bold text-text-main font-heading truncate">
-                              {role.title}
-                            </h3>
-                            <p className="text-xs text-text-muted mt-1">
-                              {assignedMembers.length > 0 ? (
-                                <span>
-                                  Filled by{" "}
-                                  {assignedMembers.map((m, idx) => {
-                                    const isMe = Boolean(
-                                      profile && (m.userId === profile.id || m.userId === profile.userId)
-                                    );
-                                    return (
-                                      <React.Fragment key={m.id || m.userId || idx}>
-                                        {idx > 0 && <span className="text-text-muted font-normal">, </span>}
-                                        <Link
-                                          to={m.userId ? `/profile/${m.userId}` : `/profile`}
-                                          className="font-bold text-text-main hover:text-primary-action transition-colors cursor-pointer"
-                                        >
-                                          {m.name || "Teammate"}
-                                          {isMe ? " (You)" : ""}
-                                        </Link>
-                                      </React.Fragment>
-                                    );
-                                  })}
-                                  {remainingSpots > 0 && (
-                                    <span className="text-text-muted font-normal">
-                                      {" "}• {remainingSpots} spot{remainingSpots > 1 ? "s" : ""} open
-                                    </span>
-                                  )}
-                                </span>
-                              ) : isFilled ? (
-                                <span>
-                                  Filled by <strong className="font-semibold text-text-main">Active Teammate</strong>
-                                </span>
-                              ) : (
-                                <span className="text-text-muted">
-                                  Vacant • {remainingSpots || 1} spot{(remainingSpots || 1) > 1 ? "s" : ""} open
-                                </span>
-                              )}
-                            </p>
-                          </div>
-
-                          <span
-                            className={`text-xs font-bold px-2.5 py-1 rounded-lg shrink-0 ${
-                              isFilled
-                                ? "bg-surface-dim text-text-muted border border-border-main"
-                                : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                            }`}
-                          >
-                            {isFilled ? "Filled" : `${remainingSpots || 1} Open`}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 pt-3 border-t border-border-main">
-                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-text-muted block">
-                          Technologies Needed:
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                          {role.skills.map((skill) => (
-                            <span
-                              key={skill}
-                              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-surface-dim text-text-main border border-border-main"
-                            >
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="p-5 rounded-2xl border border-border-main bg-surface-dim space-y-3">
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-text-muted block">
-                  Technologies Needed:
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {team.requirements.map((req) => (
-                    <span
-                      key={req}
-                      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-surface text-text-main border border-border-main"
-                    >
-                      {req}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Incoming Applications List */}
-          <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-black text-text-main font-heading">
-                  Incoming Applications & Candidate Review
-                </h2>
-                <p className="text-xs text-text-muted">
-                  Tiles are collapsed by default. Click any candidate to view their note, verified skills, and direct profile link.
-                </p>
-              </div>
-
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface-dim text-text-muted border border-border-main self-start sm:self-auto shrink-0">
-                {applications.length} Candidates
-              </span>
-            </div>
-
-            {applications.length > 0 ? (
-              <div className="space-y-3">
-                {applications.map((app) => (
-                  <CandidateApplicationTile
-                    key={app.id}
-                    application={app}
-                    defaultExpanded={false}
-                    onAccept={isUserLeader ? handleAcceptApplicant : undefined}
-                    onDecline={isUserLeader ? handleDeclineApplicant : undefined}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="bg-surface-dim rounded-xl border border-border-main p-8 text-center space-y-2">
-                <Users className="w-8 h-8 text-text-muted mx-auto opacity-50" />
-                <p className="text-sm font-bold text-text-main">No applications received yet</p>
-                <p className="text-xs text-text-muted">Candidates applying to your squad will appear here with live skill compatibility scores.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Current Roster & Invites */}
           <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -960,566 +709,94 @@ export function TeamDetailPage() {
                 </p>
               </div>
 
-              {/* Role-Specific Invite Input with custom dropdown (Leader only) */}
-              {isUserLeader && (
-                <form onSubmit={handleSendInvite} className="flex flex-wrap items-center gap-2">
-                  {team.roles && team.roles.length > 0 && (
-                    <RoleSelectDropdown
-                      roles={team.roles}
-                      selectedRoleId={selectedRoleId}
-                      onChange={setSelectedRoleId}
-                    />
-                  )}
-
-                  <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="Teammate email..."
-                      className="text-xs pl-8 pr-3 py-2 border border-border-main bg-surface-dim text-text-main placeholder:text-text-muted rounded-xl outline-hidden focus:border-primary-action focus:ring-1 focus:ring-primary-action w-44 sm:w-48"
-                      required
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isInviting}
-                    className="px-3 py-2 bg-primary-action hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shrink-0 shadow-xs"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>{isInviting ? "Inviting..." : "Send Invite"}</span>
-                  </button>
-                </form>
-              )}
+              <TeamInvitesSection
+                team={team}
+                isUserLeader={isUserLeader}
+                inviteEmail={inviteEmail}
+                setInviteEmail={setInviteEmail}
+                selectedRoleId={selectedRoleId}
+                setSelectedRoleId={setSelectedRoleId}
+                isInviting={isInviting}
+                onSendInvite={handleSendInvite}
+                onCancelInvite={handleCancelInvite}
+              />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {sortedMembers.map((member) => {
-                const isCurrentMember =
-                  member.userId === currentUserId ||
-                  member.id === currentUserId ||
-                  (currentUserEmail && member.email && member.email.toLowerCase() === currentUserEmail);
-                return (
-                  <div
-                    key={member.id}
-                    className="p-3.5 rounded-xl border border-border-main bg-surface-dim flex items-center justify-between gap-3 shadow-2xs"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-action to-cross-campus text-white font-bold flex items-center justify-center text-sm shrink-0 overflow-hidden">
-                        {member.avatarUrl ? (
-                          <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
-                        ) : (
-                          (member.name || "U")
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .slice(0, 2)
-                            .toUpperCase()
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-bold text-text-main truncate">
-                            {member.name || "Teammate"}
-                          </h4>
-                          {member.role === "Leader" && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary-light text-primary-action shrink-0">
-                              Leader
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-text-muted truncate">{member.title || member.role || "Member"}</p>
-                        {member.university && (
-                          <p className="text-[11px] text-text-muted truncate">{member.university}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Leader View: View Profile and Kick/Remove or Leave */}
-                    <div className="flex flex-col items-end gap-1.5 shrink-0">
-                      <Link
-                        to={member.userId ? `/profile/${member.userId}` : `/profile`}
-                        className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-bold text-primary-action hover:text-white bg-primary-light hover:bg-primary-action border border-primary-border rounded-lg transition-all cursor-pointer w-full text-center"
-                        title={`View ${member.name}'s profile`}
-                      >
-                        <User className="w-3 h-3" />
-                        <span>View Profile</span>
-                      </Link>
-
-                      {isCurrentMember ? (
-                        <button
-                          onClick={handleLeaveTeam}
-                          className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 rounded-lg transition-all cursor-pointer w-full"
-                          title="Leave this squad"
-                        >
-                          <LogOut className="w-3 h-3" />
-                          <span>Leave</span>
-                        </button>
-                      ) : isUserLeader ? (
-                        <button
-                          onClick={() => handleRemoveMember(member.userId || member.id, member.name)}
-                          className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 rounded-lg transition-all cursor-pointer w-full"
-                          title={`Remove ${member.name} from squad`}
-                        >
-                          <UserMinus className="w-3 h-3" />
-                          <span>Kick/Remove</span>
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Pending Outgoing Invites Table / List */}
-            {team.invites && team.invites.filter((inv) => inv.status === "PENDING").length > 0 && (
-              <div className="pt-4 border-t border-border-main space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-text-muted flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-primary-action" />
-                    <span>Pending Outgoing Invitations</span>
-                  </h4>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-light text-primary-action border border-primary-border">
-                    {team.invites.filter((inv) => inv.status === "PENDING").length} Pending
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {team.invites
-                    .filter((inv) => inv.status === "PENDING")
-                    .map((inv) => (
-                      <div
-                        key={inv.id}
-                        className="p-3 rounded-xl border border-border-main/70 bg-surface-dim/50 flex items-center justify-between gap-2"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-7 h-7 rounded-lg bg-surface border border-border-main flex items-center justify-center text-text-muted text-xs font-bold shrink-0">
-                            @
-                          </div>
-                          <div className="min-w-0">
-                            <span className="text-xs font-bold text-text-main truncate block">
-                              {inv.email}
-                            </span>
-                            <div className="flex items-center gap-1.5 text-[10px] text-text-muted">
-                              {inv.roleTitle ? (
-                                <span className="text-primary-action font-semibold truncate">
-                                  {inv.roleTitle}
-                                </span>
-                              ) : (
-                                <span>General Role</span>
-                              )}
-                              <span>• {formatTimeAgo(new Date(inv.createdAt))}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {isUserLeader && (
-                          <button
-                            onClick={() => handleCancelInvite(inv.id, inv.email)}
-                            className="px-2 py-1 text-[10px] font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 rounded-lg transition-all cursor-pointer shrink-0"
-                            title="Cancel invitation"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
+            <TeamRosterList
+              members={team.members}
+              isUserLeader={isUserLeader}
+              currentUserId={currentUserId}
+              currentUserEmail={currentUserEmail}
+              onLeaveTeam={handleLeaveTeam}
+              onRemoveMember={handleRemoveMember}
+            />
           </div>
         </div>
       ) : (
-        /* ================= STANDARD SQUAD DOSSIER (CANDIDATE VIEW) ================= */
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column (2 cols) */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {isSignedIn && category ? (
-                      <RecommendationBadge category={category} score={taxonomyScore} />
-                    ) : (
-                      <span className="text-xs font-semibold text-text-muted bg-surface-dim border border-border-main px-2.5 py-0.5 rounded-full">
-                        General Squad
-                      </span>
-                    )}
-                    <span className="text-xs font-semibold text-primary-action bg-primary-light border border-primary-border px-2.5 py-0.5 rounded-full">
-                      {team.event?.title || "Hackathon"}
-                    </span>
-                  </div>
-                  <h1 className="text-2xl sm:text-3xl font-black text-text-main tracking-tight font-heading">
-                    {team.name}
-                  </h1>
-                  <p className="text-xs text-text-muted flex items-center gap-1.5 font-medium">
-                    <Shield className="w-3.5 h-3.5 text-primary-action" />
-                    Affiliation: {team.university || "Collegiate Squad"}
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <span className="text-xs font-semibold text-text-muted block uppercase tracking-wider">
-                    Roster Capacity
-                  </span>
-                  <span className="text-xl font-bold text-text-main">
-                    {team.members.length} / {totalSpots} Members
-                  </span>
-                </div>
-              </div>
-
-              {isRestrictedEvent && (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 flex items-center gap-2.5 text-xs text-amber-600 font-medium">
-                  <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>This squad belongs to an organization-restricted event ({team.university || "Organization-only"}). Applications are restricted to members of this organization in Clerk.</span>
-                </div>
-              )}
-
-              {pendingInvite && !isUserMember && (
-                <div className="p-4 rounded-xl border-2 border-emerald-500/30 bg-emerald-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in duration-300">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0">
-                      <Sparkles className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-black text-emerald-500 uppercase tracking-wider block">
-                        You Have an Active Invitation!
-                      </span>
-                      <p className="text-xs text-text-main font-semibold">
-                        Designated Role: <span className="text-primary-action font-extrabold">{pendingInvite.roleTitle || "Squad Contributor"}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setIsInviteModalOpen(true)}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs"
-                  >
-                    <span>Review Invitation</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <h3 className="text-xs font-black uppercase tracking-wider text-text-muted">
-                  Squad Mission & Objectives
-                </h3>
-                <p className="text-sm text-text-muted leading-relaxed">
-                  {team.description || `Recruiting driven builders for ${team.event?.title || "the upcoming hackathon"}. Apply with your profile to join forces.`}
-                </p>
-              </div>
-
-              {/* Role : Technologies Needed Section */}
-              <div className="space-y-4 pt-4 border-t border-border-main">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-wider text-text-main flex items-center gap-2 font-heading">
-                      <Layers className="w-4 h-4 text-primary-action" />
-                      <span>Role : Technologies Needed</span>
-                    </h3>
-                    <p className="text-xs text-text-muted">
-                      Required competencies and open vacancies structured by role.
-                    </p>
-                  </div>
-                  {team.roles && team.roles.length > 0 && (
-                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-surface-dim text-text-muted border border-border-main self-start sm:self-auto">
-                      {team.roles.length} Defined Roles
-                    </span>
-                  )}
-                </div>
-
-                {team.roles && team.roles.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    {team.roles
-                      .filter((r) => (r.spots ?? 1) > 0)
-                      .map((role) => {
-                      const isOptimalRole = activeBestMatchingRole?.roleTitle === role.title;
-                      const matchingSkillsCount = role.skills.filter((s) => checkSkillMatch(s)).length;
-
-                      return (
-                        <div
-                          key={role.id || role.title}
-                          className={`p-4 sm:p-5 rounded-2xl border transition-all space-y-3.5 shadow-2xs ${
-                            isOptimalRole
-                              ? "bg-gradient-to-br from-primary-action/10 via-surface to-surface border-primary-action/40 shadow-xs"
-                              : "bg-surface-dim/50 border-border-main"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="text-sm sm:text-base font-bold text-text-main font-heading truncate">
-                                  {role.title}
-                                </h4>
-                                {isOptimalRole && (
-                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-primary-action text-white shadow-2xs">
-                                    ⭐ Best Match
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[11px] font-medium block mt-0.5">
-                                {isOptimalRole ? (
-                                  <span className="text-primary-action font-bold">Recommended Role</span>
-                                ) : (
-                                  <span className="text-text-muted">{role.spots || 1} Open Spot{(role.spots || 1) > 1 ? "s" : ""}</span>
-                                )}
-                              </span>
-                            </div>
-
-                            {isSignedIn && (
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
-                                  matchingSkillsCount > 0
-                                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                                    : "bg-surface text-text-muted border-border-main"
-                                }`}
-                              >
-                                {matchingSkillsCount}/{role.skills.length} Skills Match
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="space-y-1.5 pt-1 border-t border-border-main/50">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
-                              Technologies Needed:
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {role.skills.map((skill) => {
-                                const isMatched = checkSkillMatch(skill);
-                                return (
-                                  <span
-                                    key={skill}
-                                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1 ${
-                                      isMatched && isSignedIn
-                                        ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                                        : "bg-surface text-text-muted border-border-main"
-                                    }`}
-                                  >
-                                    {isMatched && isSignedIn && <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />}
-                                    <span>{skill}</span>
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  /* Fallback if no structured roles yet */
-                  <div className="p-4 sm:p-5 rounded-2xl border border-border-main bg-surface-dim/40 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-text-main font-heading">
-                        Core Squad Contributor
-                      </h4>
-                      <span className="text-xs text-text-muted font-medium">
-                        Open Technical Requirements
-                      </span>
-                    </div>
-                    <div className="space-y-1.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
-                        Technologies Needed:
-                      </span>
-                      <div className="flex flex-wrap gap-2">
-                        {team.requirements.map((req) => (
-                          <SkillTag
-                            key={req}
-                            skill={req}
-                            breakdown={recommendation?.requirementBreakdown || (team as any).requirementBreakdown}
-                            userSkills={isSignedIn ? userVerifiedSkills : undefined}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Squad Roster */}
-            <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-black text-text-main font-heading">
-                    Current Squad Roster
-                  </h3>
-                  <p className="text-xs text-text-muted">
-                    Verified team members currently committed to this project.
-                  </p>
-                </div>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                  {Math.max(0, totalSpots - team.members.length)} Spot{totalSpots - team.members.length === 1 ? "" : "s"} Remaining
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {sortedMembers.map((member) => {
-                  const isCurrentMember =
-                    member.userId === currentUserId ||
-                    member.id === currentUserId ||
-                    (currentUserEmail && member.email && member.email.toLowerCase() === currentUserEmail);
-                  return (
-                    <div
-                      key={member.id}
-                      className="p-3.5 rounded-xl border border-border-main bg-surface-dim flex items-center justify-between gap-3 shadow-2xs"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-action to-cross-campus text-white font-bold flex items-center justify-center text-sm shrink-0 overflow-hidden">
-                          {member.avatarUrl ? (
-                            <img src={member.avatarUrl} alt={member.name} className="w-full h-full object-cover" />
-                          ) : (
-                            (member.name || "U")
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .slice(0, 2)
-                              .toUpperCase()
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-bold text-text-main truncate">
-                              {member.name || "Teammate"}
-                            </h4>
-                            {member.role === "Leader" && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary-light text-primary-action shrink-0">
-                                Leader
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-text-muted truncate">
-                            {member.title || member.role || "Member"}
-                          </p>
-                          {member.university && (
-                            <p className="text-[11px] text-text-muted truncate">{member.university}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* General / Candidate View Action Buttons */}
-                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
-                        <Link
-                          to={member.userId ? `/profile/${member.userId}` : `/profile`}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-primary-action hover:text-white bg-primary-light hover:bg-primary-action border border-primary-border rounded-xl transition-all cursor-pointer shrink-0"
-                          title={`View ${member.name}'s profile`}
-                        >
-                          <User className="w-3.5 h-3.5" />
-                          <span>View Profile</span>
-                        </Link>
-
-                        {isCurrentMember && (
-                          <button
-                            onClick={handleLeaveTeam}
-                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 rounded-xl transition-all cursor-pointer shrink-0"
-                            title="Leave this squad"
-                          >
-                            <LogOut className="w-3.5 h-3.5" />
-                            <span>Leave</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <TeamCandidateDossier
+              team={team}
+              isSignedIn={isSignedIn}
+              category={category}
+              taxonomyScore={taxonomyScore}
+              totalSpots={totalSpots}
+              isRestrictedEvent={isRestrictedEvent}
+              pendingInvite={pendingInvite}
+              isUserMember={isUserMember}
+              activeBestMatchingRole={activeBestMatchingRole}
+              checkSkillMatch={checkSkillMatch}
+              userVerifiedSkills={userVerifiedSkills}
+              recommendation={recommendation}
+              onOpenInviteModal={() => setIsInviteModalOpen(true)}
+            />
           </div>
 
-          {/* Right Column: Smart Recommendation Panel or Logged-Out CTA */}
           <div className="space-y-6">
-            {!isSignedIn ? (
-              <div className="bg-surface rounded-2xl border border-border-main p-6 sm:p-8 shadow-xs space-y-5 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-primary-light border border-primary-border flex items-center justify-center text-primary-action mx-auto shadow-2xs">
-                  <Users className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-base sm:text-lg font-bold text-text-main font-heading">
-                    Want to join this squad?
-                  </h3>
-                  <p className="text-xs text-text-muted max-w-xs mx-auto leading-relaxed">
-                    Sign in with your university account to verify your skills, see compatibility scores, and apply to open roles.
-                  </p>
-                </div>
-                {team.members.length >= totalSpots ? (
-                  <span className="w-full block py-2.5 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-xl border border-border-main">
-                    Squad Full • No Open Spots Left
-                  </span>
-                ) : isRestrictedEvent ? (
-                  <div className="w-full py-2.5 px-3 text-center text-xs font-semibold text-text-muted bg-surface-dim rounded-xl border border-border-main flex items-center justify-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-text-muted" />
-                    <span>Organization Restricted • {team.university || "Organization-only"}</span>
-                  </div>
-                ) : (
-                  <SignInButton mode="modal">
-                    <button className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary-action hover:bg-primary-hover text-white font-bold text-xs shadow-xs transition-colors cursor-pointer">
-                      Sign In to Apply <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </SignInButton>
-                )}
-              </div>
-            ) : (
-              <SmartRecommendationPanel
-                recommendation={{
-                  teamId: team.id,
-                  teamName: team.name,
-                  category: category || undefined,
-                  taxonomyScore: taxonomyScore,
-                  fulfilledRequirements: fulfilledCount,
-                  totalRequirements: team.requirements.length,
-                  bestMatchingRole: activeBestMatchingRole || undefined,
-                  roles: team.roles,
-                  teamLeadName: team.members.find((m) => m.role === "Leader")?.name || team.members[0]?.name || "Team Lead",
-                  teamLeadUniversity: team.university || undefined,
-                  sameUniversity: Boolean(
-                    userUni &&
-                    teamUni &&
-                    userUni.toLowerCase().trim() === teamUni.toLowerCase().trim()
-                  ),
-                  requirements: team.requirements,
-                  userVerifiedSkills: userVerifiedSkills,
-                  breakdown: activeBreakdown.length > 0 ? activeBreakdown : undefined,
-                }}
-                isRecommended={Boolean(category && taxonomyScore !== undefined)}
-                isFull={team.members.length >= totalSpots}
-                isRestricted={isRestrictedEvent}
-                isMember={isUserMember || isUserLeader}
-                onApply={() => {
-                  if (!isRestrictedEvent && !isUserMember && !isUserLeader) {
-                    setIsApplyModalOpen(true);
-                  }
-                }}
-                onWithdraw={handleWithdrawApplication}
-                onLeave={handleLeaveTeam}
-                hasApplied={applied}
-              />
-            )}
+            <SmartRecommendationPanel
+              recommendation={{
+                teamId: team.id,
+                teamName: team.name,
+                category,
+                taxonomyScore,
+                fulfilledRequirements: fulfilledCount,
+                totalRequirements: team.requirements.length,
+                bestMatchingRole: activeBestMatchingRole || undefined,
+                roles: team.roles,
+                breakdown: activeBreakdown,
+                teamLeadName: team.members.find((m) => m.role === "Leader")?.name || "Squad Lead",
+                teamLeadUniversity: team.university || undefined,
+                sameUniversity: Boolean(
+                  userUni && teamUni && userUni.toLowerCase().trim() === teamUni.toLowerCase().trim()
+                ),
+                requirements: team.requirements,
+                userVerifiedSkills,
+              }}
+              hasApplied={applied}
+              isMember={isUserMember}
+              isRestricted={isRestrictedEvent}
+              onApply={() => setIsApplyModalOpen(true)}
+            />
           </div>
         </div>
       )}
 
-      {/* Apply Team Modal (Only for non-members) */}
-      {!isUserInTeam && !isRestrictedEvent && isSignedIn && team.members.length < totalSpots && (
-        <ApplyTeamModal
-          isOpen={isApplyModalOpen}
-          onClose={() => setIsApplyModalOpen(false)}
-          team={{
-            id: team.id,
-            name: team.name,
-            eventId: team.eventId,
-            eventTitle: team.event?.title || "Hackathon",
-            requirements: team.requirements,
-            roles: team.roles,
-            bestMatchingRole: activeBestMatchingRole,
-            university: team.university || undefined,
-            members: team.members.map((m) => ({ id: m.id, name: m.name, role: m.role || undefined })),
-          }}
-          onSubmit={handleApplySuccess}
-        />
-      )}
+      {/* Modals */}
+      <ApplyTeamModal
+        isOpen={isApplyModalOpen}
+        onClose={() => setIsApplyModalOpen(false)}
+        team={team as any}
+        onSubmit={async (teamId, _role, message) => {
+          try {
+            await applicationsApi.applyToTeam(teamId, message);
+            handleApplySuccess();
+          } catch (err: any) {
+            setToastMessage(err.message || "Failed to submit application.");
+            setTimeout(() => setToastMessage(null), 4000);
+          }
+        }}
+      />
 
-      {/* Team Role-Based Invite Modal */}
       {pendingInvite && (
         <TeamInviteModal
           isOpen={isInviteModalOpen}
@@ -1533,7 +810,6 @@ export function TeamDetailPage() {
         />
       )}
 
-      {/* Confirmation Modal */}
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
@@ -1544,12 +820,9 @@ export function TeamDetailPage() {
         iconType={confirmModal.iconType}
         isLoading={confirmModal.isLoading}
         onConfirm={confirmModal.onConfirm}
-        onClose={() => {
-          if (!confirmModal.isLoading) {
-            setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-          }
-        }}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }))}
       />
     </div>
   );
 }
+export default TeamDetailPage;

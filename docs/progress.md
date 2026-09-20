@@ -24,6 +24,54 @@ Following the completion of **Task 3: "Create Team" UI & Page Integrations with 
     - API test suite (`pnpm test`) passed with 0 errors.
     - Production build (`pnpm build`) transformed 2,011 modules in 4.56s without bundle issues.
 
+- **Task 6 / Phase 3: Frontend Mega-Page & Mega-Modal Modularization (Completed ✅):**
+  - **`TeamDetailPage.tsx` Modularization (`apps/web/src/components/team-detail/`):**
+    - Reduced from **1,556 lines** down to **~829 lines** (with root orchestrator component).
+    - Extracted 6 focused subcomponents:
+      - `TeamHero.tsx`: Team banner, recommendation/scope badges, edit team trigger, action buttons (Join, Manage, Leave).
+      - `TeamRolesGrid.tsx`: Role cards, vacancy telemetry, optimal best role match indicators, skill tags.
+      - `TeamRosterList.tsx`: Active roster members, leader badges, remove member actions.
+      - `TeamInvitesSection.tsx`: Pending outbound team invites list with cancel invite triggers.
+      - `TeamApplicationsSection.tsx`: Candidate incoming applications with triage actions (Accept, Reject).
+      - `TeamCandidateDossier.tsx`: Comprehensive slide-over dossier inspecting applicant verified skills, score ring, academic background, experience, and projects.
+  - **`TeamsPage.tsx` Modularization (`apps/web/src/components/teams-page/`):**
+    - Reduced from **1,360 lines** down to **~360 lines**.
+    - Extracted custom hook and components:
+      - `useTeamsFilter.ts`: Encapsulates search debouncing, tier/campus/spots filtering, sorting, SWR caching with `CacheService`, and pagination state.
+      - `TeamsFilterBar.tsx`: Search bar, filter popover dropdown, sort menu, and view mode toggle (Cards vs Tiles).
+      - `TeamsInspectorDrawer.tsx`: Slide-over inspection drawer with score ring, role breakdowns, and actions.
+      - `TeamsPagination.tsx`: Bottom pagination controls.
+  - **`CreateTeamModal.tsx` Modularization (`apps/web/src/components/create-team/`):**
+    - Reduced from **1,258 lines** down to **~150 lines** orchestrator.
+    - Extracted 4 step modules and types:
+      - `create-team.types.ts`: Preset templates (`Full-Stack Web App`, `AI / ML Product`, `Mobile App Squad`, `Custom Squad`), interfaces, popular skill suggestions.
+      - `StepSelectEvent.tsx`: Dual-mode event selector (locked event banner vs searchable dropdown).
+      - `StepTeamDetails.tsx`: Squad name input and 1-click architecture preset cards.
+      - `StepRoleBuilder.tsx`: Dynamic role positions builder, slot count stepper, skill tag input, and mandatory leader role selection.
+      - `StepInviteMembers.tsx`: Email invite row with custom role select dropdown and pending invites list.
+    - Preserved 100% backward compatibility via re-export from `apps/web/src/components/CreateTeamModal.tsx`.
+  - **`Profile.tsx` Modularization (`apps/web/src/components/profile/`):**
+    - Reduced from **1,128 lines** down to **~410 lines**.
+    - Extracted 7 subcomponents:
+      - `ProfileHeader.tsx`: Dynamic banner, avatar, student verification badge, name/title, email copy button, social links (GitHub & LinkedIn), resume PDF link, quick action buttons, about bio, and academic background card.
+      - `ProfileSquads.tsx`: Active squad memberships and pending candidate applications.
+      - `ProfileSkills.tsx`: Verified skills tag grid with collapsible header.
+      - `ProfileExperience.tsx`: Engineering work experience with collapsible bullet points and tech tags.
+      - `ProfileAchievements.tsx`: Hackathons & honors with award tiers and collapsible descriptions.
+      - `ProfileProjects.tsx`: Public projects with collapsible descriptions and tech tags.
+      - `SignOutConfirmModal.tsx`: Logout confirmation dialog.
+  - **`EditProfileModal.tsx` Modularization (`apps/web/src/components/edit-profile/`):**
+    - Reduced from **1,027 lines** down to **~150 lines** orchestrator.
+    - Extracted 4 modules:
+      - `edit-profile.types.ts`: `BannerConfig`, `GRADIENT_PRESETS`, modal props.
+      - `ResumeDropzoneView.tsx`: Drag-and-drop resume PDF upload and background ingestion trigger.
+      - `ManualEditForm.tsx`: Direct editing for full name, headline, bio, skills manager, social links, and degree.
+      - `BannerCustomizer.tsx`: Live banner preview, preset gradient chips, color/angle pickers, image uploader with automatic compression, and workspace theme synchronization toggle.
+    - Preserved 100% backward compatibility via re-export from `apps/web/src/components/EditProfileModal.tsx`.
+  - **Verification & Quality Gate:**
+    - Full workspace typecheck (`pnpm typecheck`) passed with 0 errors across `@squadup/shared`, `@squadup/api`, and `@squadup/web`.
+    - Backend test suite (`pnpm --filter @squadup/api test`) passed with 0 errors.
+
 - **Task 6 / Phase 2: Backend Controller & Service Layer Modularization (Completed ✅):**
   - **Massive Deconstruction of 2,728-Line God Controller (`team.controller.ts`):**
     - Extracted core team business logic into dedicated services in `apps/api/src/services/`:
