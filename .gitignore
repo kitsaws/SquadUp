@@ -24,3 +24,4 @@ next_instructions
 # Uploads
 uploads/
 apps/api/uploads/
+.neon

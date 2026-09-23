@@ -6,6 +6,7 @@ import path from "path";
 import { aiQueue } from "../queues/ai.queue.js";
 import { UploadResumeResponse, ResumeStatusResponse } from "@squadup/shared";
 import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
+import { StorageService } from "../services/storage.service.js";
 
 const RESUME_STORAGE_DIR = path.resolve(process.cwd(), "uploads", "resumes");
 
@@ -66,25 +67,27 @@ export const uploadResume = async (req: Request, res: Response<UploadResumeRespo
     }
   }
 
-  // 2. Persist PDF to local storage
+  // 2. Persist PDF to Neon Object Storage (or local storage fallback)
   const filename = req.file.originalname;
-  const savedFilename = `${userInDb.id}.pdf`;
-  const savedFilePath = path.join(RESUME_STORAGE_DIR, savedFilename);
 
   try {
-    await fs.promises.writeFile(savedFilePath, req.file.buffer);
+    const savedPathOrUri = await StorageService.uploadResumePdf(
+      userInDb.id,
+      req.file.buffer,
+      filename
+    );
 
     // Update Profile with file metadata and upload timestamp
     await prisma.profile.upsert({
       where: { userId: userInDb.id },
       update: {
-        resumePdfPath: savedFilePath,
+        resumePdfPath: savedPathOrUri,
         resumeOriginalName: filename,
         lastResumeUploadedAt: new Date(),
       },
       create: {
         userId: userInDb.id,
-        resumePdfPath: savedFilePath,
+        resumePdfPath: savedPathOrUri,
         resumeOriginalName: filename,
         lastResumeUploadedAt: new Date(),
         skills: [],
@@ -132,8 +135,13 @@ export const viewResume = async (req: Request, res: Response) => {
       where: { userId: userInDb.id },
     });
 
-    if (!profile || !profile.resumePdfPath || !fs.existsSync(profile.resumePdfPath)) {
+    if (!profile || !profile.resumePdfPath) {
       return res.status(404).json({ error: "Resume PDF not found." });
+    }
+
+    const fileData = await StorageService.getResumePdfStream(profile.resumePdfPath);
+    if (!fileData) {
+      return res.status(404).json({ error: "Resume PDF file could not be retrieved." });
     }
 
     res.setHeader("Content-Type", "application/pdf");
@@ -141,8 +149,10 @@ export const viewResume = async (req: Request, res: Response) => {
       "Content-Disposition",
       `inline; filename="${profile.resumeOriginalName || "resume.pdf"}"`
     );
-    const stream = fs.createReadStream(profile.resumePdfPath);
-    return stream.pipe(res);
+    if (fileData.contentLength) {
+      res.setHeader("Content-Length", fileData.contentLength);
+    }
+    return fileData.stream.pipe(res);
   } catch (error) {
     console.error("[Resume Controller] Error serving resume:", error);
     return res.status(500).json({ error: "Failed to load resume PDF." });
@@ -176,7 +186,12 @@ export const viewCandidateResume = async (req: Request, res: Response) => {
       where: { userId: targetUser.id },
     });
 
-    if (!profile || !profile.resumePdfPath || !fs.existsSync(profile.resumePdfPath)) {
+    if (!profile || !profile.resumePdfPath) {
+      return res.status(404).json({ error: "Resume PDF not found for this candidate." });
+    }
+
+    const fileData = await StorageService.getResumePdfStream(profile.resumePdfPath);
+    if (!fileData) {
       return res.status(404).json({ error: "Resume PDF not found for this candidate." });
     }
 
@@ -185,8 +200,10 @@ export const viewCandidateResume = async (req: Request, res: Response) => {
       "Content-Disposition",
       `inline; filename="${profile.resumeOriginalName || "resume.pdf"}"`
     );
-    const stream = fs.createReadStream(profile.resumePdfPath);
-    return stream.pipe(res);
+    if (fileData.contentLength) {
+      res.setHeader("Content-Length", fileData.contentLength);
+    }
+    return fileData.stream.pipe(res);
   } catch (error) {
     console.error("[Resume Controller] Error serving candidate resume:", error);
     return res.status(500).json({ error: "Failed to load candidate resume PDF." });
