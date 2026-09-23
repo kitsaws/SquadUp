@@ -73,7 +73,7 @@ export const getRoleMatchStatus = (
   if (!isSignedIn || !userVerifiedSkills || userVerifiedSkills.length === 0) return "none";
 
   if (team.bestMatchingRole && team.bestMatchingRole.roleTitle.toLowerCase().trim() === role.title.toLowerCase().trim()) {
-    const isRoleOpen = !team.roles || team.roles.length === 0 || team.roles.some((r) => r.title.toLowerCase().trim() === role.title.toLowerCase().trim() && (r.spots === undefined || r.spots > 0) && !r.assignedToId);
+    const isRoleOpen = !team.roles || team.roles.length === 0 || team.roles.some((r) => r.title.toLowerCase().trim() === role.title.toLowerCase().trim() && (typeof r.spots === "number" ? r.spots > 0 : !r.assignedToId));
     if (isRoleOpen) {
       if (team.bestMatchingRole.score >= 0.85) return "perfect";
       if (team.bestMatchingRole.score >= 0.40) return "partial";

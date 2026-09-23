@@ -78,9 +78,9 @@ export function TeamsPage() {
     loadTeams,
   } = useTeamsFilter();
 
-  const handleApplySuccess = async (teamId: string, message?: string) => {
+  const handleApplySuccess = async (teamId: string, roleTitle?: string, message?: string, roleId?: string) => {
     try {
-      await applicationsApi.applyToTeam(teamId, message);
+      await applicationsApi.applyToTeam(teamId, message, roleTitle, roleId);
       setAppliedTeamIds((prev) => [...prev, teamId]);
       setIsApplyModalOpen(false);
       setToastMessage("✓ Application submitted! Squad leaders have received your dossier.");

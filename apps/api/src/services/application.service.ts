@@ -17,7 +17,9 @@ export class ApplicationService {
   static async applyToTeam(
     teamId: string,
     message: string | undefined,
-    applicantUser: { id: string; name: string }
+    applicantUser: { id: string; name: string },
+    roleTitle?: string,
+    roleId?: string
   ): Promise<{ applicationId: string; status: string }> {
     const team = await prisma.team.findUnique({
       where: { id: teamId },
@@ -47,8 +49,10 @@ export class ApplicationService {
         teamId,
         userId: applicantUser.id,
         message: message?.trim() || null,
+        roleId: roleId || null,
+        roleTitle: roleTitle?.trim() || null,
         status: "PENDING",
-      },
+      } as any,
       include: {
         team: {
           include: {
@@ -436,8 +440,25 @@ export class ApplicationService {
     }
 
     // Determine Role assignment
-    let assignedRoleTitle = application.user.profile?.title || "Member";
-    let candidateAssignedRole = team.roles.find((r) => !r.assignedToId && (r.spots ?? 0) > 0);
+    const appRoleId = (application as any).roleId;
+    const appRoleTitle = (application as any).roleTitle;
+
+    let assignedRoleTitle = appRoleTitle || application.user.profile?.title || "Member";
+    let candidateAssignedRole = null;
+
+    if (appRoleId) {
+      candidateAssignedRole = team.roles.find(
+        (r) => r.id === appRoleId && (!r.assignedToId || (r.spots ?? 0) > 0)
+      );
+    }
+    if (!candidateAssignedRole && appRoleTitle) {
+      candidateAssignedRole = team.roles.find(
+        (r) => r.title.toLowerCase().trim() === appRoleTitle.toLowerCase().trim() && (!r.assignedToId || (r.spots ?? 0) > 0)
+      );
+    }
+    if (!candidateAssignedRole) {
+      candidateAssignedRole = team.roles.find((r) => !r.assignedToId && (r.spots ?? 0) > 0);
+    }
 
     if (candidateAssignedRole) {
       assignedRoleTitle = candidateAssignedRole.title;
@@ -445,7 +466,7 @@ export class ApplicationService {
         where: { id: candidateAssignedRole.id },
         data: {
           spots: Math.max(0, (candidateAssignedRole.spots ?? 1) - 1),
-          assignedToId: application.userId,
+          assignedToId: candidateAssignedRole.assignedToId ? candidateAssignedRole.assignedToId : application.userId,
         },
       });
     }
@@ -478,6 +499,8 @@ export class ApplicationService {
     });
 
     await CacheService.invalidateTeam(team.id);
+    await CacheService.invalidateProfile(application.userId);
+    await CacheService.invalidateProfile(reviewerUserId);
     return { message: "Application accepted and member added to squad.", teamId: team.id };
   }
 

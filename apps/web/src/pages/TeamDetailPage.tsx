@@ -270,7 +270,9 @@ export function TeamDetailPage() {
       (r) => (r.id && r.id === rawRole.roleId) || r.title?.toLowerCase() === rawRole.roleTitle?.toLowerCase()
     );
     if (!targetRoleInTeam) return rawRole;
-    const isRoleFilled = Boolean(targetRoleInTeam.assignedToId) || (targetRoleInTeam.spots !== undefined && targetRoleInTeam.spots <= 0);
+    const isRoleFilled = typeof targetRoleInTeam.spots === "number"
+      ? targetRoleInTeam.spots <= 0
+      : Boolean(targetRoleInTeam.assignedToId);
     return isRoleFilled ? null : rawRole;
   }, [recommendation, team]);
 
@@ -825,9 +827,9 @@ export function TeamDetailPage() {
         isOpen={isApplyModalOpen}
         onClose={() => setIsApplyModalOpen(false)}
         team={team as any}
-        onSubmit={async (teamId, _role, message) => {
+        onSubmit={async (teamId, roleTitle, message, roleId) => {
           try {
-            await applicationsApi.applyToTeam(teamId, message);
+            await applicationsApi.applyToTeam(teamId, message, roleTitle, roleId);
             handleApplySuccess();
           } catch (err: any) {
             setToastMessage(err.message || "Failed to submit application.");

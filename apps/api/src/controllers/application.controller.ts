@@ -18,7 +18,7 @@ export const applyToTeam = async (
   }
 
   const { id: teamId } = req.params;
-  const { message } = req.body;
+  const { message, roleTitle, roleId } = req.body as any;
 
   let userInDb;
   try {
@@ -28,7 +28,7 @@ export const applyToTeam = async (
   }
 
   try {
-    const result = await ApplicationService.applyToTeam(teamId, message, userInDb);
+    const result = await ApplicationService.applyToTeam(teamId, message, userInDb, roleTitle, roleId);
     return res.status(201).json({
       message: "Application submitted successfully.",
       applicationId: result.applicationId,

@@ -379,8 +379,9 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({
         }
       }
 
-      if (onSuccess) {
-        onSuccess(res.teamId);
+      const createdTeamId = res?.teamId || (res as any)?.team?.id || (res as any)?.id;
+      if (onSuccess && createdTeamId) {
+        onSuccess(createdTeamId);
       }
       onClose();
     } catch (err: any) {
