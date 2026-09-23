@@ -34,19 +34,10 @@ export interface BestMatchingRoleData {
 export interface RequirementBreakdownItem {
   requirementNodeId?: string;
   requirementName: string;
-  requirementDepth?: number;
   bestUserSkillId?: string | null;
   bestUserSkillName?: string | null;
-  bestUserSkillDepth?: number;
-  lcaNodeId?: string | null;
-  lcaNodeName?: string | null;
-  lcaDepth?: number;
-  graphDistance?: number;
-  matchType?: "exact" | "ancestor" | "descendant" | "sibling" | "subdomain" | "domain" | "unmet";
   score: number;
   isDirectMatch?: boolean;
-  provenanceSource?: string;
-  snippet?: string;
   explanation?: string;
   explanationText?: string;
   isStrong?: boolean;
@@ -112,7 +103,8 @@ export function SmartRecommendationPanel({
           (recommendation.bestMatchingRole?.roleId && r.id === recommendation.bestMatchingRole.roleId) ||
           r.title.toLowerCase().trim() === recommendation.bestMatchingRole?.roleTitle.toLowerCase().trim()
       );
-      if (!match || (match.spots !== undefined && match.spots <= 0) || match.assignedToId) {
+      const isFilled = match ? (typeof match.spots === "number" ? match.spots <= 0 : Boolean(match.assignedToId)) : true;
+      if (!match || isFilled) {
         return false;
       }
     }
@@ -144,26 +136,25 @@ export function SmartRecommendationPanel({
               requirementName: req,
               score: 1.0,
               isDirectMatch: true,
-              provenanceSource: `Verified Competency`,
               bestUserSkillName: req,
-              explanation: `Exact match with verified competency '${req}' in your engineering profile. Direct alignment enables immediate high-velocity project execution.`,
+              explanation: `Exact match with '${req}' from your profile.`,
             };
           } else if (matchType === "partial") {
+            const matchedSkill = userSkills.find((s) => s.toLowerCase().includes(req.toLowerCase())) || "Related Skill";
             return {
               requirementName: req,
               score: 0.65,
               isDirectMatch: false,
-              provenanceSource: `Subdomain Alignment`,
-              bestUserSkillName: userSkills.find((s) => s.toLowerCase().includes(req.toLowerCase())) || "Related Skill",
-              explanation: `Related technology domain match in your profile. Your experience provides a strong foundation to quickly onboard onto '${req}'.`,
+              bestUserSkillName: matchedSkill,
+              explanation: `Relevant experience matched with '${matchedSkill}' for '${req}'.`,
             };
           } else {
             return {
               requirementName: req,
               score: 0.0,
               isDirectMatch: false,
-              provenanceSource: `Open Vacancy`,
-              explanation: `Unfulfilled squad vacancy — no direct match found in your verified skills. This role capability is actively seeking a specialist teammate.`,
+              bestUserSkillName: null,
+              explanation: `No matching skill found in your profile.`,
             };
           }
         });
@@ -273,7 +264,7 @@ export function SmartRecommendationPanel({
         <div>
           {isActivelyRecommended ? (
             <span className="text-[11px] font-bold uppercase tracking-wider text-primary-action flex items-center gap-1.5 mb-1">
-              <Sparkles className="w-3.5 h-3.5" /> Deterministic Taxonomy AI
+              <Sparkles className="w-3.5 h-3.5" /> AI Skill Match
             </span>
           ) : (
             <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5 mb-1">
@@ -483,19 +474,12 @@ export function SmartRecommendationPanel({
                       </span>
                     </div>
 
-                    {/* Sub-row: Role and Provenance Badges cleanly placed below */}
-                    {(roleMatch || item.provenanceSource) && (
+                    {/* Sub-row: Role Badge if role match exists */}
+                    {roleMatch && (
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {roleMatch && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-primary-light text-primary-action border border-primary-border">
-                            Role: {roleMatch.title}
-                          </span>
-                        )}
-                        {item.provenanceSource && (
-                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-surface border border-border-main text-text-muted">
-                            Source: {item.provenanceSource}
-                          </span>
-                        )}
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-primary-light text-primary-action border border-primary-border">
+                          Role: {roleMatch.title}
+                        </span>
                       </div>
                     )}
 
@@ -513,81 +497,48 @@ export function SmartRecommendationPanel({
                       />
                     </div>
 
-                    {/* Deep Reasoning Callout Box */}
+                    {/* Clean Matched Skill & Score Breakdown */}
                     <div className="p-3.5 rounded-xl bg-surface border border-border-main/70 space-y-2.5 shadow-2xs">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-text-main">
-                          <Layers className="w-3.5 h-3.5 text-primary-action" />
-                          <span>Reasoning & Taxonomy Analysis:</span>
-                        </div>
-                        {item.matchType && item.matchType !== "unmet" && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-primary-light text-primary-action border border-primary-border capitalize">
-                            {item.matchType === "exact"
-                              ? "Exact Match"
-                              : item.matchType === "ancestor"
-                              ? "Broad Parent Match"
-                              : item.matchType === "descendant"
-                              ? "Specialized Sub-skill"
-                              : item.matchType === "sibling"
-                              ? "Sibling Technology"
-                              : item.matchType === "subdomain"
-                              ? "Subdomain Alignment"
-                              : "Domain Overlap"}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="p-2.5 rounded-xl bg-surface-dim/70 border border-border-main space-y-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                            Required Squad Skill:
                           </span>
-                        )}
+                          <span className="font-bold text-text-main text-xs block truncate">
+                            {item.requirementName}
+                          </span>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-surface-dim/70 border border-border-main space-y-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block">
+                            Matched Profile Skill:
+                          </span>
+                          <span className={`font-bold text-xs block truncate ${item.bestUserSkillName ? "text-primary-action" : "text-text-muted font-normal italic"}`}>
+                            {item.bestUserSkillName ? item.bestUserSkillName : "No match in profile"}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Taxonomy Hierarchy Path Trace */}
-                      {item.bestUserSkillName && (
-                        <div className="p-2.5 rounded-xl bg-surface-dim/70 border border-border-main space-y-1.5 text-[11px]">
-                          <div className="flex flex-wrap items-center gap-1.5 text-text-muted">
-                            <span className="font-semibold flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-primary-action" />
-                              Req: <strong className="text-text-main">{item.requirementName}</strong>
-                              <span className="text-[10px] text-text-muted font-mono">(Depth {item.requirementDepth ?? 2})</span>
-                            </span>
-
-                            <span className="text-text-muted font-bold">→</span>
-
-                            <span className="font-semibold flex items-center gap-1">
-                              Intersection: <strong className="text-primary-action">{item.lcaNodeName || item.bestUserSkillName}</strong>
-                              <span className="text-[10px] text-primary-action/80 font-mono">(Depth {item.lcaDepth ?? 1})</span>
-                            </span>
-
-                            <span className="text-text-muted font-bold">→</span>
-
-                            <span className="font-semibold flex items-center gap-1">
-                              Skill: <strong className="text-text-main">{item.bestUserSkillName}</strong>
-                              <span className="text-[10px] text-text-muted font-mono">(Depth {item.bestUserSkillDepth ?? 1})</span>
-                            </span>
-                          </div>
-
-                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border-main/50 text-[10px] text-text-muted font-medium">
-                            <span>
-                              Graph Distance: <strong className="text-text-main font-mono">{item.graphDistance !== undefined && item.graphDistance < 999 ? item.graphDistance : (isExact ? 0 : 1)}</strong>
-                            </span>
-                            <span>
-                              Allotted Score: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">{score.toFixed(2)} ({Math.round(score * 100)}%)</strong>
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-border-main/50 text-[11px] text-text-muted">
+                        <span>Match Score:</span>
+                        <span className="font-bold text-text-main">
+                          {score >= 0.95 ? (
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">100% Match</span>
+                          ) : score > 0 ? (
+                            <span className="text-amber-600 dark:text-amber-400 font-bold">{Math.round(score * 100)}% Match</span>
+                          ) : (
+                            <span className="text-text-muted">0% Match</span>
+                          )}
+                        </span>
+                      </div>
 
                       <p className="text-xs text-text-muted leading-relaxed font-normal">
-                        {item.explanationText ||
-                          item.explanation ||
-                          (isExact
-                            ? `Direct exact match with verified competency '${item.bestUserSkillName || item.requirementName}' in your engineering dossier.`
-                            : isPartial
-                            ? `Conceptual taxonomy match. Your background in '${item.bestUserSkillName || "related technologies"}' shares core architectural patterns with '${item.requirementName}'.`
-                            : `No matching competency found in your verified profile. This requirement represents an open team capability need.`)}
+                        {isExact
+                          ? `Exact match with '${item.bestUserSkillName || item.requirementName}' from your profile.`
+                          : isPartial
+                          ? `Relevant experience matched with '${item.bestUserSkillName || "related technologies"}' for '${item.requirementName}'.`
+                          : `No matching skill found in your profile for this squad requirement.`}
                       </p>
-
-                      {item.snippet && (
-                        <div className="text-[11px] font-mono text-text-muted bg-surface-dim p-2 rounded-lg border border-border-main italic mt-1.5">
-                          Evidence: "{item.snippet}"
-                        </div>
-                      )}
                     </div>
                   </div>
                 );
