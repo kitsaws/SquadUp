@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma.js";
+import { TeamService } from "../services/team.service.js";
 
 export async function syncUserOrganizationsFromClerk(userId: string, clerkId: string) {
   try {
@@ -173,10 +174,29 @@ export async function getOrCreateUserByClerkId(clerkId: string) {
       const name = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || "SquadUp User";
       const imageUrl = clerkUser.imageUrl || null;
       
-      userInDb = await prisma.user.upsert({
-        where: { clerkId },
-        update: { email, name, ...(imageUrl && { imageUrl }) },
-        create: { clerkId, email, name, imageUrl },
+      // Check if a user with this email already exists in DB with an obsolete/different clerkId
+      // (e.g. if the previous account was deleted in Clerk but the webhook was missed or in dev)
+      const existingUserByEmail = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (existingUserByEmail) {
+        console.log(`[Auth Utils] Detected obsolete account for email ${email} (old clerkId: ${existingUserByEmail.clerkId}). Erasing old profile and initializing fresh account...`);
+        // Clean up any team memberships / transfer leaderships from the deleted account
+        await TeamService.handleUserDeletion(existingUserByEmail.id);
+        // Completely erase the old user and all their cascaded profile data
+        await prisma.user.delete({
+          where: { id: existingUserByEmail.id },
+        });
+      }
+
+      userInDb = await prisma.user.create({
+        data: {
+          clerkId,
+          email,
+          name,
+          imageUrl,
+        },
         include: {
           profile: true,
           organizationMemberships: {
@@ -202,7 +222,7 @@ export async function getOrCreateUserByClerkId(clerkId: string) {
         },
       });
 
-      console.log(`[Auth Utils] Successfully synced user ${clerkId} to DB.`);
+      console.log(`[Auth Utils] Successfully initialized fresh user ${clerkId} (${email}) in DB.`);
     } catch (clerkError) {
       console.error("[Auth Utils] Error fetching user from Clerk API:", clerkError);
       throw new Error("Failed to verify user profile with Clerk.");

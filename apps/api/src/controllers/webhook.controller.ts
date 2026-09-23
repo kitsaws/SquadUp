@@ -79,18 +79,36 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
         const email = primaryEmailObj?.email_address || `${id}@squadup.dev`;
         const name = `${first_name || ""} ${last_name || ""}`.trim() || username || "SquadUp User";
 
-        const user = await prisma.user.upsert({
+        let user = await prisma.user.findUnique({
           where: { clerkId: id },
-          update: {
-            email,
-            name,
-          },
-          create: {
-            clerkId: id,
-            email,
-            name,
-          },
         });
+
+        if (user) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { email, name },
+          });
+        } else {
+          const existingUserByEmail = await prisma.user.findUnique({
+            where: { email },
+          });
+
+          if (existingUserByEmail) {
+            // Old user was deleted in Clerk and a fresh account created with same email
+            await TeamService.handleUserDeletion(existingUserByEmail.id);
+            await prisma.user.delete({
+              where: { id: existingUserByEmail.id },
+            });
+          }
+
+          user = await prisma.user.create({
+            data: {
+              clerkId: id,
+              email,
+              name,
+            },
+          });
+        }
 
         // Ensure user has a profile record initialized
         await prisma.profile.upsert({
@@ -271,13 +289,25 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
           const userName =
             `${public_user_data?.first_name || ""} ${public_user_data?.last_name || ""}`.trim() ||
             "SquadUp User";
-          user = await prisma.user.create({
-            data: {
-              clerkId: clerkUserId,
-              email: userEmail,
-              name: userName,
-            },
+
+          const existingUserByEmail = await prisma.user.findUnique({
+            where: { email: userEmail },
           });
+
+          if (existingUserByEmail) {
+            user = await prisma.user.update({
+              where: { id: existingUserByEmail.id },
+              data: { clerkId: clerkUserId, name: userName },
+            });
+          } else {
+            user = await prisma.user.create({
+              data: {
+                clerkId: clerkUserId,
+                email: userEmail,
+                name: userName,
+              },
+            });
+          }
         }
 
         // 3. Upsert OrganizationMembership record
