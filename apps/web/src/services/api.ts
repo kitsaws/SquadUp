@@ -259,8 +259,8 @@ export const teamsApi = {
     requirements?: string[];
     invites?: string[];
     roleInvites?: Array<{ email: string; roleId?: string; roleTitle?: string; roleSkills?: string[] }>;
-  }): Promise<{ message: string; teamId: string; requirementNodeIds?: string[] }> => {
-    const res = await request<{ message: string; teamId: string; requirementNodeIds?: string[] }>("/teams", {
+  }): Promise<{ message: string; teamId: string; team?: TeamItem; requirementNodeIds?: string[] }> => {
+    const res = await request<{ message: string; teamId: string; team?: TeamItem; requirementNodeIds?: string[] }>("/teams", {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -282,6 +282,8 @@ export const teamsApi = {
     });
     CacheService.invalidatePrefix("sq:teams:");
     CacheService.invalidatePrefix("sq:recs:");
+    CacheService.invalidatePrefix("sq:profile:");
+    CacheService.invalidatePrefix("sq:public_profile:");
     return res;
   },
 
@@ -372,10 +374,19 @@ export const recommendationsApi = {
    ========================================================================= */
 
 export const applicationsApi = {
-  applyToTeam: async (teamId: string, message?: string): Promise<{ message: string; applicationId: string; status: string }> => {
+  applyToTeam: async (
+    teamId: string,
+    message?: string,
+    roleTitle?: string,
+    roleId?: string
+  ): Promise<{ message: string; applicationId: string; status: string }> => {
     const res = await request<{ message: string; applicationId: string; status: string }>(`/teams/${teamId}/apply`, {
       method: "POST",
-      body: JSON.stringify({ message: message || "I'd love to join your squad!" }),
+      body: JSON.stringify({
+        message: message || "I'd love to join your squad!",
+        roleTitle: roleTitle?.trim() || undefined,
+        roleId: roleId || undefined,
+      }),
     });
     CacheService.invalidatePrefix("sq:teams:");
     CacheService.invalidatePrefix("sq:recs:");
@@ -451,9 +462,16 @@ export const profileApi = {
     const userScope = options?.userId || "active_user";
     const cacheKey = `sq:profile:${userScope}`;
 
+    if (options?.bypassCache) {
+      CacheService.invalidate(cacheKey);
+      CacheService.invalidatePrefix("sq:profile:");
+    }
+
+    const endpoint = options?.bypassCache ? "/profile?bypassCache=true" : "/profile";
+
     return CacheService.fetchWithSWR<UserProfileResponse>(
       cacheKey,
-      () => request<UserProfileResponse>("/profile"),
+      () => request<UserProfileResponse>(endpoint),
       {
         ttlMs: 1000 * 60 * 30, // 30 minutes TTL
         storage: "local",
@@ -470,10 +488,23 @@ export const profileApi = {
     });
 
     if (res.profile) {
-      const userScope = userId || res.profile.userId || res.profile.clerkId || "active_user";
-      CacheService.set(`sq:profile:${userScope}`, res.profile, 1000 * 60 * 30, "local");
-      CacheService.invalidatePrefix(`sq:recs:${userScope}`);
+      // Invalidate all related profile & recommendation caches
+      CacheService.invalidatePrefix("sq:profile:");
+      CacheService.invalidatePrefix("sq:public_profile:");
+      CacheService.invalidatePrefix("sq:recs:");
       CacheService.invalidatePrefix("sq:teams:");
+
+      // Store fresh profile across all relevant keys
+      if (res.profile.clerkId) {
+        CacheService.set(`sq:profile:${res.profile.clerkId}`, res.profile, 1000 * 60 * 30, "local");
+      }
+      if (res.profile.userId) {
+        CacheService.set(`sq:profile:${res.profile.userId}`, res.profile, 1000 * 60 * 30, "local");
+      }
+      if (userId) {
+        CacheService.set(`sq:profile:${userId}`, res.profile, 1000 * 60 * 30, "local");
+      }
+      CacheService.set(`sq:profile:active_user`, res.profile, 1000 * 60 * 30, "local");
     }
 
     return res;

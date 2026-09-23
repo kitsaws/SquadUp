@@ -107,6 +107,28 @@ export class CacheService {
   }
 
   /**
+   * Invalidates all profile, public profile, and recommendation caches for a given user (or globally).
+   */
+  static async invalidateProfile(userId?: string): Promise<void> {
+    try {
+      const promises: Promise<any>[] = [
+        this.invalidatePattern('profile:*'),
+      ];
+      if (userId) {
+        promises.push(
+          this.del(`profile:${userId}`),
+          this.invalidatePattern(`profile:${userId}*`),
+          this.invalidatePattern(`recs:${userId}*`),
+          this.invalidatePattern(`recommendations:${userId}*`)
+        );
+      }
+      await Promise.allSettled(promises);
+    } catch (err) {
+      console.warn(`[CacheService] Failed to invalidate profile cache for "${userId}":`, err);
+    }
+  }
+
+  /**
    * Computes a dynamic TTL for an event:
    * (seconds until event + 3 days). Minimum 300s, maximum 14 days (1,209,600s).
    */

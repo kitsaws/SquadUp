@@ -294,6 +294,7 @@ export class InviteService {
     }
 
     await CacheService.invalidateTeam(team.id);
+    await CacheService.invalidateProfile(callerUser.id);
     return { message: "Successfully joined the squad!", teamId: team.id };
   }
 

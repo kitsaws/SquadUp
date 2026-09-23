@@ -673,7 +673,7 @@ export class TeamService {
     data: CreateTeamRequest,
     creatorUser: { id: string; email: string; name: string },
     authOrgId?: string | null
-  ): Promise<{ team: any; requirementNodeIds?: string[] }> {
+  ): Promise<{ message?: string; teamId: string; team: any; requirementNodeIds?: string[] }> {
     const { eventId, name, roles, leaderRoleIndex, requirements, invites, roleInvites, orgId } = data;
 
     const event = await prisma.event.findUnique({
@@ -830,8 +830,11 @@ export class TeamService {
     await CacheService.invalidateTeam(team.id);
     await CacheService.invalidatePattern("teams:list:*");
     await CacheService.invalidatePattern("events:*");
+    await CacheService.invalidateProfile(creatorUser.id);
 
     return {
+      message: "Squad created successfully.",
+      teamId: team.id,
       team: {
         ...team,
         roles: createdRoles,
@@ -919,6 +922,9 @@ export class TeamService {
     });
 
     await CacheService.invalidateTeam(teamId);
+    for (const member of team.members) {
+      await CacheService.invalidateProfile(member.userId);
+    }
   }
 
   /**
@@ -977,6 +983,12 @@ export class TeamService {
         link: `/team/${team.id}`,
         data: { teamId: team.id, teamName: team.name },
       });
+      await CacheService.invalidateProfile(nextLeader.userId);
+    } else if (isLeader && remainingMembers.length === 0) {
+      // Sole leader left -> delete empty squad
+      await prisma.team.delete({
+        where: { id: team.id },
+      }).catch(() => {});
     } else if (!isLeader) {
       const leader = team.members.find((m) => m.role === "Leader");
       if (leader) {
@@ -992,7 +1004,126 @@ export class TeamService {
     }
 
     await CacheService.invalidateTeam(teamId);
+    await CacheService.invalidateProfile(callerUserId);
     return { message: "Successfully left the squad." };
+  }
+
+  /**
+   * Handles user deletion gracefully across all squads the user belongs to:
+   * - Unassigns filled roles and restores available spots.
+   * - If the user was Leader: transfers leadership to the next earliest joined member, or deletes the squad if 0 members remain.
+   * - If not leader: notifies current leader of member leaving.
+   * - Cleans up invitations and pending applications.
+   */
+  static async handleUserDeletion(userId: string): Promise<void> {
+    try {
+      // 1. Find all teams where the user is a member
+      const memberships = await prisma.teamMember.findMany({
+        where: { userId },
+        include: {
+          team: {
+            include: {
+              members: {
+                include: { user: true },
+                orderBy: { joinedAt: "asc" },
+              },
+              roles: true,
+            },
+          },
+          user: true,
+        },
+      });
+
+      for (const membership of memberships) {
+        const { team, user, role } = membership;
+        const isLeader = role === "Leader";
+        const remainingMembers = team.members.filter((m) => m.userId !== userId);
+
+        // Delete user's membership
+        await prisma.teamMember.delete({
+          where: { id: membership.id },
+        }).catch(() => {});
+
+        // Unassign user from any team role and increment spot
+        const userRole = team.roles.find((r) => r.assignedToId === userId);
+        if (userRole) {
+          await prisma.teamRole.update({
+            where: { id: userRole.id },
+            data: {
+              spots: (userRole.spots ?? 0) + 1,
+              assignedToId: null,
+            },
+          }).catch(() => {});
+        }
+
+        // If user was leader
+        if (isLeader) {
+          if (remainingMembers.length > 0) {
+            const nextLeader = remainingMembers[0];
+            await prisma.teamMember.update({
+              where: { id: nextLeader.id },
+              data: { role: "Leader" },
+            });
+
+            await NotificationService.createNotification({
+              userId: nextLeader.userId,
+              type: "TEAM_JOINED",
+              title: "You are now Squad Leader!",
+              message: `${user.name || "The squad leader"} has left "${team.name}". Leadership has been transferred to you.`,
+              link: `/team/${team.id}`,
+              data: { teamId: team.id, teamName: team.name },
+            }).catch(() => {});
+            await CacheService.invalidateProfile(nextLeader.userId);
+          } else {
+            // Sole member left -> delete empty squad
+            await prisma.team.delete({
+              where: { id: team.id },
+            }).catch(() => {});
+          }
+        } else {
+          // If member left, notify leader
+          const leader = team.members.find((m) => m.role === "Leader" && m.userId !== userId);
+          if (leader) {
+            await NotificationService.createNotification({
+              userId: leader.userId,
+              type: "TEAM_MEMBER_LEFT",
+              title: "Teammate Left Squad",
+              message: `${user.name || "A member"} has left your squad "${team.name}".`,
+              link: `/team/${team.id}`,
+              data: { teamId: team.id, teamName: team.name },
+            }).catch(() => {});
+          }
+        }
+
+        await CacheService.invalidateTeam(team.id);
+      }
+
+      // 2. Clean up any remaining role assignments where assignedToId is this user
+      const assignedRoles = await prisma.teamRole.findMany({
+        where: { assignedToId: userId },
+      });
+      for (const r of assignedRoles) {
+        await prisma.teamRole.update({
+          where: { id: r.id },
+          data: {
+            spots: (r.spots ?? 0) + 1,
+            assignedToId: null,
+          },
+        }).catch(() => {});
+        await CacheService.invalidateTeam(r.teamId);
+      }
+
+      // 3. Clean up applications
+      await prisma.teamApplication.deleteMany({
+        where: { userId },
+      }).catch(() => {});
+
+      // 4. Invalidate all team caches & profile
+      await CacheService.invalidateProfile(userId);
+      await CacheService.invalidateAllTeams();
+    } catch (err) {
+      console.error(`[TeamService] Error handling user deletion for user ${userId}:`, err);
+    }
   }
 
   /**
@@ -1048,6 +1179,8 @@ export class TeamService {
     });
 
     await CacheService.invalidateTeam(teamId);
+    await CacheService.invalidateProfile(memberUserId);
+    await CacheService.invalidateProfile(callerUserId);
     return { message: "Member removed from squad." };
   }
 }
