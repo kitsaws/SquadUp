@@ -5,7 +5,8 @@ export type NotificationType =
   | "APPLICATION_REJECTED"
   | "TEAM_JOINED"
   | "TEAM_MEMBER_LEFT"
-  | "EVENT_ANNOUNCEMENT";
+  | "EVENT_ANNOUNCEMENT"
+  | "PROFILE_UPDATED";
 
 export interface NotificationDTO {
   id: string;

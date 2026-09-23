@@ -2,8 +2,11 @@ import { Queue, Worker, Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import { AIService } from '../services/ai.service.js';
 import { CacheService } from '../services/cache.service.js';
+import { NotificationService } from '../services/notification.service.js';
 import { prisma } from '../lib/prisma.js';
 import { getOrCreateUserByClerkId } from '../utils/auth.utils.js';
+import { ParseResumeJobData } from '@squadup/shared';
+import { sanitizeSummary } from '../services/resume.parser.js';
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const connection = new Redis(REDIS_URL, { maxRetriesPerRequest: null });
@@ -12,8 +15,6 @@ export const QUEUE_NAME = 'ai-tasks';
 
 // 1. Create the Queue
 export const aiQueue = new Queue(QUEUE_NAME, { connection });
-
-import { ParseResumeJobData } from '@squadup/shared';
 
 // 2. Create the Worker that processes jobs
 export const aiWorker = new Worker(
@@ -53,7 +54,8 @@ export const aiWorker = new Worker(
       const githubUrl = profileData.links?.github ? String(profileData.links.github).trim() : null;
       const linkedinUrl = profileData.links?.linkedin ? String(profileData.links.linkedin).trim() : null;
       const title = profileData.title ? String(profileData.title).trim() : null;
-      const summary = profileData.summary ? String(profileData.summary).trim() : null;
+      const rawSummary = profileData.summary ? String(profileData.summary).trim() : null;
+      const summary = rawSummary ? (sanitizeSummary(rawSummary, userInDb.name || profileData.name) || rawSummary) : null;
 
       // Save the result to the database (university is NOT touched as it links user to an organization)
       const profile = await prisma.profile.upsert({
@@ -113,11 +115,28 @@ export const aiWorker = new Worker(
         console.error(`[Job ${job.id}] Failed to resolve user taxonomy:`, taxError);
       }
       
-      // Invalidate profile cache
+      // Invalidate profile cache across DB ID and Clerk ID
       try {
-        await CacheService.del(`profile:${userInDb.id}`);
+        await CacheService.invalidateProfile(userInDb.id);
+        if (userInDb.clerkId) {
+          await CacheService.invalidateProfile(userInDb.clerkId);
+        }
       } catch (cacheErr) {
         console.warn(`[Job ${job.id}] Failed to invalidate profile cache:`, cacheErr);
+      }
+
+      // Dispatch real-time in-app notification
+      try {
+        await NotificationService.createNotification({
+          userId: userInDb.id,
+          type: "PROFILE_UPDATED",
+          title: "🎉 AI Profile Creation Complete",
+          message: "Your resume has been analyzed and your squad profile is ready!",
+          link: `/profile/${userInDb.id}`,
+          data: { userId: userInDb.id, resumeFileName: filename },
+        });
+      } catch (notifErr) {
+        console.warn(`[Job ${job.id}] Failed to dispatch notification:`, notifErr);
       }
       
       return profile;

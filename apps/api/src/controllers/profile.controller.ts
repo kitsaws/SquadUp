@@ -5,6 +5,8 @@ import { UpdateProfileRequest } from "@squadup/shared";
 import { getOrCreateUserByClerkId, linkUserToOrganization } from "../utils/auth.utils.js";
 import { AIService } from "../services/ai.service.js";
 import { CacheService } from "../services/cache.service.js";
+import { NotificationService } from "../services/notification.service.js";
+import { sanitizeSummary } from "../services/resume.parser.js";
 
 export const getProfile = async (req: Request, res: Response) => {
   const auth = getAuth(req);
@@ -21,10 +23,14 @@ export const getProfile = async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Failed to verify user profile." });
   }
 
+  const bypassCache = req.query.bypassCache === "true";
   const cacheKey = `profile:${userInDb.id}`;
-  const cached = await CacheService.get<any>(cacheKey);
-  if (cached) {
-    return res.json(cached);
+
+  if (!bypassCache) {
+    const cached = await CacheService.get<any>(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
   }
 
   try {
@@ -189,26 +195,32 @@ export const updateProfile = async (
       });
     }
 
+    // Clean and sanitize summary if provided
+    const rawSummary = summary !== undefined ? (typeof summary === "string" ? summary.trim() : null) : undefined;
+    const cleanSummary = rawSummary !== undefined
+      ? (rawSummary ? (sanitizeSummary(rawSummary, name || userInDb.name) || rawSummary) : null)
+      : undefined;
+
     // 2. Upsert profile
     const updatedProfile = await prisma.profile.upsert({
       where: { userId: userInDb.id },
       update: {
         ...(university !== undefined && { university: university || null }),
-        ...(title !== undefined && { title }),
-        ...(summary !== undefined && { summary }),
+        ...(title !== undefined && { title: title || null }),
+        ...(cleanSummary !== undefined && { summary: cleanSummary }),
         ...(skills !== undefined && { skills }),
         ...(education !== undefined && { education: education as any }),
         ...(experience !== undefined && { experience: experience as any }),
         ...(achievements !== undefined && { achievements: achievements as any }),
         ...(projects !== undefined && { projects: projects as any }),
-        ...(githubUrl !== undefined && { githubUrl }),
-        ...(linkedinUrl !== undefined && { linkedinUrl }),
+        ...(githubUrl !== undefined && { githubUrl: githubUrl || null }),
+        ...(linkedinUrl !== undefined && { linkedinUrl: linkedinUrl || null }),
       },
       create: {
         userId: userInDb.id,
         university: university || null,
         title: title || null,
-        summary: summary || null,
+        summary: cleanSummary || null,
         skills: skills || [],
         education: (education as any) || [],
         experience: (experience as any) || [],
@@ -277,7 +289,22 @@ export const updateProfile = async (
     });
 
     // Invalidate profile cache on update
-    await CacheService.del(`profile:${userInDb.id}`);
+    await CacheService.invalidateProfile(userInDb.id);
+    if (userInDb.clerkId) {
+      await CacheService.invalidateProfile(userInDb.clerkId);
+    }
+
+    // Send in-app notification to user
+    NotificationService.createNotification({
+      userId: userInDb.id,
+      type: "PROFILE_UPDATED",
+      title: "✨ Profile Updated",
+      message: "Your SquadUp profile and skill taxonomy have been updated successfully.",
+      link: `/profile/${userInDb.id}`,
+      data: { userId: userInDb.id, updatedAt: new Date().toISOString() },
+    }).catch((notifErr) => {
+      console.warn("[Profile API] Failed to dispatch profile update notification:", notifErr);
+    });
 
     return res.json({
       message: "Profile updated successfully.",

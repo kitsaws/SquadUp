@@ -137,7 +137,7 @@ export async function generateProfileData(
     "CRITICAL EXTRACTION GUIDELINES:",
     "1. 'name': Extract the candidate's full name from the header/contact section.",
     "2. 'title': Synthesize an accurate, high-impact professional headline (e.g. 'Full Stack Developer', 'AI/ML Engineer & Systems Builder', 'Backend & Cloud Engineer', 'Software Engineering Student') that best summarizes their stack and capabilities. NEVER leave title empty or blank.",
-    "3. 'summary': Write a concise, compelling 2 to 3 sentence professional bio highlighting their core technical competencies, top projects, and engineering achievements. NEVER leave summary empty or blank.",
+    "3. 'summary': Write a concise, compelling 2 to 3 sentence professional bio highlighting their core technical competencies, top projects, and engineering achievements. CRITICAL: Do NOT start with the candidate's name or third-person phrasing like '<Name> is a...' or 'He/She is a...'. Start directly with their professional role, discipline, or technical focus (e.g., 'Computer Engineering student with strong full-stack development experience and a passion for AI-driven solutions...', 'Full Stack Developer specialized in React, Node.js, and cloud architectures...'). NEVER leave summary empty or blank.",
     "4. 'skills': Extract all technical skills (languages, frameworks, libraries, databases, cloud, dev tools) into clean string items.",
     "5. 'education': Extract all degrees, universities or colleges, graduation dates or ranges, and GPA/marks if mentioned.",
     "6. 'experience': Strictly extract formal employment, corporate internships, company roles, or paid research fellowships. Do NOT put hackathon wins, student club leadership, or awards into 'experience'. If the candidate has no formal corporate employment, leave 'experience' as an empty array [].",
@@ -193,6 +193,39 @@ export async function generateProfileData(
 }
 
 /**
+ * Strips leading third-person self-referential name prefixes such as "<Name> is a..."
+ * so the summary starts directly with their technical background (e.g. "Computer Engineering student...").
+ */
+export function sanitizeSummary(summary?: string, name?: string): string | undefined {
+  if (!summary || typeof summary !== "string") return summary;
+  let cleaned = summary.trim();
+
+  if (name && name.trim()) {
+    const escapedName = name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const namePrefixRegex = new RegExp(`^${escapedName}\\s+(?:is\\s+(?:an?\\s+)?|was\\s+(?:an?\\s+)?)`, "i");
+    cleaned = cleaned.replace(namePrefixRegex, "");
+  }
+
+  // Also remove generic third-person prefixes like "He is a...", "She is a...", "They are a..."
+  cleaned = cleaned.replace(/^(?:He|She|They)\s+(?:is|are|was)\s+(?:an?\s+)?/i, "");
+
+  // Also remove generic "<First Name> is a..." if full name has multiple words
+  if (name && name.trim().includes(" ")) {
+    const firstName = name.trim().split(/\s+/)[0];
+    const escapedFirstName = firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const firstNameRegex = new RegExp(`^${escapedFirstName}\\s+(?:is\\s+(?:an?\\s+)?|was\\s+(?:an?\\s+)?)`, "i");
+    cleaned = cleaned.replace(firstNameRegex, "");
+  }
+
+  cleaned = cleaned.trim();
+  if (cleaned.length > 0) {
+    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  }
+
+  return cleaned || summary;
+}
+
+/**
  * Cleans markdown fences and parses the JSON response safely.
  */
 function parseProfileJson(content: string): CandidateProfileData {
@@ -205,10 +238,14 @@ function parseProfileJson(content: string): CandidateProfileData {
 
   try {
     const parsed = JSON.parse(cleanJson);
+    const name = parsed.name || undefined;
+    const rawSummary = parsed.summary || undefined;
+    const sanitizedSummary = sanitizeSummary(rawSummary, name);
+
     return {
-      name: parsed.name || undefined,
+      name,
       title: parsed.title || undefined,
-      summary: parsed.summary || undefined,
+      summary: sanitizedSummary,
       skills: Array.isArray(parsed.skills) ? parsed.skills : [],
       education: Array.isArray(parsed.education) ? parsed.education : [],
       experience: Array.isArray(parsed.experience) ? parsed.experience : [],

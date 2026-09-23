@@ -248,10 +248,10 @@ export function BannerCustomizer({
           />
           <div>
             <span className="text-xs font-bold text-text-main block">
-              Sync website theme with banner color
+              Set workspace primary color to match banner (one-off update)
             </span>
             <span className="text-[11px] text-text-muted leading-snug block">
-              Dynamically updates button and accent colors across your workspace to harmonize with your banner.
+              Updates your primary accent color once to harmonize with this banner without altering other theme preferences.
             </span>
           </div>
         </label>

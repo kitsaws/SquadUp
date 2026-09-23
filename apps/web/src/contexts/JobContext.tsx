@@ -69,15 +69,12 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (data.state === "completed") {
           clearInterval(interval);
           CacheService.invalidatePrefix("sq:profile:");
+          CacheService.invalidatePrefix("sq:public_profile:");
           CacheService.invalidatePrefix("sq:recs:");
           CacheService.invalidatePrefix("sq:teams:");
           setProfileData(data.result);
           setIsUploading(false);
           setJobId(null);
-          toast.success("Profile creation complete!", {
-            position: "bottom-right",
-            autoClose: 5000,
-          });
         } else if (data.state === "failed") {
           clearInterval(interval);
           setStatus("AI parsing failed: " + data.error);

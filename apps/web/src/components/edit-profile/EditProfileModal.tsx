@@ -7,6 +7,7 @@ import {
   Palette,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { useUserContext } from "../../contexts/UserContext";
 import { useJobContext } from "../../contexts/JobContext";
 import { usePalette } from "../../contexts/PaletteContext";
 import { resumeApi, profileApi, preferencesApi } from "../../services/api";
@@ -61,6 +62,7 @@ export function EditProfileModal({
   initialView = "choose",
 }: EditProfileModalProps) {
   const { getToken } = useAuth();
+  const { refreshProfile } = useUserContext();
   const { startJob, isUploading } = useJobContext();
   const { updateToken } = usePalette();
 
@@ -172,7 +174,7 @@ export function EditProfileModal({
       const res = await resumeApi.uploadResume(resumeFile);
 
       startJob(res.jobId, token || "");
-      toast.info("Resume uploaded! AI extraction started in background.", {
+      toast.info("Resume uploaded! Building your profile.", {
         position: "bottom-right",
       });
 
@@ -231,9 +233,7 @@ export function EditProfileModal({
         experience: profile.experience || [],
       });
 
-      toast.success("Profile updated successfully!", {
-        position: "bottom-right",
-      });
+      await refreshProfile(true);
 
       if (res.profile) {
         onProfileUpdated(res.profile);

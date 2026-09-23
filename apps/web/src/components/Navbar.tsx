@@ -75,6 +75,12 @@ function renderNotificationIcon(type: string) {
           <UserCheck className="w-3.5 h-3.5" />
         </div>
       );
+    case "PROFILE_UPDATED":
+      return (
+        <div className="w-7 h-7 rounded-lg bg-primary-light border border-primary-action/20 flex items-center justify-center text-primary-action shrink-0 mt-0.5 shadow-2xs">
+          <Sparkles className="w-3.5 h-3.5" />
+        </div>
+      );
     case "APPLICATION_RECEIVED":
     default:
       return (
@@ -410,10 +416,22 @@ export function Navbar() {
                                 if (!item.isRead) {
                                   await markAsRead(item.id);
                                 }
-                                if (item.link) {
-                                  navigate(item.link);
-                                  setIsNotificationsOpen(false);
+                                setIsNotificationsOpen(false);
+
+                                let targetUrl = item.link;
+                                const data = item.data as any;
+
+                                if (item.type === "PROFILE_UPDATED") {
+                                  targetUrl = item.link || (profile?.userId ? `/profile/${profile.userId}` : "/profile");
+                                } else if (data?.teamId) {
+                                  targetUrl = `/team/${data.teamId}${data.inviteId ? `?inviteId=${data.inviteId}` : ""}`;
+                                } else if (!targetUrl && data?.eventId) {
+                                  targetUrl = `/event/${data.eventId}`;
+                                } else if (!targetUrl) {
+                                  targetUrl = "/teams";
                                 }
+
+                                navigate(targetUrl);
                               }}
                               className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
                                 !item.isRead
