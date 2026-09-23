@@ -24,7 +24,7 @@ export interface EventResponse {
   description: string;
   date: string; // ISO 8601 string
   location?: string;
-  organizerId: string;
+  organizerId?: string | null;
   organizerProfileId?: string | null;
   orgId?: string;
   isGlobal: boolean;
@@ -37,7 +37,7 @@ export interface EventDetailResponse extends EventResponse {
     id: string;
     name: string;
     email: string;
-  };
+  } | null;
   organizerProfile?: {
     id: string;
     name: string;

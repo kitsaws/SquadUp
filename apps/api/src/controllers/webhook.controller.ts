@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Webhook } from "svix";
 import { prisma } from "../lib/prisma.js";
 import { CacheService } from "../services/cache.service.js";
+import { TeamService } from "../services/team.service.js";
 
 export const clerkWebhookHandler = async (req: Request, res: Response) => {
   const now = new Date().toLocaleTimeString();
@@ -112,10 +113,8 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
         });
 
         if (userInDb) {
-          await prisma.teamRole.updateMany({
-            where: { assignedToId: userInDb.id },
-            data: { assignedToId: null },
-          });
+          // Gracefully transfer leadership and unassign roles across all squads
+          await TeamService.handleUserDeletion(userInDb.id);
         }
 
         await prisma.user.deleteMany({
@@ -123,7 +122,7 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
         });
 
         await CacheService.invalidateAllTeams();
-        console.log(`[Clerk Webhook] Deleted user ${id} and invalidated related caches.`);
+        console.log(`[Clerk Webhook] Deleted user ${id}, transferred team leaderships, and invalidated related caches.`);
         break;
       }
 

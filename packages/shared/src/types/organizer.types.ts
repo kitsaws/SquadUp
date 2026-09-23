@@ -36,7 +36,7 @@ export interface OrganizerResponse {
   email?: string | null;
   orgId?: string | null;
   organizationId?: string | null;
-  ownerId: string;
+  ownerId?: string | null;
   members?: OrganizerMemberDTO[];
   eventsCount?: number;
   createdAt: string;

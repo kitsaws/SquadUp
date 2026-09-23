@@ -103,8 +103,8 @@ model Organizer {
   orgId          String?           // Clerk Organization ID (University)
   organizationId String?
   organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  ownerId        String            // Creator / primary lead
-  owner          User              @relation("OwnedOrganizers", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId        String?           // Creator / primary lead
+  owner          User?             @relation("OwnedOrganizers", fields: [ownerId], references: [id], onDelete: SetNull)
   members        OrganizerMember[]
   events         Event[]
   createdAt      DateTime          @default(now())
@@ -129,8 +129,8 @@ model Event {
   description        String
   date               DateTime
   location           String?
-  organizerId        String
-  organizer          User          @relation(fields: [organizerId], references: [id])
+  organizerId        String?
+  organizer          User?         @relation(fields: [organizerId], references: [id], onDelete: SetNull)
   organizerProfileId String?
   organizerProfile   Organizer?    @relation(fields: [organizerProfileId], references: [id], onDelete: SetNull)
   orgId              String?       // Clerk Organization ID
@@ -224,6 +224,8 @@ model TeamApplication {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   message   String?
+  roleId    String?
+  roleTitle String?
   status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED, WITHDRAWN
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
