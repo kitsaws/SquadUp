@@ -10,10 +10,11 @@ Agents adding background tasks or modifying asynchronous workers **must** follow
 
 | Scope | File | Description |
 | :--- | :--- | :--- |
-| **AI Task Queue** | `apps/api/src/queues/ai.queue.ts` | BullMQ Queue & Worker for async resume parsing (Gemini 2.5 Flash), profile extraction, and V2 taxonomy auto-tagging. |
+| **AI Task Queue** | `apps/api/src/queues/ai.queue.ts` | BullMQ Queue & Worker for async resume parsing (`pdfjs-dist` + Groq LLM `llama-3.3-70b-versatile`), profile extraction, and 151-node taxonomy auto-tagging. |
 | **Email Task Queue** | `apps/api/src/queues/email.queue.ts` | BullMQ Queue & Worker for transactional email dispatches (team invitations) via Nodemailer. |
 | **Email Service** | `apps/api/src/services/email.service.ts` | HTML email template engine and SMTP transport handler. |
-| **AI Python Microservice** | `apps/api/src/services/ai.service.ts` | HTTP client communicating with Python FastAPI / Google Gemini 2.5 Flash parser. |
+| **Resume Parser** | `apps/api/src/services/resume.parser.ts` | In-process PDF text extraction (`pdfjs-dist`) & Groq LLM parser with summary sanitization. |
+| **Storage Service** | `apps/api/src/services/storage.service.ts` | Neon S3 Object Storage handler for streaming and persisting resume PDFs. |
 | **Shared Types** | `packages/shared/src/index.ts` | Type definitions for queue job payloads (`ParseResumeJobData`, `TeamInvitationEmailPayload`). |
 | **Server Bootstrap** | `apps/api/src/index.ts` | Express server startup that spins up workers alongside the HTTP listener. |
 
@@ -39,9 +40,9 @@ SquadUp uses [BullMQ](https://docs.bullmq.io/) backed by Redis to offload heavy 
 │     Queue: "ai-tasks"         │         │    Queue: "email-tasks"       │
 │  Worker: `aiWorker`           │         │  Worker: `emailWorker`        │
 ├───────────────────────────────┤         ├───────────────────────────────┤
-│ • Resume PDF/DOCX Parsing     │         │ • Team Invitation Emails      │
-│ • Google Gemini 2.5 Flash     │         │ • Responsive HTML Rendering   │
-│ • Multi-Source Taxonomy Tagging│        │ • SMTP Non-blocking Delivery  │
+│ • Resume PDF Parsing          │         │ • Team Invitation Emails      │
+│ • Groq LLM Synthesis          │         │ • Responsive HTML Rendering   │
+│ • 151-Node Taxonomy Tagging   │         │ • SMTP Non-blocking Delivery  │
 │ • Profile & UserTaxonomy DB   │         │ • Exponential Backoff Retries │
 │ • Profile Cache Invalidation  │         │ • Concurrency: 5              │
 └───────────────────────────────┘         └───────────────────────────────┘
@@ -55,7 +56,7 @@ Defined in: `apps/api/src/queues/ai.queue.ts`
 
 ### Queue Details
 - **Queue Name:** `ai-tasks`
-- **Trigger:** When a user uploads a resume file via `POST /api/profile/resume`.
+- **Trigger:** When a user uploads a resume file via `POST /api/resume/upload`.
 - **Payload (`ParseResumeJobData`):**
   ```typescript
   export interface ParseResumeJobData {
@@ -67,12 +68,13 @@ Defined in: `apps/api/src/queues/ai.queue.ts`
 
 ### Processing Pipeline
 1. **Base64 Decode:** Reconstructs the binary buffer from the base64 job payload.
-2. **AI Microservice Call:** Invokes `AIService.parseResume(buffer, filename)` which queries Google Gemini 2.5 Flash to extract structured candidate information (skills, education, experience, achievements, projects, title, summary, social links).
-3. **Database User Linkage:** Verifies the user exists using `getOrCreateUserByClerkId(userId)`.
-4. **Profile Upsert:** Updates or creates the `Profile` record in PostgreSQL with sanitized fields (preserving university linkage).
-5. **Taxonomy Evidence Tagging:** Calls `AIService.resolveUserTaxonomy(userId, profileData)` to map skills across the 143-node taxonomy hierarchy with multi-source evidence.
-6. **UserTaxonomy Upsert:** Persists assigned `taxonomyNodeIds`, `rawSkills`, and `evidence` in `UserTaxonomy`.
-7. **Cache Purge:** Invalidates the user's cached profile via `CacheService.del(\`profile:${userInDb.id}\`)`.
+2. **AI Resume Parser:** Invokes `ResumeParser.parseResume(buffer, filename)` which extracts text with `pdfjs-dist` and queries **Groq LLM** (`llama-3.3-70b-versatile`) to extract structured candidate information (skills, education, experience, achievements, projects, title, summary, social links).
+3. **Summary Sanitization:** Applies `sanitizeSummary()` to convert narrative summaries to active first-person voice.
+4. **Database User Linkage:** Verifies the user exists using `getOrCreateUserByClerkId(userId)`.
+5. **Profile Upsert:** Updates or creates the `Profile` record in PostgreSQL with sanitized fields (preserving institutional affiliation).
+6. **Taxonomy Evidence Tagging:** Calls `TaxonomyService.resolveUserTaxonomy(userId, profileData)` to map skills across the 151-node taxonomy hierarchy with multi-source evidence.
+7. **UserTaxonomy Upsert:** Persists assigned `taxonomyNodeIds`, `rawSkills`, and `evidence` in `UserTaxonomy`.
+8. **Cache Purge & Notification:** Invalidates the user's cached profile via `CacheService.invalidateProfile(userInDb.id)` and dispatches an in-app notification `PROFILE_UPDATED`.
 
 ---
 

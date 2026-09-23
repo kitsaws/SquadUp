@@ -279,7 +279,7 @@ Partially updates user preferences with field whitelisting. Unspecified fields r
 ## 4. Resume Endpoints (`/api/resume`)
 
 ### 4.1 Upload Resume
-Uploads a PDF resume, enforces the 24-hour rate limit, persists the PDF to disk, and enqueues BullMQ AI parsing.
+Uploads a PDF resume, enforces the 24-hour rate limit, persists the PDF directly to **Neon S3 Object Storage** (`s3://resumes/:userId.pdf`) with local filesystem fallback, updates `Profile.resumePdfPath`, and enqueues BullMQ AI parsing.
 
 - **Method:** `POST`
 - **Path:** `/api/resume/upload`
@@ -317,7 +317,7 @@ Polls the BullMQ background worker state for a resume parsing job.
       "state": "completed",
       "result": {
         "title": "Full Stack Engineer",
-        "summary": "...",
+        "summary": "Full Stack Developer passionate about scalable cloud systems...",
         "skills": ["React", "FastAPI", "PostgreSQL"],
         "education": [...],
         "experience": [...],
@@ -328,14 +328,14 @@ Polls the BullMQ background worker state for a resume parsing job.
   - When failed: `{"jobId": "14", "state": "failed", "error": "..."}`
 
 ### 4.3 Stream User Resume PDF (Inline Browser View)
-Streams the current user's uploaded resume directly as `application/pdf` with `Content-Disposition: inline`.
+Streams the current user's uploaded resume directly from Neon S3 Object Storage as `application/pdf` with `Content-Disposition: inline`.
 
 - **Method:** `GET`
 - **Path:** `/api/resume/view`
 - **Auth:** Required
 
 ### 4.4 Stream Candidate Resume PDF
-Streams another candidate's resume PDF for team evaluation.
+Streams a prospective candidate's resume PDF from Neon S3 Object Storage for squad leader review. Accepts internal `User.id` or `clerkId`.
 
 - **Method:** `GET`
 - **Path:** `/api/resume/view/:targetUserId`

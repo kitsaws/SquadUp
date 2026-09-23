@@ -22,7 +22,13 @@ This document outlines the sequential implementation history and future roadmap 
 [Task 5: Protected Onboarding Route & Theme/LocalStorage Isolation Safeguards] (COMPLETED ✅)
        │
        ▼
-[Task 6: Monorepo Modularization & Architectural Refactoring (Phases 1 - 4)] (IN PROGRESS ⏳)
+[Task 6: Monorepo Modularization & Architectural Refactoring (Phases 1 - 4)] (COMPLETED ✅)
+       │
+       ▼
+[Task 7: Squad Leadership Succession & Lifecycle Cache Invalidation] (COMPLETED ✅)
+       │
+       ▼
+[Task 8: Neon Serverless PostgreSQL & S3 Object Storage for Resumes] (COMPLETED ✅)
 ```
 
 ---
@@ -75,13 +81,30 @@ This document outlines the sequential implementation history and future roadmap 
 
 ---
 
-### ⏳ Task 6: Monorepo Modularization & Architectural Refactoring (In Progress)
+### ✅ Task 6: Monorepo Modularization & Architectural Refactoring (Completed)
 - **Documented:** [`docs/qa_audit_and_modularization.md`](qa_audit_and_modularization.md)
-- **Scope:**
-  - **Phase 1 (P0 - Completed ✅):** Fix Prisma connection pool exhaustion with a singleton client, deduplicate shared types, and extract common frontend utilities (`date.utils.ts`, `url.utils.ts`, `SocialIcons.tsx`).
-  - **Phase 2 (P1 - Completed ✅):** Break down monolithic `team.controller.ts` (2,728 lines) into 4 domain controllers (`team.controller.ts`, `application.controller.ts`, `invite.controller.ts`, `recommendation.controller.ts`) and create service layers (`team.service.ts`, `application.service.ts`, `invite.service.ts`, `organization.service.ts`).
-  - **Phase 3 (P1 - Upcoming):** Deconstruct frontend mega-pages (`TeamDetailPage.tsx`, `TeamsPage.tsx`, `Profile.tsx`) and mega-modals (`CreateTeamModal.tsx`, `EditProfileModal.tsx`) into modular subcomponents and custom hooks.
-  - **Phase 4 (P2 - Upcoming):** Modularize frontend API client (`api.ts`) and database seed fixtures (`prisma/fixtures/`).
+- **Completed Phases:**
+  - **Phase 1 (P0 - Completed ✅):** Fixed Prisma connection pool exhaustion with a singleton client (`lib/prisma.ts`), deduplicated shared types in `api.ts`, and extracted common frontend utilities (`date.utils.ts`, `url.utils.ts`, `SocialIcons.tsx`).
+  - **Phase 2 (P1 - Completed ✅):** Deconstructed 2,728-line god controller into 4 domain controllers (`team.controller.ts`, `application.controller.ts`, `invite.controller.ts`, `recommendation.controller.ts`) and created robust service layers (`team.service.ts`, `application.service.ts`, `invite.service.ts`, `organization.service.ts`).
+  - **Phase 3 (P1 - Completed ✅):** Deconstructed frontend mega-pages (`TeamDetailPage.tsx`, `TeamsPage.tsx`, `Profile.tsx`) and mega-modals (`CreateTeamModal.tsx`, `EditProfileModal.tsx`) into modular subcomponents and custom hooks.
+  - **Phase 4 (P2 - Completed ✅):** Modularized database seeding into 4 decoupled fixtures (`organizations.seed.ts`, `users.seed.ts`, `events.seed.ts`, `teams.seed.ts`) under `apps/api/prisma/seeds/`, removing all hardcoded personal Clerk IDs.
+
+---
+
+### ✅ Task 7: Squad Leadership Succession & Lifecycle Cache Invalidation (Completed)
+- **Implemented:**
+  - Schema safety on `Event.organizerId` and `Organizer.ownerId` (`onDelete: SetNull`).
+  - Automated squad leadership succession in `TeamService.handleUserDeletion` transferring leadership to the earliest joined remaining member with in-app notification (`TEAM_JOINED`).
+  - Comprehensive profile cache invalidation (`CacheService.invalidateProfile`) across team creation, deletion, leaving, member removal, and application/invite acceptance.
+  - Automatic third-person summary sanitization (`sanitizeSummary()`) for cleaner developer bios.
+
+---
+
+### ✅ Task 8: Neon Serverless PostgreSQL & S3 Object Storage for Resumes (Completed)
+- **Implemented:**
+  - Linked Neon serverless database `lucky-smoke-71695052` (`production` branch) with connection pooling via PgBouncer.
+  - Deployed private Neon Object Storage bucket (`resumes`) via `neon deploy` and `neon.ts`.
+  - Built `StorageService` using `@aws-sdk/client-s3` for streaming resume uploads, streaming reads (`GET /api/resume/view`), and deletions with automated local filesystem fallback.
 
 ---
 

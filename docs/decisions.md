@@ -536,6 +536,109 @@ Users could previously enter arbitrary strings in profile university fields, pot
 ### Status
 Accepted
 
+---
+
+## [Neon Serverless PostgreSQL Database Architecture]
+
+### Decision
+Migrated the database layer from local containerized PostgreSQL to hosted **Neon Serverless PostgreSQL** using pooled connection strings via PgBouncer.
+
+### Context
+When collaborating across multiple machines or onboarding new teammates, local database containers caused drift and required manual dumps or re-seeding. Neon provides instant branching, pooled connections, and cloud-hosted persistence.
+
+### Consequences
+- **Positive:** Centralized source of truth across all development and staging environments; automatic connection pooling; seamless branching for previews.
+- **Negative:** Requires internet connectivity to reach the hosted Neon endpoint.
+
+### Status
+Accepted
+
+---
+
+## [Neon S3-Compatible Object Storage for Resumes with Local Fallback]
+
+### Decision
+Configured private **Neon Object Storage** (`resumes` bucket) utilizing `@aws-sdk/client-s3` in `StorageService`, with an automatic fallback to local filesystem storage (`uploads/resumes/`) if S3 credentials are not present.
+
+### Context
+Candidate PDF resumes were previously saved only to local disk storage, which prevented access across different machines or distributed deployments.
+
+### Consequences
+- **Positive:** Resumes are securely stored in the cloud; private bucket access prevents public URL scraping; streaming endpoints (`/api/resume/view`) enforce authentication and authorization.
+- **Negative:** Requires S3 credentials (`AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`).
+
+### Status
+Accepted
+
+---
+
+## [Modular Decoupled Database Seeding Architecture]
+
+### Decision
+Deconstructed monolithic database seeding into 4 decoupled fixtures (`organizations.seed.ts`, `users.seed.ts`, `events.seed.ts`, `teams.seed.ts`) under `apps/api/prisma/seeds/`, orchestrated by `seed.ts` without hardcoded personal Clerk IDs.
+
+### Context
+The previous 1,451-line `seed.ts` was hardcoded to specific developer Clerk accounts, causing fresh git clones on other machines to break when personal Clerk users did not exist.
+
+### Consequences
+- **Positive:** Fully deterministic, offline-capable database initialization; seeds 6 universities, 14 clubs, 24 simulated students with AI taxonomies, 19 events, and 62 squads with candidate applications; runs out-of-the-box on fresh environments.
+- **Negative:** None.
+
+### Status
+Accepted
+
+---
+
+## [Squad Leadership Succession on Leader Deletion / Departure]
+
+### Decision
+Implemented automated leadership succession in `TeamService.handleUserDeletion` and `TeamService.leaveTeam`: when a squad leader leaves or their account is deleted in Clerk, leadership automatically transfers to the earliest joined remaining squad member with an in-app notification (`TEAM_JOINED`), preserving all squad roles, applications, and events. The squad is dissolved only if zero members remain.
+
+### Context
+Previously, cascading foreign key deletions on the squad leader would nuke the entire team and its associated members, even when several other teammates were actively participating.
+
+### Consequences
+- **Positive:** Squads survive leader account deletions; seamless transition of management authority to the next senior member.
+- **Negative:** Requires updating role assignments and invalidating all squad members' profile caches.
+
+### Status
+Accepted
+
+---
+
+## [First-Person Resume Summary Sanitization]
+
+### Decision
+Added `sanitizeSummary()` in `resume.parser.ts` to automatically strip third-person narrative prefixes (e.g. `"<Name> is a..."`, `"<Name> is an experienced..."`) and reformat summaries into professional, active first-person developer bios.
+
+### Context
+LLMs frequently summarize candidate resumes in the third person, creating awkward dissonances when displayed on the candidate's own profile page.
+
+### Consequences
+- **Positive:** Consistent first-person voice across all candidate profiles; applied automatically during both resume parsing and manual profile editing.
+- **Negative:** None.
+
+### Status
+Accepted
+
+---
+
+## [Delayed Role Slot Consumption on Application & Invite Acceptance]
+
+### Decision
+Squad role open spots (`TeamRole.spots`) are only decremented when a candidate application or team invitation is **accepted**, rather than when the application/invite is initially drafted or submitted.
+
+### Context
+Deducting role capacity while applications were pending prematurely closed vacancies before the leader had made a recruitment decision.
+
+### Consequences
+- **Positive:** Multiple candidates can apply for the same open vacancy; spots remain available until a match is confirmed.
+- **Negative:** Leaders must triage applications promptly once a role reaches its maximum capacity.
+
+### Status
+Accepted
+
+
 
 
 

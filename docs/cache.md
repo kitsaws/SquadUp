@@ -73,17 +73,28 @@ When `CacheService.invalidateTeam(teamId)` is called, it concurrently purges:
 5. `teams:*`
 6. `events:*` (event listings and squad telemetry)
 
-### Standard Team Mutation Pattern
+### What `CacheService.invalidateProfile(userId)` Executes
 
-Whenever creating an endpoint that modifies team state in `apps/api/src/controllers/team.controller.ts`, always invoke `CacheService.invalidateTeam(...)` right after database writes:
+When `CacheService.invalidateProfile(userId)` is called, it concurrently purges:
+1. `profile:${userId}` (exact user profile key)
+2. `profile:${userId}*` (wildcard variations)
+3. `public_profile:${userId}*` (public profile cards)
+4. `recs:${userId}*` & `recommendations:${userId}*` (AI recommendation snapshots)
+5. `profile:*` & `public_profile:*` (general cached profile views)
 
-```typescript
-// Example: removing a member, leaving a team, or accepting an invite
-await prisma.teamMember.delete({ where: { id: targetMember.id } });
+### Membership & Squad Lifecycle Invalidation Matrix
 
-// Correct Cache Invalidation:
-await CacheService.invalidateTeam(teamId);
-```
+| User Action | Backend Trigger | Cache Invalidation Executed |
+| :--- | :--- | :--- |
+| **Create Team** | `TeamService.createTeam` | `CacheService.invalidateTeam(teamId)` + `CacheService.invalidateProfile(creatorId)` |
+| **Delete / Dissolve Team** | `TeamService.deleteTeam` | `CacheService.invalidateTeam(teamId)` + `CacheService.invalidateProfile` for all members |
+| **Leave Team** | `TeamService.leaveTeam` | `CacheService.invalidateTeam(teamId)` + `CacheService.invalidateProfile` for departing user and new leader |
+| **Remove Member** | `TeamService.removeTeamMember` | `CacheService.invalidateTeam(teamId)` + `CacheService.invalidateProfile` for removed user and leader |
+| **User Deletion (Webhook)** | `TeamService.handleUserDeletion` | `CacheService.invalidateTeam` + `CacheService.invalidateProfile` for deleted user and new leader |
+| **Accept Application** | `ApplicationService.acceptApplication` | `CacheService.invalidateTeam(teamId)` + `CacheService.invalidateProfile` for candidate & reviewer |
+| **Accept Invite** | `InviteService.acceptInvite` | `CacheService.invalidateTeam(teamId)` + `CacheService.invalidateProfile(userId)` |
+| **Update Profile** | `profile.controller.ts` | `CacheService.invalidateProfile(userId)` |
+| **Resume Parsed (BullMQ)** | `ai.queue.ts` | `CacheService.invalidateProfile(userId)` |
 
 ---
 

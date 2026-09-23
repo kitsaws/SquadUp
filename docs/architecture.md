@@ -9,10 +9,11 @@ The system is designed to provide ultra-fast standard web API responses while se
 ## Component Architecture
 
 - **Frontend (`apps/web`):** React application built with Vite. Communicates with the Backend API over HTTP.
-- **Backend API (`apps/api`):** Node.js Express application written in TypeScript. It is the primary gateway for all frontend requests, directly manages the PostgreSQL database via Prisma, hosts the in-process deterministic Taxonomy & Recommendation Engine, acts as producer/worker for the job queue, and interfaces with the Redis caching layer.
+- **Backend API (`apps/api`):** Node.js Express application written in TypeScript. It is the primary gateway for all frontend requests, directly manages the Neon PostgreSQL database via Prisma, hosts the in-process deterministic Taxonomy & Recommendation Engine, acts as producer/worker for the job queue, and interfaces with the Redis caching layer.
+- **Object Storage:** Neon S3-Compatible Object Storage for candidate resumes (`resumes` bucket) managed via `StorageService` with local filesystem fallback. See **[storage.md](storage.md)** for architecture and streaming flows.
 - **Job Queue:** BullMQ backed by Redis (`ai-tasks` for AI resume parsing, `email-tasks` for email invitations). See **[job_queues.md](job_queues.md)** for architecture and worker lifecycles.
 - **Caching Layer:** Redis (`ioredis`) managed via `CacheService` on the backend and multi-tier SWR on the frontend. See **[cache.md](cache.md)** for key schemes and invalidation patterns.
-- **Database:** PostgreSQL managed via Prisma. See **[database.md](database.md)** for data models.
+- **Database:** Serverless PostgreSQL on Neon managed via Prisma. See **[database.md](database.md)** for data models.
 - **Authentication:** Clerk SDK, providing JWTs and managing university organizations.
 
 ## Request/Data Flows
@@ -21,12 +22,13 @@ The system is designed to provide ultra-fast standard web API responses while se
 
 1. **User** uploads a PDF via the Frontend to `POST /api/resume/upload`.
 2. **Backend API (`resume.controller.ts`)** enforces the 24-hour upload cooldown (bypassed for approved test emails and dev mode).
-3. Backend writes the PDF buffer directly to disk under `uploads/resumes/:userId.pdf` and records the path in `Profile.resumePdfPath`.
+3. Backend uploads the PDF buffer to **Neon S3 Object Storage** (`s3://resumes/:userId.pdf`) via `StorageService` (or saves to `uploads/resumes/:userId.pdf` as a local disk fallback) and records the path in `Profile.resumePdfPath`.
 4. Backend pushes a `parse-resume` job with the base64 string to the **Redis Queue** (`ai-tasks`) and immediately returns HTTP 202 Accepted with a `jobId`.
 5. **Node BullMQ Worker (`ai.queue.ts`)**:
    - Pops the job and invokes `ResumeParser.parseResume` directly in Node.
    - Extracts raw text and hyperlink annotations using `pdfjs-dist`.
    - Prompts **Groq API** with the canonical `@squadup/shared` schema (`packages/shared/schemas/profile.schema.json`) to synthesize candidate profile data:
+     - **`summary`**: Sanitized via `sanitizeSummary()` to guarantee clean first-person voice without awkward third-person prefixes.
      - **`experience`**: Strictly formal corporate employment, company internships, and research fellowships. If the candidate has no formal corporate employment, returns `[]`.
      - **`achievements`**: Hackathon victories (e.g. JPMorgan Code for Good, Israeli-Indian Hackathon), coding competitions, academic honors, scholarships, and open source awards (`title`, `organization`, `award_tier`, `year`, `description`, `technologies`).
      - **`projects`**: Technical software projects with full bullet points and technology tags.
@@ -35,8 +37,9 @@ The system is designed to provide ultra-fast standard web API responses while se
    - Upserts PostgreSQL `Profile` table with `title`, `summary`, `skills`, `education`, `experience`, `achievements`, `projects`, and links.
    - **Guarantees `Profile.university` is never overwritten or altered**, preserving institutional affiliation.
    - Feeds extracted skills, projects, experience, and achievements into the in-process `TaxonomyService.resolveUserTaxonomy` to persist canonical node IDs and provenance evidence in `UserTaxonomy`.
+   - Dispatches in-app notification `PROFILE_UPDATED` informing the user that parsing is complete.
 7. Frontend polling receives `{ state: "completed" }` and reactive hooks instantly refresh `/api/profile`, rendering separate **Work Experience** and **Achievements & Hackathons** cards.
-8. Frontend can stream the original resume PDF anytime via `GET /api/resume/view` in an embedded iframe.
+8. Frontend streams the original resume PDF anytime via `GET /api/resume/view` (or squad leaders via `GET /api/resume/view/:targetUserId`) directly from Neon S3.
 
 ### 2. Query Caching & Server-Side Pagination Flow
 
@@ -103,8 +106,8 @@ $$\text{TTL} = \max(300, (\text{eventDate} + 3\text{ days}) - \text{now})$$
    The user chooses between two distinct profile generation paths:
    - **Path A: AI Resume Upload (Highlighted / Recommended CTA):**
      - Emphasized as the fast, frictionless experience with automated skill mapping.
-     - Candidate uploads a PDF resume (`POST /api/resume/upload`).
-     - Offloaded to BullMQ (`ai.queue.ts`) -> Python microservice (`pdfplumber` + Groq LLM) to extract projects, skills, and work experience, persisting canonical node IDs in `UserTaxonomy`.
+     - Candidate uploads a PDF resume (`POST /api/resume/upload`), which is stored in Neon S3 Object Storage (`resumes` bucket).
+     - Offloaded to BullMQ (`ai.queue.ts`) -> Node.js parser (`pdfjs-dist` + Groq LLM) to extract projects, skills, and work experience, persisting canonical node IDs in `UserTaxonomy`.
      - **Non-blocking UX:** Candidate is not trapped on a loading screen. The UI informs the user ("Your profile is being built in the background") and allows optimistic transition directly into the discovery feed.
    - **Path B: Manual Profile Builder (Secondary Fallback):**
      - Form-driven setup for candidates without an updated resume or who prefer manual input.
@@ -136,8 +139,8 @@ $$\text{TTL} = \max(300, (\text{eventDate} + 3\text{ days}) - \text{now})$$
 
 ## Database Interaction
 
-- **Exclusive Access:** The Node.js Express Backend (`apps/api`) has exclusive access to the PostgreSQL database. The Python AI service never queries the database directly.
-- **ORM:** All queries and mutations are performed using Prisma Client.
+- **Exclusive Access:** The Node.js Express Backend (`apps/api`) has exclusive access to the Neon PostgreSQL database and Neon Object Storage.
+- **ORM:** All queries and mutations are performed using Prisma Client with pooled connections.
 
 ## Authentication & Clerk Webhook Synchronization
 
@@ -150,7 +153,7 @@ Authentication heavily leverages Clerk, but utilizes a decoupled architecture to
    - Webhook requests are cryptographically verified using Svix headers (`svix-id`, `svix-timestamp`, `svix-signature`) against `CLERK_WEBHOOK_SECRET`.
    - Express intercepts the raw JSON buffer prior to parsing to ensure uncorrupted HMAC verification.
 4. **Supported Webhook Events (9 Total):**
-   - **User Lifecycle (`user.created`, `user.updated`, `user.deleted`):** Upserts internal `User` records with primary email resolution, initializes a clean `Profile`, and safely cascades deletions while invalidating Redis caches.
+   - **User Lifecycle (`user.created`, `user.updated`, `user.deleted`):** Upserts internal `User` records with primary email resolution, initializes a clean `Profile`, handles squad leadership succession on account deletion, and safely cascades deletions while invalidating Redis caches.
    - **Organization Lifecycle (`organization.created`, `organization.updated`, `organization.deleted`):** Synchronizes universities into the `Organization` table, updating metadata and gracefully unlinking events/teams upon deletion.
    - **Organization Membership Lifecycle (`organizationMembership.created`, `organizationMembership.updated`, `organizationMembership.deleted`):**
      - Ensures both parent `Organization` and `User` exist.
@@ -162,8 +165,8 @@ Authentication heavily leverages Clerk, but utilizes a decoupled architecture to
 
 ## Architectural Constraints
 
-- **Do not block the Node event loop:** PDF processing and LLM calls MUST be dispatched to the `ai.queue.ts` BullMQ queue.
-- **Keep Python isolated and stateless:** The Python service takes payloads, runs in-memory graph algorithms, and returns results. It never queries the PostgreSQL database directly.
+- **Do not block the Node event loop:** PDF processing, S3 uploads, and LLM calls MUST be dispatched to the `ai.queue.ts` BullMQ queue.
+- **In-Memory Deterministic Taxonomy:** Matchmaking and taxonomy resolution run entirely in-process in Node.js with sub-millisecond tree traversals.
 - **Clerk Decoupling:** Never use the Clerk string ID directly as a foreign key. Map it to the internal `cuid()` via `getOrCreateUserByClerkId()`.
 - **Pure Compatibility Scores:** Never corrupt technical capability scores with university bonus math. University context is communicated via recommendation presentation categories.
 - **Server-Side Pagination:** Always filter and sort at the database level before applying `skip` and `take`. Client-side pagination should not be used on raw unpaginated collections.

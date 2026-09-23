@@ -2,8 +2,8 @@
 
 ## Database Technology
 
-SquadUp uses **PostgreSQL**, managed entirely through the **Prisma ORM**.
-It utilizes deterministic knowledge hierarchies, decoupled taxonomy join tables, dynamic team role modeling, and durable notification queuing for high-performance team matchmaking.
+SquadUp uses **Serverless PostgreSQL on Neon** (pooled connection endpoint), managed entirely through the **Prisma ORM**.
+It utilizes deterministic knowledge hierarchies, decoupled taxonomy join tables, dynamic team role modeling, durable notification queuing, and modular database seeding for high-performance team matchmaking.
 
 ## Schema Overview
 
@@ -62,14 +62,14 @@ erDiagram
   - `userId`: Foreign key to `User` (1:1, `onDelete: Cascade`).
   - `university`: Name of the user's institution (synchronized from `OrganizationMembership`).
   - `title`: Developer headline / role title (e.g. "Full Stack Engineer").
-  - `summary`: Bio / executive summary.
+  - `summary`: Bio / executive summary (sanitized to first-person voice).
   - `skills`: String array of self-reported skills (e.g. `["React", "FastAPI", "PostgreSQL"]`).
   - `education`: JSON array of education history (`[{ degree, college }]`).
   - `experience`: JSON array of formal corporate employment (`[{ role, company, duration, bullet_points, technologies }]`).
   - `achievements`: JSON array of hackathon victories and honors (`[{ title, organization, award_tier, year, description, technologies }]`).
   - `projects`: JSON array of software projects (`[{ name, description, bullet_points, technologies }]`).
   - `githubUrl`, `linkedinUrl`: Social and portfolio links.
-  - `resumePdfPath`: Filesystem path to stored PDF file (`uploads/resumes/:userId.pdf`).
+  - `resumePdfPath`: URI in Neon S3 Object Storage (`s3://resumes/:userId.pdf`) or local path fallback (`uploads/resumes/:userId.pdf`).
   - `resumeOriginalName`: Original filename of uploaded resume.
   - `lastResumeUploadedAt`: Timestamp of the most recent resume upload (used for 24h upload cooldown).
 - **Relationships:** Belongs to one `User`.
@@ -123,7 +123,7 @@ erDiagram
   - `description`, `website`, `email`, `logoUrl`: Metadata.
   - `orgId`: Clerk Organization ID (parent University).
   - `organizationId`: Foreign key to `Organization` (optional).
-  - `ownerId`: Foreign key to the User who created the club.
+  - `ownerId`: Foreign key to the User who created the club (`onDelete: SetNull`).
 - **Relationships:** Belongs to `Organization` (optional), owned by `User`, has many `OrganizerMember`s and hosted `Event`s.
 
 ---
@@ -144,7 +144,7 @@ erDiagram
 - **Fields:**
   - `id`: Internal `cuid()`.
   - `title`, `description`, `date`, `location`: Core event details.
-  - `organizerId`: Contact lead `User`.
+  - `organizerId`: Contact lead `User` (`onDelete: SetNull`).
   - `organizerProfileId`: Optional link to hosting `Organizer` club.
   - `orgId`: Optional Clerk Organization ID for university scoping.
   - `organizationId`: Optional link to `Organization`.
@@ -256,7 +256,7 @@ erDiagram
 - **Fields:**
   - `id`: Internal `cuid()`.
   - `userId`: Foreign key to recipient `User` (`onDelete: Cascade`).
-  - `type`: "TEAM_INVITE" | "APPLICATION_RECEIVED" | "APPLICATION_ACCEPTED" | "APPLICATION_REJECTED" | "TEAM_JOINED" | "EVENT_ANNOUNCEMENT".
+  - `type`: "TEAM_INVITE" | "APPLICATION_RECEIVED" | "APPLICATION_ACCEPTED" | "APPLICATION_REJECTED" | "TEAM_JOINED" | "EVENT_ANNOUNCEMENT" | "PROFILE_UPDATED".
   - `title`, `message`: Display text.
   - `link`: Optional navigation target (e.g. `"/team/t-123?inviteId=inv-456"`).
   - `data`: JSON payload containing context (`{ teamId, inviteId, roleId, roleTitle, roleSkills, eventId, eventTitle, senderName }`).
@@ -267,6 +267,28 @@ erDiagram
 
 ---
 
+## Modular Database Seeding Architecture (`apps/api/prisma/seeds/`)
+
+The database seeding infrastructure is completely decoupled into domain-focused modules with zero hardcoded personal Clerk IDs:
+
+```
+apps/api/prisma/
+├── schema.prisma               # Source of truth for database models
+├── seed.ts                     # Master orchestrator: table wipes, seed execution & cache purge
+└── seeds/
+    ├── organizations.seed.ts   # 6 verified universities + 14 student clubs / organizers
+    ├── users.seed.ts           # 24 simulated students + profiles + offline deterministic taxonomies
+    ├── events.seed.ts          # 19 campus-scoped and global hackathons
+    └── teams.seed.ts           # 62 squads + structured roles + team taxonomies + candidate applications
+```
+
+- **Run Modular Seed:**
+  ```bash
+  pnpm --filter @squadup/api run db:seed
+  ```
+
+---
+
 ## User/Auth Relationship
 
 A critical architectural pattern in SquadUp is the decoupled Authentication model:
@@ -274,6 +296,7 @@ A critical architectural pattern in SquadUp is the decoupled Authentication mode
 2. The database **never uses Clerk IDs as primary or foreign keys**.
 3. Incoming requests resolve the Clerk ID to the internal Postgres `cuid()` via `getOrCreateUserByClerkId()`.
 4. All relational join tables (`TeamMember`, `TeamApplication`, `TeamInvite`, `Notification`, etc.) strictly reference internal `User.id` foreign keys.
+5. Account deletion in Clerk automatically cascades through `TeamService.handleUserDeletion`, appointing new squad leaders and preserving squad integrity without orphaned relations.
 
 ---
 

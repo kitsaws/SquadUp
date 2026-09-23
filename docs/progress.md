@@ -348,18 +348,31 @@ Following the completion of **Task 3: "Create Team" UI & Page Integrations with 
   - Replaced browser `alert()` and `confirm()` dialogs with styled, accessible modal dialogs supporting multiple variants (`danger`, `warning`, `primary`) and async loading states for leaving squads, removing members, cancelling invites, and withdrawing applications.
 - **Organization-Based Campus Eligibility Enforcement (`EventDetailPage.tsx`, `event.controller.ts`, `TeamDetailPage.tsx`):**
   - Replaced free-text university string checks with Clerk `orgId` / `organizationMemberships` verification as the single source of truth for restricted event participation and squad formation eligibility.
-- **Decoupled Relational Database:**
-  - `UserTaxonomy` (1:1 with `User`), `TeamTaxonomy` (1:1 with `Team`), and `UserPreferences` (1:1 with `User`).
-  - `Organization`, `OrganizationMembership`, `Organizer`, `OrganizerMember`, and `TeamApplication` models.
-  - `Profile` updated with `resumePdfPath`, `resumeOriginalName`, and `lastResumeUploadedAt`.
-- **Decoupled Auth:** Clerk webhooks and internal database `cuid()` generation are fully separated using `getOrCreateUserByClerkId`.
-- **Type Safety:** `@squadup/shared` package maintains absolute cross-boundary typing for events, teams, applications, organizers, profiles, preferences, and recommendations.
+- **Decoupled Modular Database Seeding Engine (`apps/api/prisma/seeds/`):**
+  - Completely refactored database initialization into 4 domain fixtures:
+    - `organizations.seed.ts`: 6 verified universities (`TIET`, `BITS Pilani`, `VIT Vellore`, `IIT Delhi`, `Stanford`, `UC Berkeley`) + 14 student clubs.
+    - `users.seed.ts`: 24 simulated collegiate students with full profile records, projects, work experience, achievements, and offline deterministic AI taxonomies via `TaxonomyService`.
+    - `events.seed.ts`: 19 hackathons (14 campus + 5 global).
+    - `teams.seed.ts`: 62 squads with structured roles, team taxonomies, and candidate applications.
+  - Removed all hardcoded personal Clerk IDs so fresh clones and new contributor machines run `pnpm --filter @squadup/api run db:seed` cleanly without errors.
+- **Hosted Neon Serverless PostgreSQL Database Migration:**
+  - Migrated database layer to hosted **Neon PostgreSQL** (`lucky-smoke-71695052`, branch `production`) with PgBouncer connection pooling.
+  - Synced schema via `prisma db push` and seeded full dataset with zero local container drift.
+- **Neon S3 Object Storage for Candidate Resumes (`storage.service.ts`):**
+  - Configured and deployed private `resumes` bucket via `neon deploy` and `neon.ts`.
+  - Built `StorageService` using `@aws-sdk/client-s3` for streaming resume uploads, streaming reads (`GET /api/resume/view`, `GET /api/resume/view/:targetUserId`), and deletions with automatic local filesystem fallback for offline development.
+- **Squad Leadership Succession on Leader Deletion / Resignation:**
+  - Schema safety on `Event.organizerId` and `Organizer.ownerId` (`onDelete: SetNull`).
+  - `TeamService.handleUserDeletion` automatically transfers squad leadership to the earliest joined remaining teammate upon Clerk account deletion, issuing an in-app notification (`TEAM_JOINED`) and only dissolving the squad if 0 members remain.
+- **Profile Cache Invalidation Across Membership Lifecycle:**
+  - `CacheService.invalidateProfile(userId)` comprehensively invalidates profile, recommendation, and public profile caches upon team creation, deletion, leaving, member removal, and application/invite acceptances.
+- **First-Person Resume Summary Sanitization (`resume.parser.ts`):**
+  - Added `sanitizeSummary()` to automatically strip awkward third-person narrative prefixes from Groq LLM outputs, guaranteeing active first-person developer bios across all profile views.
 
 ## Client-Side & Frontend Constraints to Note
 
 1. **`isGlobal` Team Application Check:**
    When an event is non-global (`event.isGlobal === false`), the backend rejects applications from users of different institutions with HTTP 403 Forbidden.
-   *Future Frontend Guideline:* When rendering team cards, check `team.event.isGlobal`. If false and the user's university does not match the team/event, disable or hide the "Apply" button proactively with a tooltip indicating institutional restriction.
 2. **Server-Side Pagination Reset:**
    The frontend should request a new server-filtered page whenever search, university scope, or sort changes, always resetting to `page=1`.
 
@@ -367,10 +380,6 @@ Following the completion of **Task 3: "Create Team" UI & Page Integrations with 
 
 - **Student Squad Discovery & Event Exploration:**
   - Continued enhancements to team recommendation sorting and application lifecycle notifications.
-
-## Known Issues
-
-- **Windows Prisma Locking:** Running `npx prisma db push` while Next/Vite dev servers are actively holding DLL locks can occasionally throw `EPERM` errors. (Workaround: stop dev server, push schema, restart).
 
 ## Next Steps
 

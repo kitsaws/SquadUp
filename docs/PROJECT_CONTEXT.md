@@ -29,7 +29,8 @@ SquadUp is a professional team-forming and event-hosting platform built specific
 
 - **Frontend:** React 19, Vite, Tailwind CSS v4, Lucide React, Clerk React SDK
 - **Backend (API):** Node.js, Express, TypeScript, Prisma ORM
-- **Database:** PostgreSQL (with `postgresqlExtensions`)
+- **Database:** Serverless PostgreSQL via **Neon** (with `postgresqlExtensions` & connection pooling)
+- **Object Storage:** Neon S3-Compatible Object Storage (`@aws-sdk/client-s3`) with local disk fallback
 - **Asynchronous Queues:** Redis (`ioredis`), BullMQ (`ai-tasks`, `email-tasks`)
 - **Email Service:** Nodemailer (SMTP transport with HTML templates)
 - **Real-Time Push:** Redis Pub/Sub multiplexed over Server-Sent Events (SSE)
@@ -46,6 +47,8 @@ SquadUp is structured as a pnpm Turborepo.
 | -------------- | ------- | ------------------------------- |
 | `apps/api/` | The core Node.js backend, BullMQ workers, and in-process taxonomy engine. | When modifying API routes, controllers, taxonomy, or BullMQ background workers. |
 | `apps/api/prisma/schema.prisma` | The absolute source of truth for the database schema. | ALWAYS inspect this before modifying any database interaction. |
+| `apps/api/prisma/seeds/` | Modular seed fixtures (`organizations.seed.ts`, `users.seed.ts`, `events.seed.ts`, `teams.seed.ts`). | When modifying initial seed data or adding demo records. |
+| `apps/api/src/services/storage.service.ts` | S3 Object Storage service for Neon resumes and local fallback. | When altering file upload, streaming, or deletion pipelines. |
 | `apps/api/src/services/cache.service.ts` | Redis query caching & dynamic TTL calculator. | When debugging cache behavior or invalidation. |
 | `apps/api/src/services/resume.parser.ts` | Node.js PDF text extraction (`pdfjs-dist`) & Groq LLM parser. | When altering how resumes are parsed or structured. |
 | `apps/api/src/services/email.service.ts` | Nodemailer SMTP client for transactional emails. | When modifying email delivery or templates. |
@@ -54,17 +57,21 @@ SquadUp is structured as a pnpm Turborepo.
 | `apps/api/src/utils/auth.utils.ts` | Contains critical Auth mappings (Clerk to internal cuid). | When dealing with user auth or mapping user IDs. |
 | `apps/web/` | The React frontend UI. | When building or debugging user-facing features. |
 | `packages/shared/` | Shared TypeScript interfaces, types, and DTOs. | When changing API payloads to keep frontend and backend synchronized. |
-| `docs/endpoints.md` | Complete REST API specification for frontend developers. | When building UI components that interact with backend endpoints. |
+| `docs/` | System architectural specifications and developer reference guides. | When looking for API endpoints, schemas, ADRs, or storage flows. |
+| `neon.ts` | Neon project configuration declaring storage buckets. | When managing Neon object storage configuration. |
 | `docker-compose.yml` | Local background infrastructure (PostgreSQL & Redis). | When debugging Redis/Postgres connection issues. |
 
 ## System Overview
 
 SquadUp utilizes a **Consolidated Node.js Backend Architecture** (`apps/api`):
 1. **Core Express API:** Handles fast CRUD operations (creating teams, events, users, applications, and organizers) as well as sub-millisecond in-process deterministic taxonomy resolution and team matchmaking.
-2. **Asynchronous Background Processing (BullMQ & Redis):**
+2. **Cloud Database & Storage:**
+   - **Neon PostgreSQL:** Serverless database with pooled connections.
+   - **Neon S3 Object Storage:** Private `resumes` bucket storing candidate resume PDFs, streamed directly to authorized viewers via `StorageService`.
+3. **Asynchronous Background Processing (BullMQ & Redis):**
    - **`ai-tasks` Queue:** Processes PDF resume uploads asynchronously using `pdfjs-dist` and Groq LLM, upserting `Profile` and resolving `UserTaxonomy` without blocking API latency.
    - **`email-tasks` Queue:** Dispatches transactional invitation and notification emails via Nodemailer SMTP.
-3. **Real-Time Notification Pipeline:**
+4. **Real-Time Notification Pipeline:**
    - PostgreSQL durably stores notifications with read states and TTLs (`expiresAt`).
    - Redis Pub/Sub publishes real-time events to user channels (`sq:user:<userId>`) and campus channels (`sq:campus:<orgId>`).
    - Express SSE stream (`GET /api/notifications/stream`) pushes live notifications to connected browser clients with 25s keepalive heartbeats.
@@ -83,7 +90,7 @@ SquadUp utilizes a **Consolidated Node.js Backend Architecture** (`apps/api`):
    - User selects their home institution using a searchable dropdown populated from `GET /api/organizers/universities`.
    - Binds to the university's `clerkOrgId` and commits membership via `POST /api/organizers/universities/select`.
 3. **Step 2 — Profile Setup Path Selection:**
-   - **AI Resume Upload:** Uploads PDF (`POST /api/resume/upload`), processed asynchronously via BullMQ and Groq LLM.
+   - **AI Resume Upload:** Uploads PDF (`POST /api/resume/upload`), processed asynchronously via BullMQ and Groq LLM and stored in Neon S3.
    - **Manual Profile Creation:** Fills structured inputs (headline, degree, skills, links) and updates profile via `PATCH /api/profile`.
 4. **Step 3 — Completion:** User sees celebration modal and enters main platform with full institutional context and compatibility scoring active.
 
@@ -93,9 +100,15 @@ SquadUp utilizes a **Consolidated Node.js Backend Architecture** (`apps/api`):
 3. `TaxonomyService.resolveTeamTaxonomy` maps all role requirements to canonical taxonomy nodes in `TeamTaxonomy.roleTaxonomies`.
 4. Candidates browse squads; `recommendation.engine.ts` scores their capability nodes against team roles in $O(1)$ time, calculating overall compatibility and attaching `bestMatchingRole`.
 
+### User Deletion & Leadership Succession Flow
+1. When a user account is deleted in Clerk, `clerkWebhookHandler` intercepts `user.deleted`.
+2. `TeamService.handleUserDeletion` cleanly unassigns role slots and transfers squad leadership to the earliest joined remaining member with an in-app notification (`TEAM_JOINED`), or dissolves the squad if 0 members remain.
+3. User profile, taxonomy, and associated resume files in Neon S3 storage are deleted, and Redis caches are automatically invalidated.
+
 ## External Services
 
 - **Clerk:** Handles complete user authentication, session tokens, and Organization mappings for university isolation.
+- **Neon:** Serverless PostgreSQL database with pooled endpoints and private S3-compatible Object Storage for resumes.
 - **Groq API:** Ultra-fast LLM inference engine (`llama-3.3-70b-versatile`) transforming raw resume text into structured JSON.
 - **Nodemailer / SMTP Provider (e.g. Gmail / SendGrid):** Dispatches automated email invitations and notification alerts.
 
@@ -103,8 +116,13 @@ SquadUp utilizes a **Consolidated Node.js Backend Architecture** (`apps/api`):
 
 | Variable | Description |
 | :--- | :--- |
-| `DATABASE_URL` | PostgreSQL connection string used by Prisma ORM. |
+| `DATABASE_URL` | PostgreSQL connection string (Neon pooled endpoint) used by Prisma ORM. |
 | `REDIS_URL` | Redis connection string used by BullMQ queues and CacheService. |
+| `AWS_ENDPOINT_URL_S3` | Neon S3 Object Storage endpoint URL. |
+| `AWS_REGION` | S3 region (default: `"auto"`). |
+| `AWS_ACCESS_KEY_ID` | Access key for Neon S3 Object Storage. |
+| `AWS_SECRET_ACCESS_KEY` | Secret access key for Neon S3 Object Storage. |
+| `NEON_RESUME_BUCKET` | Name of the S3 bucket for resumes (default: `"resumes"`). |
 | `GROQ_API_KEY` | API key for the Groq LLM inference service. |
 | `GROQ_API_URL` | Groq endpoint (default: `https://api.groq.com/openai/v1/chat/completions`). |
 | `GROQ_MODEL` | Groq model identifier (default: `llama-3.3-70b-versatile`). |
@@ -132,8 +150,9 @@ SquadUp utilizes a **Consolidated Node.js Backend Architecture** (`apps/api`):
 - **Install:** `pnpm install`
 - **Run Locally:** `pnpm run dev` (Runs frontend and backend concurrently via Turborepo).
 - **Run with LAN Host:** `pnpm run dev:host` (Allows testing on mobile devices over local WiFi).
-- **Start Infrastructure:** `docker-compose up -d` (Starts local PostgreSQL and Redis).
+- **Start Infrastructure:** `docker-compose up -d` (Starts local Redis).
 - **Typecheck:** `pnpm turbo run typecheck`
+- **Modular Seed:** `pnpm --filter @squadup/api run db:seed`
 - **Prisma Studio:** `pnpm run db:studio` (inside `apps/api`)
 
 ## Current State
@@ -141,8 +160,9 @@ SquadUp utilizes a **Consolidated Node.js Backend Architecture** (`apps/api`):
 The platform is fully operational across core product domains:
 1. **Authentication & University Scoping:** Clerk authentication, organization syncing, and Svix webhooks.
 2. **Protected Onboarding:** Route-protected onboarding flow with institutional search and dual profile builder (AI resume / manual).
-3. **Taxonomy & Recommendation Engine:** 151-node canonical knowledge hierarchy with multi-source evidence extraction and role-based matching in sub-15ms.
-4. **Squad Lifecycle & Dynamic Capacity:** Create Team modal with structured role builder, custom dark glassmorphism dropdowns, deferred leader role assignment, and dynamic team capacity engine ($Total = Members + Open Slots$).
-5. **Role-Based Teammate Invites:** Invites with role badges, Nodemailer SMTP email dispatching via BullMQ, and Redis Pub/Sub Server-Sent Events (SSE) live notifications.
-6. **Candidate Applications:** Role-specific applications with compatibility score computation and squad leader evaluation dashboard.
-7. **Personalization & Theme Isolation:** User preferences with custom banner rendering, dynamic palette tokens, and strict local storage isolation for authenticated profiles.
+3. **Cloud Database & S3 Storage:** Neon Serverless PostgreSQL with modular seeds + Neon S3 Object Storage for resumes with streaming playback.
+4. **Taxonomy & Recommendation Engine:** 151-node canonical knowledge hierarchy with multi-source evidence extraction and role-based matching in sub-15ms.
+5. **Squad Lifecycle & Dynamic Capacity:** Create Team modal with structured role builder, custom dark glassmorphism dropdowns, deferred leader role assignment, leadership succession on deletion, and dynamic team capacity engine ($Total = Members + Open Slots$).
+6. **Role-Based Teammate Invites:** Invites with role badges, Nodemailer SMTP email dispatching via BullMQ, and Redis Pub/Sub Server-Sent Events (SSE) live notifications.
+7. **Candidate Applications:** Role-specific applications with compatibility score computation, delayed slot consumption, and squad leader evaluation dashboard.
+8. **Personalization & Theme Isolation:** User preferences with custom banner rendering, dynamic palette tokens, and strict local storage isolation for authenticated profiles.
