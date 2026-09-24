@@ -68,6 +68,24 @@ export const getMyInvites = async (req: Request, res: Response) => {
   }
 };
 
+export const getInviteById = async (
+  req: Request<{ inviteId: string }>,
+  res: Response
+) => {
+  const { inviteId } = req.params;
+
+  try {
+    const response = await InviteService.getInviteById(inviteId);
+    return res.json(response);
+  } catch (error: any) {
+    if (error.message === "Invite not found.") {
+      return res.status(404).json({ error: error.message });
+    }
+    console.error("[Invite Controller] Error fetching invite by ID:", error);
+    return res.status(500).json({ error: "Failed to fetch invitation." });
+  }
+};
+
 export const acceptInvite = async (
   req: Request<{ inviteId: string }>,
   res: Response

@@ -205,6 +205,50 @@ export class InviteService {
   }
 
   /**
+   * Retrieves a single invite by its ID.
+   */
+  static async getInviteById(inviteId: string): Promise<TeamInviteResponse> {
+    const invite = await prisma.teamInvite.findUnique({
+      where: { id: inviteId },
+      include: {
+        team: {
+          include: {
+            event: true,
+            members: true,
+            roles: true,
+          },
+        },
+        sender: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    if (!invite) {
+      throw new Error("Invite not found.");
+    }
+
+    return {
+      id: invite.id,
+      teamId: invite.teamId,
+      teamName: invite.team.name,
+      eventId: invite.team.eventId,
+      eventTitle: invite.team.event?.title || "Event",
+      isGlobal: invite.team.event?.isGlobal ?? false,
+      senderId: invite.senderId,
+      senderName: invite.sender.name,
+      email: invite.email,
+      roleId: invite.roleId,
+      roleTitle: invite.roleTitle,
+      roleSkills: invite.roleSkills,
+      membersCount: invite.team.members.length,
+      requirements: invite.team.requirements,
+      status: invite.status,
+      createdAt: invite.createdAt.toISOString(),
+    };
+  }
+
+  /**
    * Accepts a role-based team invitation.
    */
   static async acceptInvite(

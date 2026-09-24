@@ -777,18 +777,45 @@ Fetches all pending invites addressed to the logged-in user's email address with
 - **Path:** `/api/teams/invites/my-invites`
 - **Auth:** Required
 
-### 8.3 Accept Team Invite
+### 8.3 Get Invite by ID (Direct Invite Links)
+Fetches a single pending invite by its unique ID for deep links (`/team/:teamId?inviteId=:inviteId`).
+- **Method:** `GET`
+- **Path:** `/api/teams/invites/:inviteId`
+- **Auth:** Optional / Open (fetches invite context, team, role, and requirements)
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "id": "cminv123",
+    "teamId": "cmteam456",
+    "teamName": "AI Agents Guild",
+    "eventId": "cmevent789",
+    "eventTitle": "TreeHacks 2026",
+    "isGlobal": true,
+    "senderId": "cmuser1",
+    "senderName": "Jane Doe",
+    "email": "invitee@stanford.edu",
+    "roleId": "cmrole123",
+    "roleTitle": "Frontend Architect",
+    "roleSkills": ["React", "TypeScript"],
+    "membersCount": 3,
+    "requirements": ["React", "TypeScript", "FastAPI"],
+    "status": "PENDING",
+    "createdAt": "2026-09-24T00:00:00.000Z"
+  }
+  ```
+
+### 8.4 Accept Team Invite
 Accepts the invitation. Atomically assigns the role spot to the user, claims the spot, adds user to `TeamMember`, and sends a live `TEAM_JOINED` notification to the squad leader.
 - **Method:** `POST`
 - **Path:** `/api/teams/invites/:inviteId/accept`
 - **Auth:** Required (must match invite email)
 
-### 8.4 Decline Team Invite
+### 8.5 Decline Team Invite
 - **Method:** `POST`
 - **Path:** `/api/teams/invites/:inviteId/decline`
 - **Auth:** Required (must match invite email)
 
-### 8.5 Cancel Pending Invite
+### 8.6 Cancel Pending Invite
 Squad leader cancels an outgoing pending invitation.
 - **Method:** `DELETE`
 - **Path:** `/api/teams/:id/invites/:inviteId`

@@ -11,6 +11,7 @@ import {
 import {
   sendTeamInvites,
   getMyInvites,
+  getInviteById,
   acceptInvite,
   declineInvite,
   cancelInvite,
@@ -37,6 +38,7 @@ router.post("/recommendations", getRecommendations);
 
 // User-level invites
 router.get("/invites/my-invites", getMyInvites);
+router.get("/invites/:inviteId", getInviteById);
 router.post("/invites/:inviteId/accept", acceptInvite);
 router.post("/invites/:inviteId/decline", declineInvite);
 

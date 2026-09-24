@@ -4,7 +4,17 @@ This document provides a snapshot of the current state of the SquadUp project. I
 
 ## Current Focus
 
-Following the completion of **Task 3: "Create Team" UI & Page Integrations with Dynamic Slot Decrementing**, immediate upcoming focus is **Task 4: Candidate Role-Specific Applications & Matching Triage**.
+Following the completion of **Task 2: Direct Invite Links & Modal Triggering**, upcoming focus is **Task 1: Fixing TeamsPage Filters & Sorting + HomeDashboard**, followed by **Task 3: TeamTaxonomy Sync on Squad Creation/Update**, **Task 5: Multi-Role Scoring & Interactive Selection**, and **Task 4: Dynamic Caching**.
+
+- **Direct Invite Links & Modal Triggering (Completed ✅):**
+  - **Backend Single Invite Lookup (`apps/api/src/services/invite.service.ts` & `apps/api/src/controllers/invite.controller.ts`):**
+    - Implemented `InviteService.getInviteById(inviteId)` returning enriched team, event, sender, and designated role data.
+    - Registered `GET /api/teams/invites/:inviteId` in `apps/api/src/routes/team.routes.ts`.
+  - **Frontend API & Deep-Link Resolution (`apps/web/src/pages/TeamDetailPage.tsx` & `apps/web/src/services/api.ts`):**
+    - Added `invitesApi.getInviteById(inviteId)` to frontend client.
+    - Updated `TeamDetailPage.tsx` to resolve direct invites (`?inviteId=...`) for prospective candidates and immediately pop open `TeamInviteModal.tsx`.
+    - Added clean URL query parameter pruning on accept, decline, or modal close so subsequent reloads don't display stale modals.
+    - Decoupled candidate invite and recommendation queries from the `isUserInTeam` block so candidates visiting direct links properly receive their invites and AI match data.
 
 - **Task 6 / Phase 1: High-Risk Infrastructure & Anti-Pattern Fixes (Completed ✅):**
   - **Prisma Singleton Architecture (`apps/api/src/lib/prisma.ts`):**

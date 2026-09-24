@@ -565,6 +565,10 @@ export const invitesApi = {
     return request<{ totalInvites: number; invites: TeamInviteItem[] }>("/teams/invites/my-invites");
   },
 
+  getInviteById: (inviteId: string): Promise<TeamInviteItem> => {
+    return request<TeamInviteItem>(`/teams/invites/${inviteId}`);
+  },
+
   acceptInvite: async (inviteId: string): Promise<{ message: string; teamId?: string }> => {
     const res = await request<{ message: string; teamId?: string }>(`/teams/invites/${inviteId}/accept`, {
       method: "POST",

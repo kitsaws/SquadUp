@@ -191,31 +191,40 @@ export function TeamDetailPage() {
           } catch (e) {
             console.warn("[TeamDetailPage] Could not load applications for team:", e);
           }
-        } else {
-          try {
-            const [myApps, myInvitesRes] = await Promise.all([
-              applicationsApi.getMyApplications().catch(() => ({ total: 0, applications: [] })),
-              invitesApi.getMyInvites().catch(() => ({ totalInvites: 0, invites: [] })),
-            ]);
+        }
 
-            if (isMounted && myApps.applications?.some((a) => a.teamId === teamData.id && a.status === "PENDING")) {
-              setApplied(true);
-            }
+        // For all signed-in users (especially candidates or teammates checking invitations / applications)
+        try {
+          const searchParams = new URLSearchParams(location.search);
+          const searchInviteId = searchParams.get("inviteId");
 
-            if (isMounted) {
-              const inviteMatch = (myInvitesRes.invites || []).find((inv) => inv.teamId === teamData.id);
-              if (inviteMatch) {
-                setPendingInvite(inviteMatch);
-                const searchParams = new URLSearchParams(location.search);
-                if (searchParams.get("inviteId") === inviteMatch.id || searchParams.has("inviteId")) {
-                  setIsInviteModalOpen(true);
-                }
-              }
-            }
-          } catch {
-            // ignore
+          const [myApps, myInvitesRes, directInvite] = await Promise.all([
+            applicationsApi.getMyApplications().catch(() => ({ total: 0, applications: [] })),
+            invitesApi.getMyInvites().catch(() => ({ totalInvites: 0, invites: [] })),
+            searchInviteId ? invitesApi.getInviteById(searchInviteId).catch(() => null) : Promise.resolve(null),
+          ]);
+
+          if (isMounted && myApps.applications?.some((a) => a.teamId === teamData.id && a.status === "PENDING")) {
+            setApplied(true);
           }
 
+          if (isMounted) {
+            const inviteMatch =
+              (directInvite && directInvite.teamId === teamData.id ? directInvite : null) ||
+              (myInvitesRes.invites || []).find((inv) => inv.teamId === teamData.id || (searchInviteId && inv.id === searchInviteId));
+
+            if (inviteMatch && inviteMatch.status === "PENDING") {
+              setPendingInvite(inviteMatch);
+              if (searchInviteId || searchParams.has("inviteId")) {
+                setIsInviteModalOpen(true);
+              }
+            }
+          }
+        } catch {
+          // ignore
+        }
+
+        if (!isUserInTeam) {
           try {
             const recsRes = await recommendationsApi.getRecommendations({
               eventId: teamData.eventId,
@@ -457,12 +466,22 @@ export function TeamDetailPage() {
     }
   };
 
+  const handleCloseInviteModal = () => {
+    setIsInviteModalOpen(false);
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.has("inviteId")) {
+      searchParams.delete("inviteId");
+      const newQs = searchParams.toString();
+      navigate(`${location.pathname}${newQs ? `?${newQs}` : ""}`, { replace: true });
+    }
+  };
+
   const handleAcceptInvite = async (inviteId: string) => {
     try {
       await invitesApi.acceptInvite(inviteId);
       await refreshProfile(true);
       setPendingInvite(null);
-      setIsInviteModalOpen(false);
+      handleCloseInviteModal();
       setToastMessage("🎉 Congratulations! You have joined the squad roster.");
       setTimeout(() => setToastMessage(null), 4000);
       if (id) {
@@ -479,7 +498,7 @@ export function TeamDetailPage() {
     try {
       await invitesApi.declineInvite(inviteId);
       setPendingInvite(null);
-      setIsInviteModalOpen(false);
+      handleCloseInviteModal();
       setToastMessage("Invitation declined.");
       setTimeout(() => setToastMessage(null), 4000);
     } catch (err: any) {
@@ -860,7 +879,7 @@ export function TeamDetailPage() {
           teamName={team.name}
           eventTitle={team.event?.title}
           university={team.university || undefined}
-          onClose={() => setIsInviteModalOpen(false)}
+          onClose={handleCloseInviteModal}
           onAccept={handleAcceptInvite}
           onDecline={handleDeclineInvite}
         />
