@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronUp, ExternalLink, Check, X, FileText, Building, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink, Check, X, FileText, Building, Sparkles, CheckCircle2, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { RecommendationBadge, RecommendationTier, SkillTag } from "./Badges";
 
@@ -25,6 +25,45 @@ interface CandidateApplicationTileProps {
   onAccept?: (id: string) => void;
   onDecline?: (id: string) => void;
   defaultExpanded?: boolean;
+}
+
+/**
+ * Strips raw taxonomy/graph debugging metadata (Depth, Graph Distance, LCA, etc.)
+ * and outputs clean, human-friendly explanation copy.
+ */
+export function cleanProvenanceText(
+  provenance: string | undefined,
+  skillName: string,
+  score: number
+): string {
+  const isExact = score >= 0.95;
+  const isPartial = score >= 0.40 && score < 0.95;
+
+  if (
+    provenance &&
+    !provenance.includes("Depth:") &&
+    !provenance.includes("Graph Distance") &&
+    !provenance.includes("subdomain") &&
+    !provenance.includes("Sibling technology") &&
+    !provenance.includes("Score:") &&
+    !provenance.includes("Direct 1:1")
+  ) {
+    return provenance;
+  }
+
+  // Extract target requirement name if present in raw string
+  const reqMatch = provenance?.match(/Requirement\s+'([^']+)'/i);
+  const targetReq = reqMatch ? reqMatch[1] : undefined;
+
+  if (isExact) {
+    return `Exact match with '${skillName}' from candidate profile.`;
+  }
+  if (isPartial) {
+    return targetReq && targetReq.toLowerCase() !== skillName.toLowerCase()
+      ? `Relevant experience matched with '${skillName}' for '${targetReq}'.`
+      : `Relevant experience matched with '${skillName}'.`;
+  }
+  return `Candidate verified skill match.`;
 }
 
 export function CandidateApplicationTile({
@@ -144,7 +183,7 @@ export function CandidateApplicationTile({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Profile Link Button as requested */}
+              {/* Profile Link Button */}
               <Link
                 to={`/profile/${application.candidateId}`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-primary-action bg-primary-light border border-primary-border hover:bg-primary-light/80 transition-colors cursor-pointer"
@@ -175,28 +214,91 @@ export function CandidateApplicationTile({
             </div>
           </div>
 
-          {/* Verified Skills & Provenance */}
-          <div>
-            <div className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2">
-              Verified Matching Skills:
+          {/* Verified Skills & Clean Explanations */}
+          {application.skills && application.skills.length > 0 && (
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-bold text-text-muted uppercase tracking-wider">
+                <span>Verified Matching Skills:</span>
+                <span className="text-[10px] font-semibold text-text-muted">
+                  {application.skills.length} Competenc{application.skills.length > 1 ? "ies" : "y"}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {application.skills.map((skill, idx) => {
+                  const score = skill.score ?? 0;
+                  const isExact = score >= 0.95;
+                  const isPartial = score >= 0.40 && score < 0.95;
+                  const cleanExplanation = cleanProvenanceText(skill.provenance, skill.name, score);
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors ${
+                        isExact
+                          ? "bg-best-fit-light/50 border-best-fit/40"
+                          : isPartial
+                          ? "bg-campus-explorer-light/50 border-campus-explorer/40"
+                          : "bg-surface border-border-main"
+                      }`}
+                    >
+                      <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                        {isExact ? (
+                          <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </div>
+                        ) : isPartial ? (
+                          <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                            <Sparkles className="w-3.5 h-3.5" />
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 rounded-lg bg-surface-dim text-text-muted flex items-center justify-center shrink-0 border border-border-main mt-0.5 sm:mt-0">
+                            <Clock className="w-3.5 h-3.5" />
+                          </div>
+                        )}
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-text-main font-heading">
+                              {skill.name}
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                                isExact
+                                  ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                                  : isPartial
+                                  ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                                  : "bg-surface-dim text-text-muted border border-border-main"
+                              }`}
+                            >
+                              {isExact ? "Exact match" : isPartial ? "Domain match" : "Related"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-text-muted leading-tight mt-0.5">
+                            {cleanExplanation}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                        <span
+                          className={`text-xs font-black px-2 py-0.5 rounded-lg border ${
+                            isExact
+                              ? "bg-surface text-emerald-600 border-emerald-500/30"
+                              : isPartial
+                              ? "bg-surface text-amber-600 border-amber-500/30"
+                              : "bg-surface text-text-muted border-border-main"
+                          }`}
+                        >
+                          {Math.round(score * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {application.skills.map((skill, idx) => (
-                <div
-                  key={idx}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface border border-border-main text-xs text-text-main"
-                >
-                  <span className="font-semibold text-text-main">{skill.name}</span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-dim text-text-muted">
-                    {skill.provenance}
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-600">
-                    {Math.round(skill.score * 100)}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Decision Actions (Leader only) */}
           {application.status === "PENDING" && (

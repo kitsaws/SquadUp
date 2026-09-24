@@ -20,7 +20,9 @@ import {
 import {
   CandidateApplicationTile,
   CandidateApplicationData,
+  cleanProvenanceText,
 } from "../components/CandidateApplicationTile";
+import { RecommendationTier } from "../components/Badges";
 import {
   applicationsApi,
   profileApi,
@@ -63,21 +65,38 @@ export function ApplicationsPage() {
         try {
           const incomingRes = await applicationsApi.getIncomingApplications();
           if (isMounted) {
-            const mapped: CandidateApplicationData[] = (incomingRes.applications || []).map((app: IncomingApplicationItem) => ({
-              id: app.id,
-              candidateId: app.candidateId,
-              name: app.name,
-              avatarUrl: app.avatarUrl || undefined,
-              university: app.university,
-              year: app.year || "Student",
-              appliedRole: `${app.appliedRole} • ${app.teamName}`,
-              matchScore: app.matchScore,
-              isCampusMatch: app.isCampusMatch,
-              appliedTimeAgo: app.appliedTimeAgo || "Recently",
-              coverNote: app.coverNote || "Applied to join your squad.",
-              skills: app.skills || [],
-              status: app.status,
-            }));
+            const mapped: CandidateApplicationData[] = (incomingRes.applications || []).map((app: IncomingApplicationItem) => {
+              let category: RecommendationTier | undefined;
+              const score = app.matchScore || 0;
+              if (app.isCampusMatch && score >= 0.7) {
+                category = "BEST";
+              } else if (!app.isCampusMatch && score >= 0.65) {
+                category = "GOOD_DIFFERENT_UNIVERSITY";
+              } else if (app.isCampusMatch) {
+                category = "SAME_UNIVERSITY_LOWER_SCORE";
+              }
+
+              return {
+                id: app.id,
+                candidateId: app.candidateId,
+                name: app.name,
+                avatarUrl: app.avatarUrl || undefined,
+                university: app.university,
+                year: app.year || "Student",
+                appliedRole: `${app.appliedRole} • ${app.teamName}`,
+                matchScore: score,
+                isCampusMatch: app.isCampusMatch,
+                appliedTimeAgo: app.appliedTimeAgo || "Recently",
+                coverNote: app.coverNote || "Applied to join your squad.",
+                skills: (app.skills || []).map((s) => ({
+                  name: s.name,
+                  provenance: cleanProvenanceText(s.provenance, s.name, s.score),
+                  score: s.score,
+                })),
+                status: app.status,
+                category,
+              };
+            });
             setIncomingApplications(mapped);
           }
         } catch (e) {
@@ -391,9 +410,16 @@ export function ApplicationsPage() {
                       )}
                     </div>
 
-                    <h3 className="text-base font-bold text-text-main font-heading">
-                      {app.teamName}
-                    </h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-bold text-text-main font-heading">
+                        {app.teamName}
+                      </h3>
+                      {app.roleTitle && (
+                        <span className="text-xs font-semibold text-primary-action bg-primary-light border border-primary-border px-2 py-0.5 rounded-md">
+                          Role: {app.roleTitle}
+                        </span>
+                      )}
+                    </div>
 
                     {app.message && (
                       <p className="text-xs text-text-muted italic line-clamp-2">

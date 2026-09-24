@@ -7,6 +7,8 @@ import {
   API_BASE_URL,
 } from "../services/api";
 
+export type { NotificationDTO };
+
 interface NotificationContextType {
   notifications: NotificationDTO[];
   unreadCount: number;
@@ -74,7 +76,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     async function connectSSE() {
       try {
         const token = await getAuthToken();
-        if (!token || !isSubscribed) return;
+        if (!token) {
+          // Token not ready yet; retry in 2s
+          if (isSubscribed) {
+            setTimeout(connectSSE, 2000);
+          }
+          return;
+        }
+        if (!isSubscribed) return;
 
         const response = await fetch(`${API_BASE_URL}/notifications/stream`, {
           headers: {
@@ -86,6 +95,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         if (!response.ok || !response.body) {
           console.warn("[Notification SSE] Stream connection rejected:", response.status);
+          if (isSubscribed) {
+            setTimeout(connectSSE, 5000);
+          }
           return;
         }
 
@@ -110,7 +122,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 const jsonString = trimmed.replace(/^data:\s*/, "");
                 const event = JSON.parse(jsonString);
 
-                if (event.type === "NOTIFICATION_CREATED" && event.notification) {
+                if (event.type === "STREAM_CONNECTED") {
+                  refreshNotifications();
+                } else if (event.type === "NOTIFICATION_CREATED" && event.notification) {
                   const newNotif: NotificationDTO = event.notification;
                   setNotifications((prev) => [newNotif, ...prev.filter((n) => n.id !== newNotif.id)]);
                   setUnreadCount((prev) => prev + 1);
@@ -137,21 +151,40 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
       } catch (err: any) {
         if (err.name !== "AbortError" && isSubscribed) {
-          console.warn("[Notification SSE] Connection error, retrying in 10s...", err);
+          console.warn("[Notification SSE] Connection error, retrying in 5s...", err);
           setTimeout(() => {
             if (isSubscribed) connectSSE();
-          }, 10000);
+          }, 5000);
         }
       }
     }
 
     connectSSE();
 
+    // Background heartbeat polling (every 20s) and tab-focus re-sync
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        refreshNotifications();
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refreshNotifications();
+      }
+    }, 20000);
+
     return () => {
       isSubscribed = false;
       controller.abort();
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+      clearInterval(interval);
     };
-  }, [isSignedIn]);
+  }, [isSignedIn, refreshNotifications]);
 
   const markAsRead = async (notificationId: string) => {
     try {

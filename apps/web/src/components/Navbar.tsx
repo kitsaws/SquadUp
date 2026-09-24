@@ -19,7 +19,7 @@ import {
 import { SignInButton, SignUpButton } from "@clerk/react";
 import { useUserContext } from "../contexts/UserContext";
 import { usePalette } from "../contexts/PaletteContext";
-import { useNotifications } from "../contexts/NotificationContext";
+import { useNotifications, NotificationDTO } from "../contexts/NotificationContext";
 import { SearchModal } from "./SearchModal";
 import { isAdminEmail } from "../utils/admin";
 
@@ -99,6 +99,7 @@ export function Navbar() {
   const {
     notifications,
     unreadCount,
+    refreshNotifications,
     markAsRead,
     markAllAsRead,
     latestToast,
@@ -133,6 +134,38 @@ export function Navbar() {
   }, []);
 
   const isSuperAdmin = isAdminEmail(email);
+
+  const handleNotificationNavigation = async (item: NotificationDTO) => {
+    if (!item.isRead) {
+      await markAsRead(item.id);
+    }
+    setIsNotificationsOpen(false);
+
+    let targetUrl = item.link;
+    const data = item.data as any;
+
+    if (item.type === "PROFILE_UPDATED") {
+      targetUrl = item.link || (profile?.userId ? `/profile/${profile.userId}` : "/profile");
+    } else if (data?.teamId) {
+      targetUrl = `/team/${data.teamId}${data.inviteId ? `?inviteId=${data.inviteId}` : ""}`;
+    } else if (!targetUrl && data?.eventId) {
+      targetUrl = `/event/${data.eventId}`;
+    } else if (!targetUrl) {
+      targetUrl = "/teams";
+    }
+
+    const currentFullPath = location.pathname + location.search;
+    const currentBasePath = location.pathname;
+    const targetBasePath = targetUrl.split("?")[0];
+
+    // If already on the destination page (e.g. team dossier), force a page reload to refresh all real-time data
+    if (currentFullPath === targetUrl || currentBasePath === targetBasePath) {
+      window.location.href = targetUrl;
+      window.location.reload();
+    } else {
+      navigate(targetUrl);
+    }
+  };
 
   const navLinks = [
     { label: "Home", path: "/" },
@@ -363,7 +396,13 @@ export function Navbar() {
                 {/* Notification Bell + Dropdown Menu */}
                 <div className="relative" ref={notificationsRef}>
                   <button
-                    onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                    onClick={() => {
+                      const nextState = !isNotificationsOpen;
+                      setIsNotificationsOpen(nextState);
+                      if (nextState) {
+                        refreshNotifications();
+                      }
+                    }}
                     className="p-2 text-text-muted hover:text-text-main rounded-lg hover:bg-surface-dim relative transition-colors cursor-pointer"
                     title="Notifications"
                   >
@@ -412,27 +451,7 @@ export function Navbar() {
                           notifications.map((item) => (
                             <div
                               key={item.id}
-                              onClick={async () => {
-                                if (!item.isRead) {
-                                  await markAsRead(item.id);
-                                }
-                                setIsNotificationsOpen(false);
-
-                                let targetUrl = item.link;
-                                const data = item.data as any;
-
-                                if (item.type === "PROFILE_UPDATED") {
-                                  targetUrl = item.link || (profile?.userId ? `/profile/${profile.userId}` : "/profile");
-                                } else if (data?.teamId) {
-                                  targetUrl = `/team/${data.teamId}${data.inviteId ? `?inviteId=${data.inviteId}` : ""}`;
-                                } else if (!targetUrl && data?.eventId) {
-                                  targetUrl = `/event/${data.eventId}`;
-                                } else if (!targetUrl) {
-                                  targetUrl = "/teams";
-                                }
-
-                                navigate(targetUrl);
-                              }}
+                              onClick={() => handleNotificationNavigation(item)}
                               className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
                                 !item.isRead
                                   ? "bg-primary-light/50 border-primary-border/60 hover:bg-primary-light"
@@ -538,9 +557,8 @@ export function Navbar() {
               {latestToast.link && (
                 <button
                   onClick={async () => {
-                    await markAsRead(latestToast.id);
                     clearToast();
-                    navigate(latestToast.link!);
+                    await handleNotificationNavigation(latestToast);
                   }}
                   className="mt-2 text-xs font-bold text-primary-action hover:underline cursor-pointer flex items-center gap-1"
                 >

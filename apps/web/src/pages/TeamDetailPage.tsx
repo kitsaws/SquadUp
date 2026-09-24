@@ -25,7 +25,7 @@ import { RecommendationTier, getSkillMatchType } from "../components/Badges";
 import { SmartRecommendationPanel } from "../components/SmartRecommendationPanel";
 import { ApplyTeamModal } from "../components/ApplyTeamModal";
 import { TeamInviteModal } from "../components/TeamInviteModal";
-import { CandidateApplicationData } from "../components/CandidateApplicationTile";
+import { CandidateApplicationData, cleanProvenanceText } from "../components/CandidateApplicationTile";
 import { ConfirmModal } from "../components/ConfirmModal";
 import {
   TeamHero,
@@ -176,7 +176,11 @@ export function TeamDetailPage() {
                     isCampusMatch: app.isCampusMatch,
                     appliedTimeAgo: app.appliedTimeAgo || "Recently",
                     coverNote: app.coverNote || "Interested in joining your team.",
-                    skills: app.skills || [],
+                    skills: (app.skills || []).map((s) => ({
+                      name: s.name,
+                      provenance: cleanProvenanceText(s.provenance, s.name, s.score),
+                      score: s.score,
+                    })),
                     status: app.status || "PENDING",
                     category,
                   };
@@ -577,24 +581,35 @@ export function TeamDetailPage() {
   const category = (recommendation?.recommendationCategory ?? team.category) as RecommendationTier | undefined;
   const taxonomyScore = recommendation?.taxonomyScore ?? team.taxonomyScore;
   const rawBreakdown = recommendation?.requirementBreakdown || (team as any).requirementBreakdown || [];
-  const activeBreakdown = rawBreakdown.map((item: any) => ({
-    requirementNodeId: item.requirementNodeId,
-    requirementName: item.requirementName,
-    requirementDepth: item.requirementDepth,
-    bestUserSkillId: item.bestUserSkillId,
-    bestUserSkillName: item.bestUserSkillName,
-    bestUserSkillDepth: item.bestUserSkillDepth,
-    lcaNodeId: item.lcaNodeId,
-    lcaNodeName: item.lcaNodeName,
-    lcaDepth: item.lcaDepth,
-    graphDistance: item.graphDistance,
-    matchType: item.matchType,
-    score: item.score,
-    isDirectMatch: item.score >= 0.8,
-    provenanceSource: item.bestUserSkillName ? `Verified Skill: ${item.bestUserSkillName}` : "Taxonomy Alignment",
-    explanation: item.explanationText || item.explanation || "",
-    explanationText: item.explanationText || item.explanation || "",
-  }));
+  const activeBreakdown = rawBreakdown.map((item: any) => {
+    const score = item.score ?? 0;
+    const isExact = score >= 0.95;
+    const isPartial = score >= 0.40 && score < 0.95;
+    const cleanExpl = isExact
+      ? `Exact match with '${item.bestUserSkillName || item.requirementName}' from your profile.`
+      : isPartial
+      ? `Relevant experience matched with '${item.bestUserSkillName || "related technologies"}' for '${item.requirementName}'.`
+      : `No matching skill found in your profile for this squad requirement.`;
+
+    return {
+      requirementNodeId: item.requirementNodeId,
+      requirementName: item.requirementName,
+      requirementDepth: item.requirementDepth,
+      bestUserSkillId: item.bestUserSkillId,
+      bestUserSkillName: item.bestUserSkillName,
+      bestUserSkillDepth: item.bestUserSkillDepth,
+      lcaNodeId: item.lcaNodeId,
+      lcaNodeName: item.lcaNodeName,
+      lcaDepth: item.lcaDepth,
+      graphDistance: item.graphDistance,
+      matchType: item.matchType,
+      score: item.score,
+      isDirectMatch: item.score >= 0.8,
+      provenanceSource: item.bestUserSkillName ? `Verified Skill: ${item.bestUserSkillName}` : "Skill Alignment",
+      explanation: cleanExpl,
+      explanationText: cleanExpl,
+    };
+  });
 
   const fulfilledCount = activeBreakdown.length > 0
     ? activeBreakdown.filter((b: any) => b.score >= 0.8).length
