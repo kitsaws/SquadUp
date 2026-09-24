@@ -692,7 +692,8 @@ Submits a join application, optionally targeting a specific open `TeamRole`.
   ```json
   {
     "message": "Hey, I'd love to join as the Frontend Lead!",
-    "roleId": "cmrole123"
+    "roleId": "cmrole123",
+    "roleTitle": "Frontend Architect"
   }
   ```
 - **Success Response (`201 Created`):**

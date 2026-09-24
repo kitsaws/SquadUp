@@ -366,8 +366,21 @@ Following the completion of **Task 3: "Create Team" UI & Page Integrations with 
   - `TeamService.handleUserDeletion` automatically transfers squad leadership to the earliest joined remaining teammate upon Clerk account deletion, issuing an in-app notification (`TEAM_JOINED`) and only dissolving the squad if 0 members remain.
 - **Profile Cache Invalidation Across Membership Lifecycle:**
   - `CacheService.invalidateProfile(userId)` comprehensively invalidates profile, recommendation, and public profile caches upon team creation, deletion, leaving, member removal, and application/invite acceptances.
-- **First-Person Resume Summary Sanitization (`resume.parser.ts`):**
-  - Added `sanitizeSummary()` to automatically strip awkward third-person narrative prefixes from Groq LLM outputs, guaranteeing active first-person developer bios across all profile views.
+- **Extended Multi-Tier Cache TTLs & Targeted Invalidation (`cache.service.ts`, `cache.md`):**
+  - Significantly increased TTLs for read-heavy resources relying on robust cache invalidation hooks:
+    - Public team dossiers (`team:{id}:public` / anonymous / non-members): increased to 30–60 min (1800s).
+    - Squad member & leader dossiers (`team:{id}:member`): increased to 10 min (600s).
+    - User profiles (`profile:{id}`, `public_profile:{id}`): increased to 30 min (1800s).
+    - Team discovery lists (`teams:list:*`): increased to 5 min (300s).
+- **Role-Targeted Application Compatibility Scoring & Skill Breakdown (`application.service.ts`, `team.types.ts`, `CandidateApplicationTile.tsx`):**
+  - Scoped candidate evaluation in `getIncomingApplications` to the candidate's explicitly chosen role (`roleId` / `roleTitle`).
+  - Evaluates candidate taxonomy vector strictly against the chosen role's technical competencies via `AIService.getRecommendations`.
+  - Displays team/role requirements as the primary competency titles in candidate review cards, while presenting candidate matching skills in the human-friendly provenance captions.
+- **Real-Time Notification SSE Stream & Same-Page Auto-Reload (`NotificationContext.tsx`, `Navbar.tsx`, `notification.controller.ts`):**
+  - Fixed notification streaming connection lifecycle and real-time badge updates.
+  - Implemented `handleNotificationNavigation` in `Navbar.tsx` that triggers a full page refresh when navigating to the current active page, guaranteeing real-time updates for squad rosters and applications.
+- **Taxonomy Debug Artifact Cleanliness on Frontend (`TeamDetailPage.tsx`, `CandidateApplicationTile.tsx`):**
+  - Removed raw internal taxonomy graph metadata (LCA, graph distance, depth numbers) from user-facing candidate and squad dossiers in favor of clean, natural-language compatibility explanations.
 
 ## Client-Side & Frontend Constraints to Note
 
@@ -383,6 +396,8 @@ Following the completion of **Task 3: "Create Team" UI & Page Integrations with 
 
 ## Next Steps
 
-1. **Team Card Institutional Restriction Tooltip:** Add proactive visual indicators on non-global event team cards when the viewing student's university differs from the team's host institution.
-2. **Squad Discovery Filter Enhancements:** Add multi-tag filtering across skills and roles on the `/teams` page.
+1. **Squads Page Filters & Sorting Realignment:** Fix sort/filter parameter alignment in `TeamService.listTeams` for `fit_desc`, `spots_desc`, `name_asc`, and tier categories.
+2. **Interactive Multi-Role Compatibility Selection:** Enable interactive role inspection on `SmartRecommendationPanel` and `TeamCandidateDossier`.
+3. **Direct Invite Resolution:** Add `GET /api/teams/invites/:inviteId` and auto-trigger `TeamInviteModal` on `?inviteId=...`.
+
 

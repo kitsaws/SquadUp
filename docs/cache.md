@@ -13,7 +13,7 @@ Agents modifying data mutations, queries, or performance flows **must** follow t
 | **Backend Core** | `apps/api/src/services/cache.service.ts` | Centralized Redis `CacheService` with helpers for get, set, del, pattern scan, team invalidation, and dynamic TTL computation. |
 | **Backend Controllers** | `apps/api/src/controllers/team.controller.ts` | Team queries (list + detail) with user-scoped keys and team mutation invalidations. |
 | | `apps/api/src/controllers/event.controller.ts` | Event queries (list + detail) with dynamic event date TTLs and event mutation invalidations. |
-| | `apps/api/src/controllers/profile.controller.ts` | User profile & public profile caching (5 min TTL). |
+| | `apps/api/src/controllers/profile.controller.ts` | User profile & public profile caching (30 min TTL). |
 | | `apps/api/src/controllers/webhook.controller.ts` | Clerk Webhooks: Global cache flushing on user or organization changes. |
 | | `apps/api/src/queues/ai.queue.ts` | Cache invalidation upon async AI profile synthesis completion. |
 | **Frontend Core** | `apps/web/src/services/cache.service.ts` | Multi-tier client cache (L1 Memory Map + L2 LocalStorage/SessionStorage) with Stale-While-Revalidate (SWR). |
@@ -31,13 +31,14 @@ SquadUp uses [ioredis](https://github.com/redis/ioredis) via a shared client con
 
 | Key Pattern | Scope | Purpose | TTL | Invalidation Triggers |
 | :--- | :--- | :--- | :--- | :--- |
-| `team:${teamId}:${callerDbId}` | Per-User | Single team details formatted for an authenticated viewer (includes viewer's `isLeader`, `isMember`). | 120s (2 min) | Any team mutation (edit, delete, member add/remove/leave, invite accept/decline/cancel, application accept/reject/withdraw). |
-| `team:${teamId}:anon` | Public | Single team details for unauthenticated / anonymous viewers. | 120s (2 min) | Any team mutation. |
-| `teams:list:${JSON.stringify(filterParams)}` | Query-Scoped | Paginated, filtered, and sorted team discovery lists (page, limit, eventId, search, campus, tier, openSpotsOnly, sort). | 120s (2 min) | Any team creation, update, deletion, member change, or application acceptance. |
+| `team:${teamId}:${callerDbId}` (Member/Leader) | Per-User | Single team details formatted for an active squad member or leader (includes private member details & status). | 600s (10 min) | Any team mutation (edit, delete, member add/remove/leave, invite accept/decline/cancel, application accept/reject/withdraw). |
+| `team:${teamId}:${callerDbId}` (Non-Member) | Per-User | Single team details for authenticated prospective applicant / non-member viewer. | 1800s (30 min) | Any team mutation. |
+| `team:${teamId}:anon` | Public | Single team details for unauthenticated / anonymous viewers. | 1800s (30 min) | Any team mutation. |
+| `teams:list:${JSON.stringify(filterParams)}` | Query-Scoped | Paginated, filtered, and sorted team discovery lists (page, limit, eventId, search, campus, tier, openSpotsOnly, sort). | 300s (5 min) | Any team creation, update, deletion, member change, or application acceptance. |
 | `event:${eventId}` | Entity | Single event details. | **Dynamic** (Formula: `(eventDate + 3d) - now`, min 300s, max 14d) | Event updates or deletions (`event.controller.ts`). |
 | `events:list:${page}:${limit}:${search}:${type}:${status}:${campus}` | Query-Scoped | Paginated and filtered event listing. | 300s (5 min) | Event creation, update, or deletion. |
-| `profile:${userId}` | Per-User | Full private profile for authenticated user. | 300s (5 min) | Profile updates (`profile.controller.ts`) or AI resume processing (`ai.queue.ts`). |
-| `public_profile:${userId}` | Public | Sanitized public profile for team member inspection. | 300s (5 min) | Profile updates or AI resume processing. |
+| `profile:${userId}` | Per-User | Full private profile for authenticated user. | 1800s (30 min) | Profile updates (`profile.controller.ts`) or AI resume processing (`ai.queue.ts`). |
+| `public_profile:${userId}` | Public | Sanitized public profile for team member inspection. | 1800s (30 min) | Profile updates or AI resume processing. |
 
 ---
 
