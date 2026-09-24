@@ -139,23 +139,44 @@ export function TeamsFilterBar({
                 </label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {[
-                    { id: "ALL", label: "All Tiers" },
-                    { id: "BEST", label: "🟢 Best Fit" },
-                    { id: "GOOD_DIFFERENT_UNIVERSITY", label: "🟡 Cross-Campus" },
-                    { id: "SAME_UNIVERSITY_LOWER_SCORE", label: "⚪ Explorer" },
-                  ].map((tier) => (
-                    <button
-                      key={tier.id}
-                      onClick={() => setStagedTier(tier.id)}
-                      className={`px-3 py-2 text-xs font-bold rounded-xl border text-left transition-all cursor-pointer ${
-                        stagedTier === tier.id
-                          ? "bg-primary-light text-primary-action border-primary-border"
-                          : "bg-surface-dim text-text-muted border-border-main hover:text-text-main"
-                      }`}
-                    >
-                      {tier.label}
-                    </button>
-                  ))}
+                    {
+                      id: "ALL",
+                      label: "All Tiers",
+                      activeClass: "bg-primary-light text-primary-action border-primary-border shadow-2xs",
+                      inactiveClass: "bg-surface-dim text-text-muted border-border-main hover:bg-surface hover:text-text-main",
+                    },
+                    {
+                      id: "BEST",
+                      label: "Best Fit",
+                      activeClass: "bg-best-fit-light text-best-fit-dark border-best-fit shadow-2xs",
+                      inactiveClass: "bg-surface-dim text-text-muted border-border-main hover:bg-best-fit-light/40 hover:text-best-fit-dark hover:border-best-fit/40",
+                    },
+                    {
+                      id: "GOOD_DIFFERENT_UNIVERSITY",
+                      label: "Cross-Campus",
+                      activeClass: "bg-cross-campus-light text-cross-campus-dark border-cross-campus shadow-2xs",
+                      inactiveClass: "bg-surface-dim text-text-muted border-border-main hover:bg-cross-campus-light/40 hover:text-cross-campus-dark hover:border-cross-campus/40",
+                    },
+                    {
+                      id: "SAME_UNIVERSITY_LOWER_SCORE",
+                      label: "Explorer",
+                      activeClass: "bg-campus-explorer-light text-campus-explorer-dark border-campus-explorer shadow-2xs",
+                      inactiveClass: "bg-surface-dim text-text-muted border-border-main hover:bg-campus-explorer-light/40 hover:text-campus-explorer-dark hover:border-campus-explorer/40",
+                    },
+                  ].map((tier) => {
+                    const isSelected = stagedTier === tier.id;
+                    return (
+                      <button
+                        key={tier.id}
+                        onClick={() => setStagedTier(tier.id)}
+                        className={`px-3 py-2 text-xs font-bold rounded-xl border text-left transition-all cursor-pointer ${
+                          isSelected ? tier.activeClass : tier.inactiveClass
+                        }`}
+                      >
+                        {tier.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
