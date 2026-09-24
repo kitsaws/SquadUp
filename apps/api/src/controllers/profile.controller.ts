@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { UpdateProfileRequest } from "@squadup/shared";
 import { getOrCreateUserByClerkId, linkUserToOrganization } from "../utils/auth.utils.js";
 import { AIService } from "../services/ai.service.js";
-import { CacheService } from "../services/cache.service.js";
+import { CacheService, CACHE_TTL } from "../services/cache.service.js";
 import { NotificationService } from "../services/notification.service.js";
 import { sanitizeSummary } from "../services/resume.parser.js";
 
@@ -147,7 +147,7 @@ export const getProfile = async (req: Request, res: Response) => {
       updatedAt: userWithProfile.updatedAt.toISOString(),
     };
 
-    await CacheService.set(cacheKey, responsePayload, 300);
+    await CacheService.set(cacheKey, responsePayload, CACHE_TTL.PROFILE);
 
     return res.json(responsePayload);
   } catch (error) {
@@ -487,7 +487,7 @@ export const getProfileById = async (req: Request, res: Response) => {
     };
 
     if (isCurrentViewer && cacheKey) {
-      await CacheService.set(cacheKey, responsePayload, 300);
+      await CacheService.set(cacheKey, responsePayload, CACHE_TTL.PROFILE_PUBLIC);
     }
 
     return res.json(responsePayload);

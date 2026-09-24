@@ -10,7 +10,7 @@ import {
   PaginatedResponse,
 } from "@squadup/shared";
 import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
-import { CacheService } from "../services/cache.service.js";
+import { CacheService, CACHE_TTL } from "../services/cache.service.js";
 import { NotificationService } from "../services/notification.service.js";
 
 export const listEvents = async (req: Request, res: Response) => {
@@ -170,7 +170,7 @@ export const listEvents = async (req: Request, res: Response) => {
     };
 
     // Cache list for 5 minutes (300 seconds)
-    await CacheService.set(cacheKey, responsePayload, 300);
+    await CacheService.set(cacheKey, responsePayload, CACHE_TTL.EVENT_LIST);
 
     return res.json(responsePayload);
   } catch (error) {

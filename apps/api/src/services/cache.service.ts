@@ -12,6 +12,24 @@ redisCache.on('error', (err) => {
   console.warn('[Redis Cache] Warning/Error connecting to Redis:', err.message);
 });
 
+// Standardized TTL configuration across the platform (in seconds)
+export const CACHE_TTL = {
+  // Profiles: 30-60 minutes (safely invalidated on edits, uploads, and membership updates)
+  PROFILE: 1800, // 30 minutes
+  PROFILE_PUBLIC: 1800, // 30 minutes
+
+  // Squads / Teams:
+  // Public / Anonymous / Prospective candidate view: 30-60 minutes
+  TEAM_PUBLIC: 1800, // 30 minutes
+  // Authenticated Squad Member / Leader view: 5-15 minutes
+  TEAM_MEMBER: 600, // 10 minutes
+  // Paginated directory listings: 5-10 minutes
+  TEAM_LIST: 300, // 5 minutes
+
+  // Events:
+  EVENT_LIST: 300, // 5 minutes
+} as const;
+
 export class CacheService {
   /**
    * Retrieves a cached value and parses it as JSON.

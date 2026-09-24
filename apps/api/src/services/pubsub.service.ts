@@ -4,12 +4,12 @@ const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 export const redisPublisher = new Redis(REDIS_URL, {
   maxRetriesPerRequest: null,
-  lazyConnect: true,
+  enableReadyCheck: false,
 });
 
 export const redisSubscriber = new Redis(REDIS_URL, {
   maxRetriesPerRequest: null,
-  lazyConnect: true,
+  enableReadyCheck: false,
 });
 
 redisPublisher.on("error", (err) => {

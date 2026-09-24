@@ -97,6 +97,8 @@ export interface TeamApplicationDTO {
 
 export interface CreateApplicationRequest {
   message?: string;
+  roleId?: string;
+  roleTitle?: string;
 }
 
 export interface SendTeamInvitesRequest {
@@ -211,6 +213,8 @@ export interface MyApplicationResponse {
   university?: string | null;
   requirements: string[];
   message?: string | null;
+  roleId?: string | null;
+  roleTitle?: string | null;
   status: string; // PENDING, ACCEPTED, REJECTED, WITHDRAWN
   createdAt: string;
   updatedAt: string;

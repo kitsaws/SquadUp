@@ -44,15 +44,27 @@ export class ApplicationService {
       throw new Error("You have already applied to this team and your application is pending.");
     }
 
-    const application = await prisma.teamApplication.create({
-      data: {
+    const application = await prisma.teamApplication.upsert({
+      where: {
+        teamId_userId: {
+          teamId,
+          userId: applicantUser.id,
+        },
+      },
+      create: {
         teamId,
         userId: applicantUser.id,
         message: message?.trim() || null,
         roleId: roleId || null,
         roleTitle: roleTitle?.trim() || null,
         status: "PENDING",
-      } as any,
+      },
+      update: {
+        message: message?.trim() || null,
+        roleId: roleId || null,
+        roleTitle: roleTitle?.trim() || null,
+        status: "PENDING",
+      },
       include: {
         team: {
           include: {
@@ -161,6 +173,8 @@ export class ApplicationService {
       university: app.team.university || app.team.event?.location || null,
       requirements: app.team.requirements || [],
       message: app.message,
+      roleId: app.roleId || null,
+      roleTitle: app.roleTitle || null,
       status: app.status,
       createdAt: app.createdAt.toISOString(),
       updatedAt: app.updatedAt.toISOString(),
@@ -229,28 +243,57 @@ export class ApplicationService {
       const candidateTaxNodeIds = candidateUser.taxonomy?.taxonomyNodeIds || [];
       const team = app.team;
 
+      const explicitlyAppliedRole = app.roleTitle?.trim() || null;
       let matchScore = 0.0;
-      let appliedRole = "General Applicant";
+      let appliedRole = explicitlyAppliedRole || "General Applicant";
       const candidateSkills: IncomingApplicationSkill[] = [];
+
+      // Find if candidate applied for a specific role defined in the squad
+      let targetRole = null;
+      if (app.roleId) {
+        targetRole = team?.roles?.find((r) => r.id === app.roleId) || null;
+      }
+      if (!targetRole && explicitlyAppliedRole) {
+        targetRole =
+          team?.roles?.find(
+            (r) => r.title.toLowerCase().trim() === explicitlyAppliedRole.toLowerCase().trim()
+          ) || null;
+      }
+
+      if (targetRole && !explicitlyAppliedRole) {
+        appliedRole = targetRole.title;
+      }
 
       if (candidateTaxNodeIds.length > 0 && team) {
         try {
+          const scopedRoles = targetRole
+            ? [
+                {
+                  id: targetRole.id,
+                  title: targetRole.title,
+                  skills: targetRole.skills,
+                  spots: 1,
+                  assignedToId: null,
+                },
+              ]
+            : team.roles
+            ? team.roles.map((r) => ({
+                id: r.id,
+                title: r.title,
+                skills: r.skills,
+                spots: r.spots,
+                assignedToId: r.assignedToId,
+              }))
+            : undefined;
+
           const teamPayload = {
             team_id: team.id,
             team_name: team.name,
             university: team.university || team.event?.location || null,
             description: team.event?.description || null,
-            requirements: team.requirements || [],
-            requirement_node_ids: team.taxonomy?.requirementNodeIds || [],
-            roles: team.roles
-              ? team.roles.map((r) => ({
-                  id: r.id,
-                  title: r.title,
-                  skills: r.skills,
-                  spots: r.spots,
-                  assignedToId: r.assignedToId,
-                }))
-              : undefined,
+            requirements: targetRole ? targetRole.skills : team.requirements || [],
+            requirement_node_ids: targetRole ? [] : team.taxonomy?.requirementNodeIds || [],
+            roles: scopedRoles,
             is_global: team.event?.isGlobal ?? false,
             is_eligible: true,
           };
@@ -266,16 +309,25 @@ export class ApplicationService {
           if (recs && recs.length > 0) {
             const firstRec = recs[0];
             matchScore = firstRec.taxonomyScore ?? 0.0;
-            if (firstRec.bestMatchingRole?.roleTitle) {
+            if (!explicitlyAppliedRole && firstRec.bestMatchingRole?.roleTitle) {
               appliedRole = firstRec.bestMatchingRole.roleTitle;
             }
 
             if (firstRec.requirementBreakdown) {
               firstRec.requirementBreakdown.forEach((rb) => {
                 if (rb.bestUserSkillName) {
+                  const isExact = rb.score >= 0.95;
+                  const isPartial = rb.score >= 0.40 && rb.score < 0.95;
+                  let cleanExplanation = `Exact match with '${rb.bestUserSkillName}' from candidate profile.`;
+                  if (isPartial) {
+                    cleanExplanation = `Relevant experience matched with '${rb.bestUserSkillName}' for '${rb.requirementName}'.`;
+                  } else if (!isExact && rb.score < 0.40) {
+                    cleanExplanation = `Related background in '${rb.bestUserSkillName}'.`;
+                  }
+
                   candidateSkills.push({
-                    name: rb.bestUserSkillName,
-                    provenance: rb.explanationText || "Candidate verified skill match",
+                    name: rb.requirementName || rb.bestUserSkillName,
+                    provenance: cleanExplanation,
                     score: rb.score,
                   });
                 }
@@ -287,7 +339,7 @@ export class ApplicationService {
         }
       }
 
-      if (candidateSkills.length === 0 && candidateProfile?.skills) {
+      if (candidateSkills.length === 0 && candidateTaxNodeIds.length === 0 && candidateProfile?.skills) {
         candidateProfile.skills.forEach((skillName) => {
           candidateSkills.push({
             name: skillName,
@@ -310,7 +362,7 @@ export class ApplicationService {
         avatarUrl: candidateUser.imageUrl || null,
         university: candidateProfile?.university || "Student",
         year: (candidateProfile?.education as any)?.[0]?.year || "Student",
-        appliedRole: appliedRole || candidateProfile?.title || "Applicant",
+        appliedRole: explicitlyAppliedRole || appliedRole || candidateProfile?.title || "Applicant",
         matchScore: Math.round(matchScore * 100) / 100,
         isCampusMatch,
         appliedTimeAgo: formatTimeAgo(app.createdAt),

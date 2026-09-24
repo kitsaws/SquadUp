@@ -7,7 +7,7 @@ import {
   PaginatedResponse,
 } from "@squadup/shared";
 import { AIService } from "./ai.service.js";
-import { CacheService } from "./cache.service.js";
+import { CacheService, CACHE_TTL } from "./cache.service.js";
 import { NotificationService } from "./notification.service.js";
 import { queueTeamInvitationEmail } from "../queues/email.queue.js";
 
@@ -294,7 +294,7 @@ export class TeamService {
         },
       };
 
-      await CacheService.set(cacheKey, result, 60);
+      await CacheService.set(cacheKey, result, CACHE_TTL.TEAM_LIST);
       return result;
     }
 
@@ -468,7 +468,7 @@ export class TeamService {
       },
     };
 
-    await CacheService.set(cacheKey, response, 60);
+    await CacheService.set(cacheKey, response, CACHE_TTL.TEAM_LIST);
     return response;
   }
 
@@ -662,7 +662,9 @@ export class TeamService {
       updatedAt: team.updatedAt.toISOString(),
     };
 
-    await CacheService.set(cacheKey, response, 120);
+    const isTeamParticipant = isLeader || isMember;
+    const teamTTL = isTeamParticipant ? CACHE_TTL.TEAM_MEMBER : CACHE_TTL.TEAM_PUBLIC;
+    await CacheService.set(cacheKey, response, teamTTL);
     return response;
   }
 

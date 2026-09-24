@@ -92,19 +92,23 @@ export const streamNotifications = async (req: Request, res: Response) => {
     Connection: "keep-alive",
     "X-Accel-Buffering": "no",
   });
+  res.flushHeaders();
 
   // Initial connection payload
   res.write(`data: ${JSON.stringify({ type: "STREAM_CONNECTED", userId: userInDb.id })}\n\n`);
+  (res as any).flush?.();
 
   // Subscribe to Redis Pub/Sub for this user
   const unsubscribe = await PubSubService.subscribeUser(userInDb.id, (event) => {
     res.write(`data: ${JSON.stringify(event)}\n\n`);
+    (res as any).flush?.();
   });
 
-  // 25s keepalive ping to maintain connection through proxies
+  // 15s keepalive ping to maintain connection through proxies
   const pingInterval = setInterval(() => {
     res.write(": keepalive\n\n");
-  }, 25000);
+    (res as any).flush?.();
+  }, 15000);
 
   req.on("close", () => {
     clearInterval(pingInterval);
