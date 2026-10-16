@@ -233,8 +233,6 @@ export function EditProfileModal({
         experience: profile.experience || [],
       });
 
-      await refreshProfile(true);
-
       if (res.profile) {
         onProfileUpdated(res.profile);
       }

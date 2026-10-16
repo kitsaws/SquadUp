@@ -36,6 +36,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [hasInitialProfileLoaded, setHasInitialProfileLoaded] = useState<boolean>(Boolean(initialCache));
   const [profileError, setProfileError] = useState<string | null>(null);
 
+  // In-flight refresh deduplication, debouncing, and timestamp ordering refs
+  const inFlightRefreshRef = React.useRef<Promise<void> | null>(null);
+  const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const lastFetchedAtRef = React.useRef<number>(0);
+
   // Sync token getter with api service
   useEffect(() => {
     setAuthTokenGetter(() => getToken());
@@ -52,7 +57,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     });
   }, [userId]);
 
-  const refreshProfile = useCallback(async (bypassCache = false) => {
+  const refreshProfile = useCallback(async (bypassCache = false): Promise<void> => {
     if (!isSignedIn || !user?.id) {
       setProfile(null);
       setProfileError(null);
@@ -61,26 +66,87 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (inFlightRefreshRef.current) {
+      return inFlightRefreshRef.current;
+    }
+
+    const fetchStartTime = Date.now();
     setProfileError(null);
     setIsLoadingProfile(true);
 
-    try {
-      const data = await profileApi.getProfile({
-        userId: user.id,
-        bypassCache,
-        onBackgroundUpdate: (fresh) => {
-          setProfile(fresh);
-        },
-      });
-      setProfile(data);
-    } catch (err: any) {
-      console.warn("[UserContext] Could not load profile:", err);
-      setProfileError(err?.message || "Failed to load profile");
-    } finally {
-      setIsLoadingProfile(false);
-      setHasInitialProfileLoaded(true);
-    }
+    const refreshPromise = (async () => {
+      try {
+        const data = await profileApi.getProfile({
+          userId: user.id,
+          bypassCache,
+          onBackgroundUpdate: (fresh) => {
+            if (fetchStartTime >= lastFetchedAtRef.current) {
+              lastFetchedAtRef.current = fetchStartTime;
+              setProfile(fresh);
+            }
+          },
+        });
+        if (fetchStartTime >= lastFetchedAtRef.current) {
+          lastFetchedAtRef.current = fetchStartTime;
+          setProfile(data);
+        }
+      } catch (err: any) {
+        console.warn("[UserContext] Could not load profile:", err);
+        setProfileError(err?.message || "Failed to load profile");
+      } finally {
+        setIsLoadingProfile(false);
+        setHasInitialProfileLoaded(true);
+        inFlightRefreshRef.current = null;
+      }
+    })();
+
+    inFlightRefreshRef.current = refreshPromise;
+    return refreshPromise;
   }, [isSignedIn, user?.id]);
+
+  // Subscribe to CacheService profile events
+  useEffect(() => {
+    const unsubInvalidated = CacheService.onProfileInvalidated((scope) => {
+      if (!isSignedIn || !user?.id) return;
+      const isRelevant =
+        !scope ||
+        scope === "active_user" ||
+        scope === user.id ||
+        (profile && (scope === profile.userId || scope === profile.clerkId));
+
+      if (isRelevant) {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+        debounceTimerRef.current = setTimeout(() => {
+          refreshProfile(true);
+        }, 100);
+      }
+    });
+
+    const unsubUpdate = CacheService.onProfileUpdate((freshProfile) => {
+      if (!isSignedIn || !user?.id) return;
+      const isForCurrentUser =
+        freshProfile.clerkId === user.id ||
+        (freshProfile.userId && freshProfile.userId === profile?.userId) ||
+        freshProfile.userId === user.id;
+
+      if (isForCurrentUser) {
+        lastFetchedAtRef.current = Date.now();
+        setProfile(freshProfile);
+        setHasInitialProfileLoaded(true);
+        setIsLoadingProfile(false);
+      }
+    });
+
+    return () => {
+      unsubInvalidated();
+      unsubUpdate();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [isSignedIn, user?.id, profile?.userId, profile?.clerkId, refreshProfile]);
 
   useEffect(() => {
     if (isSignedIn && user?.id) {

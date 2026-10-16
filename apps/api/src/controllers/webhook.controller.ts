@@ -120,6 +120,7 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
           },
         });
 
+        await CacheService.invalidateProfile(user.id, user.clerkId);
         console.log(`[Clerk Webhook] Synced user ${id} (${email}) to database.`);
         break;
       }
@@ -133,6 +134,7 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
         if (userInDb) {
           // Gracefully transfer leadership and unassign roles across all squads
           await TeamService.handleUserDeletion(userInDb.id);
+          await CacheService.invalidateProfile(userInDb.id, userInDb.clerkId);
         }
 
         await prisma.user.deleteMany({
@@ -186,6 +188,7 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
             where: { userId: { in: memberUserIds } },
             data: { university: org.name },
           });
+          await Promise.all(memberUserIds.map((uid) => CacheService.invalidateProfile(uid)));
           console.log(
             `[Clerk Webhook] Propagated university name "${org.name}" to ${profileUpdates.count} member profile(s).`
           );
@@ -231,6 +234,7 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
               },
               data: { university: null },
             });
+            await Promise.all(memberUserIds.map((uid) => CacheService.invalidateProfile(uid)));
             console.log(
               `[Clerk Webhook] Cleared Profile.university for ${memberUserIds.length} member(s) of deleted organization "${org.name}".`
             );
@@ -343,6 +347,7 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
           },
         });
 
+        await CacheService.invalidateProfile(user.id, user.clerkId);
         await CacheService.invalidateAllTeams();
         console.log(
           `[Clerk Webhook] Synced membership: User ${clerkUserId} -> Org ${org.name} (${role})`
@@ -391,6 +396,9 @@ export const clerkWebhookHandler = async (req: Request, res: Response) => {
           }
         }
 
+        if (user) {
+          await CacheService.invalidateProfile(user.id, user.clerkId);
+        }
         await CacheService.invalidateAllTeams();
         console.log(
           `[Clerk Webhook] Removed membership for member ID ${clerkMemberId || "unspecified"}`

@@ -152,12 +152,42 @@ Updates user profile fields and **automatically re-indexes `UserTaxonomy` in rea
   ```json
   {
     "message": "Profile updated successfully.",
-    "profile": { ... }
+    "profile": {
+      "id": "cmu25...",
+      "userId": "cmu25...",
+      "clerkId": "user_2...",
+      "name": "Jane Doe",
+      "email": "jane@stanford.edu",
+      "university": "Stanford University",
+      "avatarUrl": "https://img.clerk.com/...",
+      "title": "Senior AI Systems Developer",
+      "summary": "Updated summary statement...",
+      "skills": ["React", "TypeScript", "FastAPI", "PyTorch"],
+      "education": [...],
+      "experience": [...],
+      "achievements": [...],
+      "projects": [...],
+      "githubUrl": "https://github.com/janedoe",
+      "linkedinUrl": "https://linkedin.com/in/janedoe",
+      "resumePdfUrl": "/api/resume/view",
+      "lastResumeUploadedAt": "2026-09-15T09:00:00.000Z",
+      "taxonomyNodeIds": ["react", "fastapi", "postgresql", "docker"],
+      "evidence": [...],
+      "isVerifiedStudent": true,
+      "verificationReason": "Verified Stanford .edu email",
+      "organizationDomain": "stanford.edu",
+      "organizationName": "Stanford University",
+      "teams": [...],
+      "bannerConfig": null,
+      "createdAt": "2026-09-15T08:00:00.000Z",
+      "updatedAt": "2026-09-15T09:30:00.000Z"
+    }
   }
   ```
+  *(Returns the complete canonical `UserProfileResponse`, identical to `GET /api/profile`, allowing frontend L1/L2 and React `UserContext` to update immediately without secondary network requests).*
 
 ### 2.3 Sync Clerk Data
-Synchronizes Clerk user data (name, email, avatar image URL) into the internal `User` record.
+Synchronizes Clerk user data (name, email, avatar image URL, organizations) into the internal `User` and `Profile` record.
 
 - **Method:** `POST`
 - **Path:** `/api/profile/sync-clerk`
@@ -165,8 +195,9 @@ Synchronizes Clerk user data (name, email, avatar image URL) into the internal `
 - **Success Response (`200 OK`):**
   ```json
   {
-    "message": "Profile synced successfully",
-    "user": { "id": "...", "name": "...", "email": "..." }
+    "success": true,
+    "message": "Clerk data synced successfully.",
+    "profile": { /* Complete canonical UserProfileResponse */ }
   }
   ```
 

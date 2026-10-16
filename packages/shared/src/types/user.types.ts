@@ -87,6 +87,7 @@ export interface UserProfileResponse {
   resumeOriginalName?: string | null;
   lastResumeUploadedAt?: string | null;
   taxonomyNodeIds?: string[];
+  evidence?: any[];
   bannerConfig?: any;
   isVerifiedStudent?: boolean;
   verificationReason?: string;

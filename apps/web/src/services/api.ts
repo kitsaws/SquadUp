@@ -488,23 +488,10 @@ export const profileApi = {
     });
 
     if (res.profile) {
-      // Invalidate all related profile & recommendation caches
-      CacheService.invalidatePrefix("sq:profile:");
-      CacheService.invalidatePrefix("sq:public_profile:");
-      CacheService.invalidatePrefix("sq:recs:");
-      CacheService.invalidatePrefix("sq:teams:");
-
-      // Store fresh profile across all relevant keys
-      if (res.profile.clerkId) {
-        CacheService.set(`sq:profile:${res.profile.clerkId}`, res.profile, 1000 * 60 * 30, "local");
-      }
-      if (res.profile.userId) {
-        CacheService.set(`sq:profile:${res.profile.userId}`, res.profile, 1000 * 60 * 30, "local");
-      }
-      if (userId) {
+      CacheService.setProfile(res.profile);
+      if (userId && userId !== res.profile.userId && userId !== res.profile.clerkId) {
         CacheService.set(`sq:profile:${userId}`, res.profile, 1000 * 60 * 30, "local");
       }
-      CacheService.set(`sq:profile:active_user`, res.profile, 1000 * 60 * 30, "local");
     }
 
     return res;
@@ -648,11 +635,15 @@ export const organizersApi = {
     return request<OrganizationItem>(`/organizers/universities/${clerkOrgId}`);
   },
 
-  selectUniversity: (clerkOrgId: string): Promise<{ success: boolean; organization: OrganizationItem; profile: UserProfileResponse }> => {
-    return request<{ success: boolean; organization: OrganizationItem; profile: UserProfileResponse }>("/organizers/universities/select", {
+  selectUniversity: async (clerkOrgId: string): Promise<{ success: boolean; organization: OrganizationItem; profile: UserProfileResponse }> => {
+    const res = await request<{ success: boolean; organization: OrganizationItem; profile: UserProfileResponse }>("/organizers/universities/select", {
       method: "POST",
       body: JSON.stringify({ clerkOrgId }),
     });
+    if (res.profile) {
+      CacheService.setProfile(res.profile);
+    }
+    return res;
   },
 
   getOrganizers: (params?: { orgId?: string; search?: string }): Promise<any[]> => {
@@ -677,10 +668,14 @@ export const preferencesApi = {
     return request<UserPreferences>("/preferences");
   },
 
-  updatePreferences: (data: UpdateUserPreferencesRequest): Promise<UserPreferences> => {
-    return request<UserPreferences>("/preferences", {
+  updatePreferences: async (data: UpdateUserPreferencesRequest): Promise<UserPreferences> => {
+    const res = await request<UserPreferences>("/preferences", {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+    if (data.bannerConfig !== undefined) {
+      CacheService.invalidateProfile();
+    }
+    return res;
   },
 };

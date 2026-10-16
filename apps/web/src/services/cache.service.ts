@@ -1,3 +1,5 @@
+import type { UserProfileResponse } from "@squadup/shared";
+
 /**
  * SquadUp Frontend Cache Service
  * Unified multi-tier caching (L1 In-Memory Map + L2 Web Storage)
@@ -10,8 +12,35 @@ interface CacheEntry<T> {
   ttlMs: number;
 }
 
+export type ProfileUpdateListener = (profile: UserProfileResponse) => void;
+export type ProfileInvalidatedListener = (scope?: string) => void;
+
 class FrontendCacheService {
   private memoryCache = new Map<string, CacheEntry<any>>();
+  private profileUpdateListeners: Set<ProfileUpdateListener> = new Set();
+  private profileInvalidatedListeners: Set<ProfileInvalidatedListener> = new Set();
+
+  /**
+   * Subscribe to complete profile updates (e.g. from direct mutation responses).
+   * Returns an unsubscribe function.
+   */
+  public onProfileUpdate(listener: ProfileUpdateListener): () => void {
+    this.profileUpdateListeners.add(listener);
+    return () => {
+      this.profileUpdateListeners.delete(listener);
+    };
+  }
+
+  /**
+   * Subscribe to profile cache invalidation events (e.g. from background tasks, membership updates).
+   * Returns an unsubscribe function.
+   */
+  public onProfileInvalidated(listener: ProfileInvalidatedListener): () => void {
+    this.profileInvalidatedListeners.add(listener);
+    return () => {
+      this.profileInvalidatedListeners.delete(listener);
+    };
+  }
 
   private getStorage(type: "local" | "session"): Storage | null {
     if (typeof window === "undefined") return null;
@@ -187,10 +216,72 @@ class FrontendCacheService {
   }
 
   /**
+   * Sets the canonical user profile into L1 (memory) and L2 (local storage)
+   * under all relevant keys, clears dependent caches (teams, recs), and notifies listeners.
+   */
+  public setProfile(profile: UserProfileResponse): void {
+    if (!profile) return;
+    const ttlMs = 1000 * 60 * 30; // 30 minutes
+
+    // Invalidate dependent caches that depend on user profile / skills
+    this.invalidatePrefix("sq:recs:");
+    this.invalidatePrefix("sq:teams:");
+
+    // Save under canonical keys in L1 and L2
+    if (profile.clerkId) {
+      this.set(`sq:profile:${profile.clerkId}`, profile, ttlMs, "local");
+    }
+    if (profile.userId) {
+      this.set(`sq:profile:${profile.userId}`, profile, ttlMs, "local");
+    }
+    this.set("sq:profile:active_user", profile, ttlMs, "local");
+
+    // Also update public profile cache if present
+    if (profile.userId) {
+      this.set(`sq:public_profile:${profile.userId}`, profile, 1000 * 60 * 5, "session");
+    }
+    if (profile.clerkId) {
+      this.set(`sq:public_profile:${profile.clerkId}`, profile, 1000 * 60 * 5, "session");
+    }
+
+    // Broadcast to UserContext and any other active listeners
+    this.profileUpdateListeners.forEach((listener) => {
+      try {
+        listener(profile);
+      } catch (err) {
+        console.error("[CacheService] Error in profileUpdateListener:", err);
+      }
+    });
+  }
+
+  /**
+   * Invalidates profile caches and notifies subscribers that the active profile is stale.
+   */
+  public invalidateProfile(userScope?: string): void {
+    if (userScope) {
+      this.invalidatePrefix(`sq:profile:${userScope}`);
+      this.invalidatePrefix(`sq:public_profile:${userScope}`);
+    } else {
+      this.invalidatePrefix("sq:profile:");
+      this.invalidatePrefix("sq:public_profile:");
+    }
+    this.invalidatePrefix("sq:recs:");
+    this.invalidatePrefix("sq:teams:");
+
+    this.profileInvalidatedListeners.forEach((listener) => {
+      try {
+        listener(userScope);
+      } catch (err) {
+        console.error("[CacheService] Error in profileInvalidatedListener:", err);
+      }
+    });
+  }
+
+  /**
    * Invalidate all caches for a specific user (on profile changes or logout).
    */
   public invalidateUser(userId: string): void {
-    this.invalidatePrefix(`sq:profile:${userId}`);
+    this.invalidateProfile(userId);
     this.invalidatePrefix(`sq:recs:${userId}`);
     this.invalidatePrefix(`sq:teams:user:${userId}`);
   }

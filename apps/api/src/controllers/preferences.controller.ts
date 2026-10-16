@@ -94,7 +94,7 @@ export const updatePreferences = async (req: Request, res: Response) => {
     // Invalidate cached profile so new preferences and bannerConfig are reflected immediately
     try {
       const { CacheService } = await import("../services/cache.service.js");
-      await CacheService.del(`profile:${userInDb.id}`);
+      await CacheService.invalidateProfile(userInDb.id, userInDb.clerkId);
     } catch {
       // ignore
     }

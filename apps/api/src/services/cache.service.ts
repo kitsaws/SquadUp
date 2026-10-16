@@ -125,21 +125,36 @@ export class CacheService {
   }
 
   /**
-   * Invalidates all profile, public profile, and recommendation caches for a given user (or globally).
+   * Invalidates profile, public profile, and recommendation caches for a specific user (by dbId and/or clerkId),
+   * or across all users if called with no arguments.
    */
-  static async invalidateProfile(userId?: string): Promise<void> {
+  static async invalidateProfile(userId?: string, clerkId?: string): Promise<void> {
     try {
-      const promises: Promise<any>[] = [
-        this.invalidatePattern('profile:*'),
-      ];
-      if (userId) {
+      if (!userId && !clerkId) {
+        // Explicit global invalidation when no user identifier is provided
+        await Promise.allSettled([
+          this.invalidatePattern('profile:*'),
+          this.invalidatePattern('public_profile:*'),
+          this.invalidatePattern('recs:*'),
+          this.invalidatePattern('recommendations:*'),
+        ]);
+        return;
+      }
+
+      const targets = [userId, clerkId].filter(Boolean) as string[];
+      const promises: Promise<any>[] = [];
+
+      for (const id of targets) {
         promises.push(
-          this.del(`profile:${userId}`),
-          this.invalidatePattern(`profile:${userId}*`),
-          this.invalidatePattern(`recs:${userId}*`),
-          this.invalidatePattern(`recommendations:${userId}*`)
+          this.del(`profile:${id}`),
+          this.del(`public_profile:${id}`),
+          this.invalidatePattern(`profile:${id}*`),
+          this.invalidatePattern(`public_profile:${id}*`),
+          this.invalidatePattern(`recs:${id}*`),
+          this.invalidatePattern(`recommendations:${id}*`)
         );
       }
+
       await Promise.allSettled(promises);
     } catch (err) {
       console.warn(`[CacheService] Failed to invalidate profile cache for "${userId}":`, err);

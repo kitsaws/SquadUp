@@ -60,7 +60,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    if (!jobId) return;
+    if (!jobId || !isSignedIn) return;
 
     const interval = setInterval(async () => {
       try {
@@ -68,11 +68,17 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         if (data.state === "completed") {
           clearInterval(interval);
-          CacheService.invalidatePrefix("sq:profile:");
-          CacheService.invalidatePrefix("sq:public_profile:");
-          CacheService.invalidatePrefix("sq:recs:");
-          CacheService.invalidatePrefix("sq:teams:");
-          setProfileData(data.result);
+          CacheService.invalidateProfile();
+
+          try {
+            const canonical = await profileApi.getProfile({ bypassCache: true });
+            CacheService.setProfile(canonical);
+            setProfileData(canonical);
+          } catch (err) {
+            console.warn("[JobContext] Could not load canonical profile after resume parse:", err);
+            setProfileData(data.result);
+          }
+
           setIsUploading(false);
           setJobId(null);
         } else if (data.state === "failed") {
@@ -90,7 +96,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [jobId]);
+  }, [jobId, isSignedIn]);
 
   return (
     <JobContext.Provider

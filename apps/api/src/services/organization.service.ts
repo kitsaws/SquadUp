@@ -99,7 +99,7 @@ export class OrganizationService {
 
     // Invalidate cached profile on university selection
     try {
-      await CacheService.del(`profile:${user.id}`);
+      await CacheService.invalidateProfile(user.id, user.clerkId);
     } catch {
       // ignore
     }

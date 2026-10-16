@@ -6,6 +6,7 @@ import {
 } from "@squadup/shared";
 import { getOrCreateUserByClerkId } from "../utils/auth.utils.js";
 import { OrganizationService } from "../services/organization.service.js";
+import { buildCanonicalUserProfile } from "./profile.controller.js";
 
 // ==========================================
 // University Organizations Controller
@@ -82,13 +83,14 @@ export const selectUniversity = async (req: Request, res: Response) => {
       clerkOrgId,
       organizationId,
     });
+    const canonicalProfile = await buildCanonicalUserProfile(userInDb.id);
 
     return res.json({
       success: true,
       message: `Successfully affiliated with ${result.organization.name}.`,
       organization: result.organization,
       membership: result.membership,
-      profile: result.profile,
+      profile: canonicalProfile || result.profile,
     });
   } catch (error: any) {
     if (error.message === "University organization not found.") {

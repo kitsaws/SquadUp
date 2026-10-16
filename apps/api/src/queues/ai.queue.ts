@@ -117,10 +117,7 @@ export const aiWorker = new Worker(
       
       // Invalidate profile cache across DB ID and Clerk ID
       try {
-        await CacheService.invalidateProfile(userInDb.id);
-        if (userInDb.clerkId) {
-          await CacheService.invalidateProfile(userInDb.clerkId);
-        }
+        await CacheService.invalidateProfile(userInDb.id, userInDb.clerkId);
       } catch (cacheErr) {
         console.warn(`[Job ${job.id}] Failed to invalidate profile cache:`, cacheErr);
       }

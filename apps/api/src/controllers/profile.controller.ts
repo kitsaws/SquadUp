@@ -1,12 +1,136 @@
 import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
 import { prisma } from "../lib/prisma.js";
-import { UpdateProfileRequest } from "@squadup/shared";
+import { UpdateProfileRequest, UserProfileResponse } from "@squadup/shared";
 import { getOrCreateUserByClerkId, linkUserToOrganization } from "../utils/auth.utils.js";
 import { AIService } from "../services/ai.service.js";
 import { CacheService, CACHE_TTL } from "../services/cache.service.js";
 import { NotificationService } from "../services/notification.service.js";
 import { sanitizeSummary } from "../services/resume.parser.js";
+
+/**
+ * Builds the canonical UserProfileResponse for a user by their internal database cuid,
+ * and warms the Redis L3 cache synchronously.
+ */
+export async function buildCanonicalUserProfile(userId: string): Promise<UserProfileResponse | null> {
+  const userWithProfile = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      profile: true,
+      taxonomy: true,
+      preferences: true,
+      organizationMemberships: {
+        include: {
+          organization: true,
+        },
+      },
+      teams: {
+        include: {
+          team: {
+            select: {
+              id: true,
+              name: true,
+              eventId: true,
+              university: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!userWithProfile) {
+    return null;
+  }
+
+  const profile = userWithProfile.profile;
+  const primaryMembership = userWithProfile.organizationMemberships?.[0];
+  const primaryOrg = primaryMembership?.organization;
+  const userEmail = (userWithProfile.email || "").toLowerCase().trim();
+  const orgDomain = (primaryOrg?.domain || "").toLowerCase().trim();
+  const orgName = primaryOrg?.name || profile?.university || null;
+
+  let isVerifiedStudent = false;
+  let verificationReason = "No university organization affiliation found.";
+
+  if (primaryOrg) {
+    if (!orgDomain) {
+      isVerifiedStudent = false;
+      verificationReason = `Affiliated with ${primaryOrg.name}, but no official university domain is registered for email verification.`;
+    } else {
+      const cleanEmailDomain = userEmail.includes("@") ? userEmail.split("@")[1] : "";
+      const matches = cleanEmailDomain === orgDomain || cleanEmailDomain.endsWith(`.${orgDomain}`);
+      if (matches) {
+        isVerifiedStudent = true;
+        verificationReason = `Verified student at ${primaryOrg.name}. Email (${userWithProfile.email}) matches official university domain (@${orgDomain}).`;
+      } else {
+        isVerifiedStudent = false;
+        verificationReason = `Unverified institutional email. Account email (${userWithProfile.email}) does not match the official domain (@${orgDomain}) for ${primaryOrg.name}.`;
+      }
+    }
+  }
+
+  let userImageUrl = userWithProfile.imageUrl || null;
+  if (!userImageUrl && userWithProfile.clerkId) {
+    try {
+      const { clerkClient } = await import("@clerk/express");
+      const clerkUser = await clerkClient.users.getUser(userWithProfile.clerkId);
+      if (clerkUser?.imageUrl) {
+        userImageUrl = clerkUser.imageUrl;
+        prisma.user.update({
+          where: { id: userWithProfile.id },
+          data: { imageUrl: clerkUser.imageUrl },
+        }).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const responsePayload: UserProfileResponse = {
+    id: profile?.id || (null as any),
+    userId: userWithProfile.id,
+    clerkId: userWithProfile.clerkId,
+    name: userWithProfile.name,
+    email: userWithProfile.email,
+    imageUrl: userImageUrl,
+    profilePicture: userImageUrl,
+    avatarUrl: userImageUrl,
+    university: profile?.university || null,
+    title: profile?.title || null,
+    summary: profile?.summary || null,
+    skills: profile?.skills || [],
+    education: profile?.education || [],
+    experience: profile?.experience || [],
+    achievements: profile?.achievements || [],
+    projects: profile?.projects || [],
+    githubUrl: profile?.githubUrl || null,
+    linkedinUrl: profile?.linkedinUrl || null,
+    resumePdfUrl: profile?.resumePdfPath ? `/api/resume/view` : null,
+    lastResumeUploadedAt: profile?.lastResumeUploadedAt?.toISOString() || null,
+    taxonomyNodeIds: userWithProfile.taxonomy?.taxonomyNodeIds || [],
+    evidence: (userWithProfile.taxonomy?.evidence as any) || [],
+    isVerifiedStudent,
+    verificationReason,
+    organizationDomain: orgDomain || null,
+    organizationName: orgName,
+    teams: userWithProfile.teams.map((tm) => ({
+      teamId: tm.team.id,
+      teamName: tm.team.name,
+      eventId: tm.team.eventId,
+      role: tm.role || "Member",
+      joinedAt: tm.joinedAt.toISOString(),
+    })),
+    bannerConfig: userWithProfile.preferences?.bannerConfig || null,
+    createdAt: userWithProfile.createdAt.toISOString(),
+    updatedAt: userWithProfile.updatedAt.toISOString(),
+  };
+
+  // Synchronously warm the Redis L3 cache for this user
+  await CacheService.set(`profile:${userWithProfile.id}`, responsePayload, CACHE_TTL.PROFILE);
+
+  return responsePayload;
+}
 
 export const getProfile = async (req: Request, res: Response) => {
   const auth = getAuth(req);
@@ -27,127 +151,17 @@ export const getProfile = async (req: Request, res: Response) => {
   const cacheKey = `profile:${userInDb.id}`;
 
   if (!bypassCache) {
-    const cached = await CacheService.get<any>(cacheKey);
+    const cached = await CacheService.get<UserProfileResponse>(cacheKey);
     if (cached) {
       return res.json(cached);
     }
   }
 
   try {
-    const userWithProfile = await prisma.user.findUnique({
-      where: { id: userInDb.id },
-      include: {
-        profile: true,
-        taxonomy: true,
-        preferences: true,
-        organizationMemberships: {
-          include: {
-            organization: true,
-          },
-        },
-        teams: {
-          include: {
-            team: {
-              select: {
-                id: true,
-                name: true,
-                eventId: true,
-                university: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!userWithProfile) {
+    const responsePayload = await buildCanonicalUserProfile(userInDb.id);
+    if (!responsePayload) {
       return res.status(404).json({ error: "User not found." });
     }
-
-    const profile = userWithProfile.profile;
-    const primaryMembership = userWithProfile.organizationMemberships?.[0];
-    const primaryOrg = primaryMembership?.organization;
-    const userEmail = (userWithProfile.email || "").toLowerCase().trim();
-    const orgDomain = (primaryOrg?.domain || "").toLowerCase().trim();
-    const orgName = primaryOrg?.name || profile?.university || null;
-
-    let isVerifiedStudent = false;
-    let verificationReason = "No university organization affiliation found.";
-
-    if (primaryOrg) {
-      if (!orgDomain) {
-        isVerifiedStudent = false;
-        verificationReason = `Affiliated with ${primaryOrg.name}, but no official university domain is registered for email verification.`;
-      } else {
-        const cleanEmailDomain = userEmail.includes("@") ? userEmail.split("@")[1] : "";
-        const matches = cleanEmailDomain === orgDomain || cleanEmailDomain.endsWith(`.${orgDomain}`);
-        if (matches) {
-          isVerifiedStudent = true;
-          verificationReason = `Verified student at ${primaryOrg.name}. Email (${userWithProfile.email}) matches official university domain (@${orgDomain}).`;
-        } else {
-          isVerifiedStudent = false;
-          verificationReason = `Unverified institutional email. Account email (${userWithProfile.email}) does not match the official domain (@${orgDomain}) for ${primaryOrg.name}.`;
-        }
-      }
-    }
-
-    let userImageUrl = userWithProfile.imageUrl || null;
-    if (!userImageUrl && userWithProfile.clerkId) {
-      try {
-        const { clerkClient } = await import("@clerk/express");
-        const clerkUser = await clerkClient.users.getUser(userWithProfile.clerkId);
-        if (clerkUser?.imageUrl) {
-          userImageUrl = clerkUser.imageUrl;
-          prisma.user.update({
-            where: { id: userWithProfile.id },
-            data: { imageUrl: clerkUser.imageUrl },
-          }).catch(() => {});
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    const responsePayload = {
-      id: profile?.id || null,
-      userId: userWithProfile.id,
-      clerkId: userWithProfile.clerkId,
-      name: userWithProfile.name,
-      email: userWithProfile.email,
-      imageUrl: userImageUrl,
-      profilePicture: userImageUrl,
-      avatarUrl: userImageUrl,
-      university: profile?.university || null,
-      title: profile?.title || null,
-      summary: profile?.summary || null,
-      skills: profile?.skills || [],
-      education: profile?.education || [],
-      experience: profile?.experience || [],
-      achievements: profile?.achievements || [],
-      projects: profile?.projects || [],
-      githubUrl: profile?.githubUrl || null,
-      linkedinUrl: profile?.linkedinUrl || null,
-      resumePdfUrl: profile?.resumePdfPath ? `/api/resume/view` : null,
-      lastResumeUploadedAt: profile?.lastResumeUploadedAt?.toISOString() || null,
-      taxonomyNodeIds: userWithProfile.taxonomy?.taxonomyNodeIds || [],
-      evidence: userWithProfile.taxonomy?.evidence || [],
-      isVerifiedStudent,
-      verificationReason,
-      organizationDomain: orgDomain || null,
-      organizationName: orgName,
-      teams: userWithProfile.teams.map((tm) => ({
-        teamId: tm.team.id,
-        teamName: tm.team.name,
-        eventId: tm.team.eventId,
-        role: tm.role,
-        joinedAt: tm.joinedAt.toISOString(),
-      })),
-      bannerConfig: userWithProfile.preferences?.bannerConfig || null,
-      createdAt: userWithProfile.createdAt.toISOString(),
-      updatedAt: userWithProfile.updatedAt.toISOString(),
-    };
-
-    await CacheService.set(cacheKey, responsePayload, CACHE_TTL.PROFILE);
 
     return res.json(responsePayload);
   } catch (error) {
@@ -288,11 +302,8 @@ export const updateProfile = async (
       include: { preferences: true },
     });
 
-    // Invalidate profile cache on update
-    await CacheService.invalidateProfile(userInDb.id);
-    if (userInDb.clerkId) {
-      await CacheService.invalidateProfile(userInDb.clerkId);
-    }
+    // Invalidate profile cache across DB ID and Clerk ID
+    await CacheService.invalidateProfile(userInDb.id, userInDb.clerkId);
 
     // Send in-app notification to user
     NotificationService.createNotification({
@@ -306,29 +317,14 @@ export const updateProfile = async (
       console.warn("[Profile API] Failed to dispatch profile update notification:", notifErr);
     });
 
+    const canonicalProfile = await buildCanonicalUserProfile(userInDb.id);
+    if (!canonicalProfile) {
+      return res.status(500).json({ error: "Failed to construct updated profile." });
+    }
+
     return res.json({
       message: "Profile updated successfully.",
-      profile: {
-        id: updatedProfile.id,
-        userId: userInDb.id,
-        name: name || userInDb.name,
-        email: userInDb.email,
-        university: updatedProfile.university,
-        title: updatedProfile.title,
-        summary: updatedProfile.summary,
-        skills: updatedProfile.skills,
-        education: updatedProfile.education,
-        experience: updatedProfile.experience,
-        achievements: updatedProfile.achievements,
-        projects: updatedProfile.projects,
-        githubUrl: updatedProfile.githubUrl,
-        linkedinUrl: updatedProfile.linkedinUrl,
-        resumePdfUrl: updatedProfile.resumePdfPath ? `/api/resume/view` : null,
-        lastResumeUploadedAt: updatedProfile.lastResumeUploadedAt?.toISOString() || null,
-        taxonomyNodeIds: updatedTaxonomyNodeIds,
-        bannerConfig: userWithPrefs?.preferences?.bannerConfig || null,
-        updatedAt: updatedProfile.updatedAt.toISOString(),
-      },
+      profile: canonicalProfile,
     });
   } catch (error) {
     console.error("[Profile API] Error updating profile:", error);
@@ -509,7 +505,14 @@ export const syncClerkData = async (req: Request, res: Response) => {
     const { syncUserOrganizationsFromClerk } = await import("../utils/auth.utils.js");
     await syncUserOrganizationsFromClerk(userInDb.id, userId);
 
-    return res.json({ success: true, message: "Clerk data synced successfully." });
+    await CacheService.invalidateProfile(userInDb.id, userInDb.clerkId);
+    const canonicalProfile = await buildCanonicalUserProfile(userInDb.id);
+
+    return res.json({
+      success: true,
+      message: "Clerk data synced successfully.",
+      profile: canonicalProfile,
+    });
   } catch (error) {
     console.error("[Profile API] Error syncing Clerk data:", error);
     return res.status(500).json({ error: "Failed to sync Clerk data." });
