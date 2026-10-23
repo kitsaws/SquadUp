@@ -22,8 +22,17 @@ const app = express();
 const port = Number(process.env.PORT ?? 3000);
 
 // Middleware
-app.use(helmet());
-app.use(cors());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 import { clerkMiddleware } from "@clerk/express";
 app.use(clerkMiddleware());
 

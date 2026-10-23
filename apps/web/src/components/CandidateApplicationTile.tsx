@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ChevronDown, ChevronUp, ExternalLink, Check, X, FileText, Building, Sparkles, CheckCircle2, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { RecommendationBadge, RecommendationTier, SkillTag } from "./Badges";
+import { API_BASE_URL } from "../services/api";
 
 export interface CandidateApplicationData {
   id: string;
@@ -193,7 +194,7 @@ export function CandidateApplicationTile({
               </Link>
 
               <a
-                href={`/api/resume/view/${application.candidateId}`}
+                href={`${API_BASE_URL}/resume/view/${application.candidateId}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-text-main bg-surface-dim border border-border-main hover:bg-surface transition-colors"

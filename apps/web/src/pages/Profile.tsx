@@ -17,6 +17,7 @@ import {
   applicationsApi,
   UserProfileResponse,
   CandidateApplicationItem,
+  API_BASE_URL,
 } from "../services/api";
 import {
   ProfileHeader,
@@ -236,8 +237,8 @@ export function Profile() {
   }
 
   const resumeUrl = isCandidateView && urlId
-    ? `/api/resume/view/${urlId}`
-    : `/api/resume/view`;
+    ? `${API_BASE_URL}/resume/view/${urlId}`
+    : `${API_BASE_URL}/resume/view`;
 
   const hasResume = Boolean(profile.lastResumeUploadedAt || profile.resumePdfUrl || (profile as any).hasResume);
 
