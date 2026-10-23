@@ -33,6 +33,13 @@ app.use(
     credentials: true,
   })
 );
+// Allow Bearer token from ?token= query parameter (for direct browser tab PDF previews)
+app.use((req, _res, next) => {
+  if (typeof req.query.token === "string" && !req.headers.authorization) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+});
 import { clerkMiddleware } from "@clerk/express";
 app.use(clerkMiddleware());
 

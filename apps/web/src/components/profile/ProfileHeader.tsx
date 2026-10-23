@@ -17,7 +17,7 @@ import {
 import { toast } from "react-toastify";
 import { VerificationBadge } from "../Badges";
 import { BannerConfig } from "../EditProfileModal";
-import { UserProfileResponse } from "../../services/api";
+import { UserProfileResponse, getAuthToken } from "../../services/api";
 import { GithubIcon, LinkedinIcon } from "../icons/SocialIcons";
 import { formatGithubUrl, formatLinkedinUrl } from "../../utils/url.utils";
 
@@ -98,6 +98,18 @@ export function ProfileHeader({
       onSuccess();
     } catch (err) {
       console.error("Copy failed:", err);
+    }
+  };
+
+  const handleOpenResume = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      const token = await getAuthToken();
+      const url = token ? `${resumeUrl}?token=${encodeURIComponent(token)}` : resumeUrl;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Error opening resume:", err);
+      window.open(resumeUrl, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -256,6 +268,7 @@ export function ProfileHeader({
               {hasResume ? (
                 <a
                   href={resumeUrl}
+                  onClick={handleOpenResume}
                   target="_blank"
                   rel="noreferrer"
                   className="text-primary-action font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"

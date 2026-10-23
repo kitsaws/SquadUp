@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { ChevronDown, ChevronUp, ExternalLink, Check, X, FileText, Building, Sparkles, CheckCircle2, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { RecommendationBadge, RecommendationTier, SkillTag } from "./Badges";
-import { API_BASE_URL } from "../services/api";
+import { API_BASE_URL, getAuthToken } from "../services/api";
 
 export interface CandidateApplicationData {
   id: string;
@@ -74,6 +74,19 @@ export function CandidateApplicationTile({
   defaultExpanded = false,
 }: CandidateApplicationTileProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+  const handleOpenResume = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    const base = `${API_BASE_URL}/resume/view/${application.candidateId}`;
+    try {
+      const token = await getAuthToken();
+      const url = token ? `${base}?token=${encodeURIComponent(token)}` : base;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Error opening candidate resume:", err);
+      window.open(base, "_blank", "noopener,noreferrer");
+    }
+  };
 
   const percentScore = Math.round(application.matchScore * 100);
 
@@ -195,9 +208,10 @@ export function CandidateApplicationTile({
 
               <a
                 href={`${API_BASE_URL}/resume/view/${application.candidateId}`}
+                onClick={handleOpenResume}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-text-main bg-surface-dim border border-border-main hover:bg-surface transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-text-main bg-surface-dim border border-border-main hover:bg-surface transition-colors cursor-pointer"
               >
                 <FileText className="w-3 h-3 text-text-muted" />
                 <span>Resume PDF</span>
