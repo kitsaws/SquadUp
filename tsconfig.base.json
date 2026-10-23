@@ -7,10 +7,6 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "moduleDetection": "force",
-    "baseUrl": ".",
-    "paths": {
-      "@squadup/shared": ["packages/shared/src/index.ts"]
-    }
+    "moduleDetection": "force"
   }
 }
