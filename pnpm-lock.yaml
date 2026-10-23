@@ -63,6 +63,9 @@ importers:
       pdfjs-dist:
         specifier: ^5.0.0
         version: 5.7.284
+      prisma:
+        specifier: ^6.0.0
+        version: 6.19.3(typescript@5.9.3)
       svix:
         specifier: ^2.0.0
         version: 2.0.0
@@ -85,9 +88,6 @@ importers:
       dotenv-cli:
         specifier: ^7.4.2
         version: 7.4.4
-      prisma:
-        specifier: ^6.0.0
-        version: 6.19.3(typescript@5.9.3)
       rimraf:
         specifier: ^6.0.1
         version: 6.1.3

@@ -3,7 +3,7 @@ services:
     name: squadup-api
     runtime: node
     plan: free
-    buildCommand: pnpm install && pnpm --filter @squadup/shared build && pnpm --filter @squadup/api build
+    buildCommand: pnpm install --prod=false && pnpm --filter @squadup/shared build && pnpm --filter @squadup/api build
     startCommand: node apps/api/dist/index.js
     healthCheckPath: /health
     autoDeploy: true
