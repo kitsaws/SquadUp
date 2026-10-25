@@ -61,10 +61,11 @@ app.use("/api/notifications", notificationRoutes);
 
 
 // General Endpoints
-app.get("/health", (_request, response) => {
+app.get(["/health", "/api/health"], (_request, response) => {
   response.status(200).json({
     status: "ok",
-    service: "squadup-api"
+    service: "squadup-api",
+    timestamp: new Date().toISOString()
   });
 });
 

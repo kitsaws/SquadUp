@@ -78,13 +78,30 @@ export function CandidateApplicationTile({
   const handleOpenResume = async (e: React.MouseEvent) => {
     e.preventDefault();
     const base = `${API_BASE_URL}/resume/view/${application.candidateId}`;
+    const newTab = window.open("about:blank", "_blank");
     try {
       const token = await getAuthToken();
-      const url = token ? `${base}?token=${encodeURIComponent(token)}` : base;
-      window.open(url, "_blank", "noopener,noreferrer");
+      const res = await fetch(base, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      if (newTab) {
+        newTab.location.href = blobUrl;
+      } else {
+        window.open(blobUrl, "_blank");
+      }
     } catch (err) {
-      console.error("Error opening candidate resume:", err);
-      window.open(base, "_blank", "noopener,noreferrer");
+      console.warn("Blob fetch failed for candidate resume, falling back:", err);
+      try {
+        const token = await getAuthToken();
+        const fallback = token ? `${base}?token=${encodeURIComponent(token)}` : base;
+        if (newTab) newTab.location.href = fallback;
+        else window.open(fallback, "_blank");
+      } catch {
+        if (newTab) newTab.location.href = base;
+      }
     }
   };
 

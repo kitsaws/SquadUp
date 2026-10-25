@@ -103,13 +103,30 @@ export function ProfileHeader({
 
   const handleOpenResume = async (e: React.MouseEvent) => {
     e.preventDefault();
+    const newTab = window.open("about:blank", "_blank");
     try {
       const token = await getAuthToken();
-      const url = token ? `${resumeUrl}?token=${encodeURIComponent(token)}` : resumeUrl;
-      window.open(url, "_blank", "noopener,noreferrer");
+      const res = await fetch(resumeUrl, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      if (newTab) {
+        newTab.location.href = blobUrl;
+      } else {
+        window.open(blobUrl, "_blank");
+      }
     } catch (err) {
-      console.error("Error opening resume:", err);
-      window.open(resumeUrl, "_blank", "noopener,noreferrer");
+      console.warn("Blob fetch failed, falling back to direct URL:", err);
+      try {
+        const token = await getAuthToken();
+        const fallback = token ? `${resumeUrl}?token=${encodeURIComponent(token)}` : resumeUrl;
+        if (newTab) newTab.location.href = fallback;
+        else window.open(fallback, "_blank");
+      } catch {
+        if (newTab) newTab.location.href = resumeUrl;
+      }
     }
   };
 

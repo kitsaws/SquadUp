@@ -679,3 +679,39 @@ export const preferencesApi = {
     return res;
   },
 };
+
+/* =========================================================================
+   HEALTH / STATUS API (/health & /api/health)
+   ========================================================================= */
+
+export const healthApi = {
+  checkHealth: async (timeoutMs = 6000): Promise<{ status: string; service: string }> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const endpoint = API_BASE_URL.endsWith("/api")
+        ? `${API_BASE_URL}/health`
+        : `${API_BASE_URL}/api/health`;
+
+      const res = await fetch(endpoint, {
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error(`Health status ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      clearTimeout(timer);
+      // Fallback: try root /health
+      try {
+        const rootEndpoint = API_BASE_URL.replace(/\/api$/, "") + "/health";
+        const fallbackRes = await fetch(rootEndpoint, { cache: "no-store" });
+        if (fallbackRes.ok) return await fallbackRes.json();
+      } catch {
+        // ignore fallback error
+      }
+      throw err;
+    }
+  },
+};
+
